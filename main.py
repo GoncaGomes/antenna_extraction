@@ -1,6 +1,5 @@
-def main():
-    print("Hello from 001-antenna-extraction!")
+from antenna_ingest.cli import main
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

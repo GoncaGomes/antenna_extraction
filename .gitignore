@@ -9,3 +9,8 @@ wheels/
 # Virtual environments
 .venv
 .env
+.env.example
+
+# Generated pipeline run artifacts
+runs/*
+!runs/.gitkeep
