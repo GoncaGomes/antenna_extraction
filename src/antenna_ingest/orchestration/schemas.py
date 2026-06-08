@@ -64,6 +64,7 @@ class RunManifest(StrictModel):
     run_id: str
     input_file: str
     pipeline_version: str
+    paper_id: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     phase_status: dict[str, PhaseStatus]
     artifacts: list[ArtifactReference] = Field(default_factory=list)
@@ -74,6 +75,16 @@ class RunManifest(StrictModel):
         cleaned = " ".join(value.split())
         if not cleaned:
             raise ValueError("field must not be empty")
+        return cleaned
+
+    @field_validator("paper_id")
+    @classmethod
+    def validate_optional_non_empty_string(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = " ".join(value.split())
+        if not cleaned:
+            raise ValueError("paper_id must not be empty when provided")
         return cleaned
 
     def add_artifact(self, artifact: ArtifactReference) -> None:

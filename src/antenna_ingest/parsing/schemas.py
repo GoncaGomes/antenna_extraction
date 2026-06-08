@@ -25,4 +25,7 @@ class ParseReport(StrictModel):
     number_of_paragraphs: int = Field(ge=0)
     number_of_captions: int = Field(ge=0)
     number_of_chunks: int = Field(ge=0)
+    number_of_sections: int = Field(ge=0)
+    number_of_tables_in_sections: int = Field(ge=0)
+    number_of_page_ranges_missing: int = Field(ge=0)
     warnings: list[str] = Field(default_factory=list)

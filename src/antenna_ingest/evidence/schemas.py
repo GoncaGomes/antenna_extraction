@@ -13,6 +13,7 @@ class EvidenceType(str, Enum):
     title = "title"
     abstract = "abstract"
     heading = "heading"
+    section = "section"
     paragraph = "paragraph"
     chunk = "chunk"
     caption = "caption"

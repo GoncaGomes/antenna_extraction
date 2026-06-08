@@ -14,3 +14,6 @@ wheels/
 # Generated pipeline run artifacts
 runs/*
 !runs/.gitkeep
+
+#PDF Documents
+SystemRefactor.pdf

@@ -98,6 +98,19 @@ def test_run_manifest_validates_and_serializes_json() -> None:
     assert isinstance(dumped["created_at"], str)
 
 
+def test_old_run_manifest_without_paper_id_still_validates() -> None:
+    manifest = RunManifest.model_validate(
+        {
+            "run_id": "run_1",
+            "input_file": "input/source.pdf",
+            "pipeline_version": "0.1.0",
+            "phase_status": {"run_infrastructure": "completed"},
+        }
+    )
+
+    assert manifest.paper_id is None
+
+
 def test_run_manifest_add_artifact_adds_an_artifact() -> None:
     manifest = RunManifest(
         run_id="run_1",

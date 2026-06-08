@@ -71,6 +71,7 @@ def create_run(
         run_id=run_id,
         input_file=input_relative_path.as_posix(),
         pipeline_version=pipeline_version,
+        paper_id=paper_id,
         phase_status=dict(INITIAL_PHASE_STATUS),
     )
     manifest.add_artifact(

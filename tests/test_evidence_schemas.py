@@ -44,6 +44,10 @@ def test_valid_evidence_item() -> None:
     assert item.type == EvidenceType.paragraph
 
 
+def test_evidence_type_section_exists() -> None:
+    assert EvidenceType.section == "section"
+
+
 def test_invalid_evidence_id_rejected() -> None:
     with pytest.raises(ValidationError):
         _evidence_item("evidence_1")

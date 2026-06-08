@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -13,14 +14,19 @@ from antenna_ingest.evidence.schemas import (
 )
 from antenna_ingest.orchestration.runs import sha256_file
 from antenna_ingest.orchestration.schemas import ArtifactReference, PhaseStatus, RunManifest
+from antenna_ingest.parsing.docling_evidence_builder import (
+    docling_document_to_evidence_items,
+    markdown_to_evidence_items,
+)
 from antenna_ingest.parsing.schemas import ParseOutputPaths, ParseReport
 from antenna_ingest.utils.json_io import read_json, write_json
 
 
 PARSER_NAME = "docling_text_parser"
 PARSER_VERSION = "0.1.0"
-MAX_CHARS_PER_EVIDENCE_ITEM = 1200
-CHUNK_OVERLAP_CHARS = 150
+MARKDOWN_FALLBACK_WARNING = (
+    "Docling native document unavailable; used Markdown fallback for evidence generation."
+)
 
 MARKDOWN_PATH = "parsed/document.md"
 TEXT_PATH = "parsed/document.txt"
@@ -35,6 +41,15 @@ PHASE_2A_ARTIFACTS = {
     "parse_report": PARSE_REPORT_PATH,
     "evidence_items": EVIDENCE_PATH,
 }
+
+
+@dataclass
+class DoclingParseResult:
+    markdown: str
+    text: str
+    docling_dict: dict[str, Any]
+    number_of_pages: int | None
+    document: Any | None = None
 
 
 def parse_run_with_docling(
@@ -53,14 +68,26 @@ def parse_run_with_docling(
     write_json(manifest_path, manifest.model_dump(mode="json"))
 
     try:
-        markdown, text, docling_document, number_of_pages = convert_pdf_with_docling(input_pdf)
-        write_text(run_dir / MARKDOWN_PATH, markdown)
-        write_text(run_dir / TEXT_PATH, text)
-        write_json(run_dir / DOCLING_JSON_PATH, docling_document)
+        result = convert_pdf_with_docling(input_pdf)
+        write_text(run_dir / MARKDOWN_PATH, result.markdown)
+        write_text(run_dir / TEXT_PATH, result.text)
+        write_json(run_dir / DOCLING_JSON_PATH, result.docling_dict)
 
-        evidence_items = markdown_to_evidence_items(markdown, source_document)
+        warnings: list[str] = []
+        if result.document is not None:
+            evidence_items = docling_document_to_evidence_items(
+                result.document,
+                source_document,
+            )
+        else:
+            evidence_items = markdown_to_evidence_items(
+                result.markdown,
+                source_document,
+            )
+            warnings.append(MARKDOWN_FALLBACK_WARNING)
+
         evidence_document = EvidenceStoreDocument(
-            paper_id=None,
+            paper_id=manifest.paper_id,
             source_document=source_document,
             parser=ParserMetadata(
                 parser_name=PARSER_NAME,
@@ -77,9 +104,10 @@ def parse_run_with_docling(
 
         report = _build_parse_report(
             source_document=source_document,
-            text=text,
+            text=result.text,
             items=evidence_items,
-            number_of_pages=number_of_pages,
+            number_of_pages=result.number_of_pages,
+            warnings=warnings,
         )
         write_json(run_dir / PARSE_REPORT_PATH, report.model_dump(mode="json"))
 
@@ -111,109 +139,12 @@ def find_input_pdf(run_dir: Path, manifest: dict[str, Any]) -> Path:
     raise ValueError(f"multiple input PDFs found in {input_dir}; manifest input_file is required")
 
 
-def make_evidence_id(index: int) -> str:
-    if index < 1:
-        raise ValueError("evidence index must be >= 1")
-    return f"ev_{index:06d}"
-
-
 def write_text(path: Path, text: str) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
 
-
-def split_long_text(
-    text: str,
-    max_chars: int = MAX_CHARS_PER_EVIDENCE_ITEM,
-    overlap_chars: int = CHUNK_OVERLAP_CHARS,
-) -> list[str]:
-    text = text.strip()
-    if not text:
-        return []
-    if len(text) <= max_chars:
-        return [text]
-    if overlap_chars >= max_chars:
-        raise ValueError("overlap_chars must be smaller than max_chars")
-
-    chunks: list[str] = []
-    start = 0
-    while start < len(text):
-        end = min(start + max_chars, len(text))
-        if end < len(text):
-            split_at = text.rfind(" ", start, end)
-            if split_at > start:
-                end = split_at
-        chunk = text[start:end].strip()
-        if chunk:
-            chunks.append(chunk)
-        if end >= len(text):
-            break
-        start = max(end - overlap_chars, 0)
-    return chunks
-
-
-def infer_evidence_type(block: str, current_section: str | None = None) -> EvidenceType:
-    cleaned = block.strip()
-    if not cleaned:
-        return EvidenceType.unknown
-    if cleaned.startswith("#"):
-        return EvidenceType.heading
-    if current_section and "abstract" in current_section.lower():
-        return EvidenceType.abstract
-    if cleaned.startswith(("Fig.", "Figure", "TABLE", "Table")):
-        return EvidenceType.caption
-    if _looks_like_equation(cleaned):
-        return EvidenceType.equation
-    return EvidenceType.paragraph
-
-
-def markdown_to_evidence_items(markdown: str, source_document: str) -> list[EvidenceItem]:
-    items: list[EvidenceItem] = []
-    current_section: str | None = None
-    title_seen = False
-
-    for block in _markdown_blocks(markdown):
-        if not _is_meaningful_block(block):
-            continue
-
-        if block.startswith("#"):
-            heading_text = block.lstrip("#").strip()
-            evidence_type = EvidenceType.title if block.startswith("# ") and not title_seen else EvidenceType.heading
-            title_seen = title_seen or evidence_type == EvidenceType.title
-            section = None
-            if evidence_type == EvidenceType.heading:
-                current_section = heading_text
-            elif "abstract" in heading_text.lower():
-                current_section = heading_text
-            text = heading_text
-        else:
-            evidence_type = infer_evidence_type(block, current_section)
-            section = current_section
-            text = block.strip()
-
-        chunks = split_long_text(text)
-        for chunk in chunks:
-            chunk_type = EvidenceType.chunk if len(chunks) > 1 and evidence_type == EvidenceType.paragraph else evidence_type
-            items.append(
-                EvidenceItem(
-                    evidence_id=make_evidence_id(len(items) + 1),
-                    source_document=source_document,
-                    type=chunk_type,
-                    text=chunk,
-                    page=None,
-                    section=section,
-                    metadata={
-                        "backend": "docling",
-                        "source": "markdown_fallback",
-                    },
-                )
-            )
-
-    return items
-
-
-def convert_pdf_with_docling(pdf_path: Path) -> tuple[str, str, dict[str, Any], int | None]:
+def convert_pdf_with_docling(pdf_path: Path) -> DoclingParseResult:
     from docling.document_converter import DocumentConverter
 
     converter = DocumentConverter()
@@ -227,7 +158,13 @@ def convert_pdf_with_docling(pdf_path: Path) -> tuple[str, str, dict[str, Any], 
         docling_dict = {"document": docling_dict}
 
     number_of_pages = _extract_number_of_pages(result, docling_dict)
-    return markdown, text, docling_dict, number_of_pages
+    return DoclingParseResult(
+        markdown=markdown,
+        text=text,
+        docling_dict=docling_dict,
+        number_of_pages=number_of_pages,
+        document=document,
+    )
 
 
 def _build_parse_report(
@@ -235,7 +172,9 @@ def _build_parse_report(
     text: str,
     items: list[EvidenceItem],
     number_of_pages: int | None,
+    warnings: list[str],
 ) -> ParseReport:
+    sections = [item for item in items if item.type == EvidenceType.section]
     return ParseReport(
         parser_name=PARSER_NAME,
         parser_version=PARSER_VERSION,
@@ -254,7 +193,17 @@ def _build_parse_report(
         number_of_paragraphs=sum(item.type in {EvidenceType.paragraph, EvidenceType.abstract} for item in items),
         number_of_captions=sum(item.type == EvidenceType.caption for item in items),
         number_of_chunks=sum(item.type == EvidenceType.chunk for item in items),
-        warnings=[],
+        number_of_sections=len(sections),
+        number_of_tables_in_sections=sum(
+            int(item.metadata.get("table_count", 0))
+            for item in sections
+        ),
+        number_of_page_ranges_missing=sum(
+            item.metadata.get("page_start") is None
+            or item.metadata.get("page_end") is None
+            for item in sections
+        ),
+        warnings=warnings,
     )
 
 
@@ -278,22 +227,6 @@ def _refuse_existing_outputs(run_dir: Path, force: bool) -> None:
     existing = [relative_path for relative_path in PHASE_2A_ARTIFACTS.values() if (run_dir / relative_path).exists()]
     if existing:
         raise FileExistsError(f"Phase 2A output already exists: {existing[0]}")
-
-
-def _markdown_blocks(markdown: str) -> list[str]:
-    return [block.strip() for block in markdown.split("\n\n") if block.strip()]
-
-
-def _is_meaningful_block(block: str) -> bool:
-    cleaned = block.strip()
-    return bool(cleaned) and any(character.isalnum() for character in cleaned)
-
-
-def _looks_like_equation(text: str) -> bool:
-    if "\n" in text:
-        return False
-    equation_markers = ("=", "\\(", "\\[", "$")
-    return any(marker in text for marker in equation_markers) and any(character.isdigit() for character in text)
 
 
 def _extract_number_of_pages(result: Any, docling_dict: dict[str, Any]) -> int | None:

@@ -68,3 +68,17 @@ def test_create_run_creates_phase_1_run_structure(tmp_path) -> None:
 def test_create_run_raises_for_missing_input_file(tmp_path) -> None:
     with pytest.raises(FileNotFoundError):
         create_run(tmp_path / "missing.pdf", runs_root=tmp_path / "runs")
+
+
+def test_create_run_persists_paper_id(tmp_path) -> None:
+    article_pdf = tmp_path / "article.pdf"
+    article_pdf.write_bytes(b"%PDF-1.4\n%fake test pdf\n")
+
+    context = create_run(
+        article_pdf,
+        runs_root=tmp_path / "runs",
+        paper_id="example_paper",
+    )
+    manifest = RunManifest.model_validate(read_json(context.run_dir / "manifest.json"))
+
+    assert manifest.paper_id == "example_paper"

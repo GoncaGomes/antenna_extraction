@@ -29,6 +29,9 @@ def _parse_report(**overrides) -> ParseReport:
         "number_of_paragraphs": 1,
         "number_of_captions": 1,
         "number_of_chunks": 0,
+        "number_of_sections": 1,
+        "number_of_tables_in_sections": 1,
+        "number_of_page_ranges_missing": 0,
         "warnings": [],
     }
     data.update(overrides)
@@ -49,6 +52,19 @@ def test_negative_counts_rejected() -> None:
 def test_number_of_pages_zero_rejected() -> None:
     with pytest.raises(ValidationError):
         _parse_report(number_of_pages=0)
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "number_of_sections",
+        "number_of_tables_in_sections",
+        "number_of_page_ranges_missing",
+    ],
+)
+def test_negative_native_evidence_counts_rejected(field) -> None:
+    with pytest.raises(ValidationError):
+        _parse_report(**{field: -1})
 
 
 def test_extra_fields_rejected() -> None:

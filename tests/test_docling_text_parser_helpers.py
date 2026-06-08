@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from antenna_ingest.evidence.schemas import EvidenceType
-from antenna_ingest.parsing.docling_text_parser import (
+from antenna_ingest.parsing.docling_evidence_builder import (
     infer_evidence_type,
     make_evidence_id,
     markdown_to_evidence_items,
