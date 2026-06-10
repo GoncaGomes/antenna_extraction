@@ -13,6 +13,7 @@ wheels/
 
 # Generated pipeline run artifacts
 runs/*
+runs.zip
 !runs/.gitkeep
 
 #PDF Documents

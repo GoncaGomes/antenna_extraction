@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
+import pytest
+
 from antenna_ingest.evidence.schemas import EvidenceType
 from antenna_ingest.parsing.docling_evidence_builder import (
     docling_document_to_evidence_items,
@@ -145,3 +147,150 @@ def test_native_builder_uses_fallback_paragraph_without_section() -> None:
     assert len(items) == 1
     assert items[0].type == EvidenceType.paragraph
     assert items[0].page == 1
+
+
+def test_section_header_title_is_promoted_when_title_label_is_missing() -> None:
+    document = FakeDocument(
+        [
+            (
+                FakeItem(
+                    FakeLabel.SECTION_HEADER,
+                    "A microstrip patch antenna for 5G mobile communications",
+                    level=1,
+                    pages=[1],
+                ),
+                1,
+            ),
+            (FakeItem(FakeLabel.SECTION_HEADER, "Abstract", level=1, pages=[1]), 1),
+            (
+                FakeItem(
+                    FakeLabel.TEXT,
+                    "This paper presents a compact antenna.",
+                    pages=[1],
+                ),
+                2,
+            ),
+        ]
+    )
+
+    items = docling_document_to_evidence_items(document, "input/article.pdf")
+
+    assert items[0].type == EvidenceType.title
+    assert items[0].text == "A microstrip patch antenna for 5G mobile communications"
+    assert items[0].section is None
+    assert items[0].metadata["title_fallback"] is True
+
+
+def test_explicit_title_does_not_create_duplicate_title() -> None:
+    document = FakeDocument(
+        [
+            (FakeItem(FakeLabel.TITLE, "Explicit Antenna Paper Title", pages=[1]), 1),
+            (
+                FakeItem(
+                    FakeLabel.SECTION_HEADER,
+                    "A second section-like heading with several words",
+                    level=1,
+                    pages=[1],
+                ),
+                1,
+            ),
+        ]
+    )
+
+    items = docling_document_to_evidence_items(document, "input/article.pdf")
+
+    assert sum(item.type == EvidenceType.title for item in items) == 1
+    assert items[0].text == "Explicit Antenna Paper Title"
+
+
+@pytest.mark.parametrize(
+    "heading",
+    ["Abstract", "Introduction", "References", "You may also like"],
+)
+def test_non_title_headings_are_not_promoted(heading) -> None:
+    document = FakeDocument(
+        [(FakeItem(FakeLabel.SECTION_HEADER, heading, level=1, pages=[1]), 1)]
+    )
+
+    items = docling_document_to_evidence_items(document, "input/article.pdf")
+
+    assert all(item.type != EvidenceType.title for item in items)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Abstract: This paper presents an antenna.",
+        "Abstract. This paper presents an antenna.",
+        "Abstract - This paper presents an antenna.",
+        "Abstract — This paper presents an antenna.",
+    ],
+)
+def test_inline_abstract_patterns_are_classified_as_abstract(text) -> None:
+    document = FakeDocument([(FakeItem(FakeLabel.TEXT, text, pages=[1]), 1)])
+
+    items = docling_document_to_evidence_items(document, "input/article.pdf")
+
+    assert len(items) == 1
+    assert items[0].type == EvidenceType.abstract
+
+
+def test_abstract_section_is_classified_as_abstract() -> None:
+    document = FakeDocument(
+        [
+            (FakeItem(FakeLabel.SECTION_HEADER, "Abstract", level=1, pages=[1]), 1),
+            (
+                FakeItem(
+                    FakeLabel.TEXT,
+                    "This paper presents a rectangular patch antenna.",
+                    pages=[1],
+                ),
+                2,
+            ),
+        ]
+    )
+
+    items = docling_document_to_evidence_items(document, "input/article.pdf")
+
+    assert len(items) == 1
+    assert items[0].type == EvidenceType.abstract
+    assert items[0].section == "Abstract"
+    assert items[0].metadata["source"] == "docling_native_tree"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "You may also like",
+        "View the article online for updates and enhancements.",
+        "PAPER • OPEN ACCESS",
+        "<!-- image -->",
+        "<!-- formula-not-decoded -->",
+    ],
+)
+def test_isolated_boilerplate_is_ignored(text) -> None:
+    document = FakeDocument([(FakeItem(FakeLabel.TEXT, text, pages=[1]), 1)])
+
+    items = docling_document_to_evidence_items(document, "input/article.pdf")
+
+    assert items == []
+
+
+def test_normal_scientific_sentence_is_not_filtered() -> None:
+    document = FakeDocument(
+        [
+            (
+                FakeItem(
+                    FakeLabel.TEXT,
+                    "The antenna radiation pattern is measured at 2.4 GHz.",
+                    pages=[1],
+                ),
+                1,
+            )
+        ]
+    )
+
+    items = docling_document_to_evidence_items(document, "input/article.pdf")
+
+    assert len(items) == 1
+    assert items[0].type == EvidenceType.paragraph

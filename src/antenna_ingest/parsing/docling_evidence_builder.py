@@ -17,7 +17,22 @@ _NOISY_ISOLATED_TEXT = {
     "article",
     "proceeding paper",
     "paper · open access",
+    "paper • open access",
     "paper open access",
+    "you may also like",
+    "view the article online for updates and enhancements",
+}
+_NOISY_TEXT_PREFIXES = {
+    "academic editors:",
+    "citation:",
+    "content from this work may be used under the terms",
+    "copyright:",
+    "licensee mdpi",
+    "published under licence",
+    "published under license",
+    "published:",
+    "this content was downloaded from",
+    "to cite this article",
 }
 
 
@@ -128,6 +143,7 @@ def docling_document_to_evidence_items(
                 drafts.append(_fallback_draft(item, text, pages, EvidenceType.paragraph))
 
     _flush_section(active_section, drafts)
+    _apply_title_fallback(drafts)
     return [
         EvidenceItem(
             evidence_id=make_evidence_id(index),
@@ -430,12 +446,81 @@ def _section_evidence_type(heading: str) -> EvidenceType:
 
 def _looks_like_inline_abstract(text: str) -> bool:
     normalized = text.strip().lower()
-    return normalized.startswith("abstract:") or normalized.startswith("abstract —")
+    return normalized.startswith(("abstract:", "abstract.", "abstract -", "abstract —"))
 
 
 def _is_placeholder(text: str) -> bool:
-    cleaned = " ".join(text.strip().lower().split())
-    return cleaned == "<!-- image -->" or cleaned in _NOISY_ISOLATED_TEXT
+    cleaned = " ".join(text.strip().lower().split()).rstrip(".")
+    return (
+        cleaned in {"<!-- image -->", "<!-- formula-not-decoded -->"}
+        or cleaned in _NOISY_ISOLATED_TEXT
+        or any(cleaned.startswith(prefix) for prefix in _NOISY_TEXT_PREFIXES)
+    )
+
+
+def _apply_title_fallback(drafts: list[dict[str, Any]]) -> None:
+    if any(draft["type"] == EvidenceType.title for draft in drafts):
+        return
+
+    for draft in drafts:
+        heading = draft.get("section") or ""
+        if draft["type"] in {EvidenceType.abstract, EvidenceType.reference}:
+            return
+        if _is_obvious_content_heading(heading):
+            return
+        if draft["type"] != EvidenceType.section or not _is_title_candidate(heading):
+            continue
+
+        if len(_section_body(draft["text"])) > 300:
+            return
+
+        draft["type"] = EvidenceType.title
+        draft["text"] = heading.strip()
+        draft["section"] = None
+        draft["metadata"] = {**draft["metadata"], "title_fallback": True}
+        return
+
+
+def _is_obvious_content_heading(text: str) -> bool:
+    normalized = " ".join(text.strip().lower().split()).rstrip(".:")
+    if normalized in {
+        "abstract",
+        "bibliography",
+        "introduction",
+        "references",
+    }:
+        return True
+
+    words = normalized.split(maxsplit=1)
+    if len(words) != 2 or words[1] != "introduction":
+        return False
+    prefix = words[0].rstrip(".")
+    return prefix.isdigit() or prefix in {
+        "i",
+        "ii",
+        "iii",
+        "iv",
+        "v",
+        "vi",
+        "vii",
+        "viii",
+        "ix",
+        "x",
+    }
+
+
+def _is_title_candidate(text: str) -> bool:
+    cleaned = " ".join(text.strip().split())
+    if not cleaned or _is_obvious_content_heading(cleaned) or _is_placeholder(cleaned):
+        return False
+    return 15 <= len(cleaned) <= 300 and len(cleaned.split()) >= 4
+
+
+def _section_body(text: str) -> str:
+    lines = text.splitlines()
+    if lines and lines[0].lstrip().startswith("#"):
+        lines = lines[1:]
+    return "\n".join(lines).strip()
 
 
 def _is_meaningful_text(text: str) -> bool:
