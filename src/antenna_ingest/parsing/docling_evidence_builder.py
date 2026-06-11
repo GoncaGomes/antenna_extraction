@@ -445,8 +445,10 @@ def _section_evidence_type(heading: str) -> EvidenceType:
 
 
 def _looks_like_inline_abstract(text: str) -> bool:
-    normalized = text.strip().lower()
-    return normalized.startswith(("abstract:", "abstract.", "abstract -", "abstract —"))
+    normalized = " ".join(text.strip().lower().split())
+    return normalized.startswith(
+        ("abstract:", "abstract.", "abstract -", "abstract —", "abstract ")
+    )
 
 
 def _is_placeholder(text: str) -> bool:
@@ -465,14 +467,14 @@ def _apply_title_fallback(drafts: list[dict[str, Any]]) -> None:
     for draft in drafts:
         heading = draft.get("section") or ""
         if draft["type"] in {EvidenceType.abstract, EvidenceType.reference}:
-            return
+            continue
         if _is_obvious_content_heading(heading):
-            return
+            continue
         if draft["type"] != EvidenceType.section or not _is_title_candidate(heading):
             continue
 
         if len(_section_body(draft["text"])) > 300:
-            return
+            continue
 
         draft["type"] = EvidenceType.title
         draft["text"] = heading.strip()

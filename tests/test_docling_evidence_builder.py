@@ -205,7 +205,15 @@ def test_explicit_title_does_not_create_duplicate_title() -> None:
 
 @pytest.mark.parametrize(
     "heading",
-    ["Abstract", "Introduction", "References", "You may also like"],
+    [
+        "Abstract",
+        "Introduction",
+        "1. Introduction",
+        "I. Introduction",
+        "References",
+        "Bibliography",
+        "You may also like",
+    ],
 )
 def test_non_title_headings_are_not_promoted(heading) -> None:
     document = FakeDocument(
@@ -224,6 +232,7 @@ def test_non_title_headings_are_not_promoted(heading) -> None:
         "Abstract. This paper presents an antenna.",
         "Abstract - This paper presents an antenna.",
         "Abstract — This paper presents an antenna.",
+        "Abstract This paper presents an antenna.",
     ],
 )
 def test_inline_abstract_patterns_are_classified_as_abstract(text) -> None:
@@ -264,6 +273,9 @@ def test_abstract_section_is_classified_as_abstract() -> None:
         "You may also like",
         "View the article online for updates and enhancements.",
         "PAPER • OPEN ACCESS",
+        "PAPER · OPEN ACCESS",
+        "To cite this article: Example",
+        "This content was downloaded from IP address 193.137.169.166",
         "<!-- image -->",
         "<!-- formula-not-decoded -->",
     ],
@@ -294,3 +306,77 @@ def test_normal_scientific_sentence_is_not_filtered() -> None:
 
     assert len(items) == 1
     assert items[0].type == EvidenceType.paragraph
+
+
+def test_inline_abstract_before_title_candidate_does_not_stop_fallback() -> None:
+    document = FakeDocument(
+        [
+            (
+                FakeItem(
+                    FakeLabel.TEXT,
+                    "Abstract: This paper presents a compact antenna.",
+                    pages=[1],
+                ),
+                1,
+            ),
+            (
+                FakeItem(
+                    FakeLabel.SECTION_HEADER,
+                    "A microstrip patch antenna for 5G mobile communications",
+                    level=1,
+                    pages=[1],
+                ),
+                1,
+            ),
+        ]
+    )
+
+    items = docling_document_to_evidence_items(document, "input/article.pdf")
+
+    abstract_items = [item for item in items if item.type == EvidenceType.abstract]
+    title_items = [item for item in items if item.type == EvidenceType.title]
+    assert len(abstract_items) == 1
+    assert len(title_items) == 1
+    assert title_items[0].text == (
+        "A microstrip patch antenna for 5G mobile communications"
+    )
+    assert title_items[0].metadata["title_fallback"] is True
+
+
+def test_abstract_section_before_title_candidate_does_not_stop_fallback() -> None:
+    document = FakeDocument(
+        [
+            (FakeItem(FakeLabel.SECTION_HEADER, "Abstract", level=1, pages=[1]), 1),
+            (
+                FakeItem(
+                    FakeLabel.TEXT,
+                    "This paper presents a compact antenna.",
+                    pages=[1],
+                ),
+                2,
+            ),
+            (
+                FakeItem(
+                    FakeLabel.SECTION_HEADER,
+                    (
+                        "Circular Slotted Triangular Patch Antenna for "
+                        "5.8 GHz ISM Band Applications"
+                    ),
+                    level=1,
+                    pages=[1],
+                ),
+                1,
+            ),
+        ]
+    )
+
+    items = docling_document_to_evidence_items(document, "input/article.pdf")
+
+    abstract_items = [item for item in items if item.type == EvidenceType.abstract]
+    title_items = [item for item in items if item.type == EvidenceType.title]
+    assert len(abstract_items) == 1
+    assert len(title_items) == 1
+    assert title_items[0].text == (
+        "Circular Slotted Triangular Patch Antenna for "
+        "5.8 GHz ISM Band Applications"
+    )
