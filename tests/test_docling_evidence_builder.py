@@ -380,3 +380,111 @@ def test_abstract_section_before_title_candidate_does_not_stop_fallback() -> Non
         "Circular Slotted Triangular Patch Antenna for "
         "5.8 GHz ISM Band Applications"
     )
+
+
+def test_title_fallback_rejects_candidate_after_page_three() -> None:
+    document = FakeDocument(
+        [
+            (
+                FakeItem(
+                    FakeLabel.SECTION_HEADER,
+                    (
+                        "radiating patch and the edge of the substrate "
+                        "( 4. Results and Discussion"
+                    ),
+                    level=1,
+                    pages=[11],
+                ),
+                1,
+            )
+        ]
+    )
+
+    items = docling_document_to_evidence_items(document, "input/article.pdf")
+
+    assert all(item.type != EvidenceType.title for item in items)
+
+
+def test_title_fallback_rejects_split_section() -> None:
+    long_body = " ".join(["antenna"] * 1600)
+    document = FakeDocument(
+        [
+            (
+                FakeItem(
+                    FakeLabel.SECTION_HEADER,
+                    "A suspicious section heading with enough title words",
+                    level=1,
+                    pages=[1],
+                ),
+                1,
+            ),
+            (FakeItem(FakeLabel.TEXT, long_body, pages=[1]), 2),
+        ]
+    )
+
+    items = docling_document_to_evidence_items(document, "input/article.pdf")
+
+    assert any(
+        item.metadata.get("split_reason") == "section_too_large"
+        for item in items
+    )
+    assert all(item.type != EvidenceType.title for item in items)
+
+
+def test_title_fallback_rejects_section_containing_table() -> None:
+    document = FakeDocument(
+        [
+            (
+                FakeItem(
+                    FakeLabel.SECTION_HEADER,
+                    "A suspicious long section heading with enough words",
+                    level=1,
+                    pages=[1],
+                ),
+                1,
+            ),
+            (
+                FakeItem(
+                    FakeLabel.TABLE,
+                    pages=[1],
+                    table_markdown="| Parameter | Value |\n|---|---|\n| Width | 30 mm |",
+                ),
+                2,
+            ),
+        ]
+    )
+
+    items = docling_document_to_evidence_items(document, "input/article.pdf")
+
+    assert all(item.type != EvidenceType.title for item in items)
+    assert items[0].metadata["contains_tables"] is True
+    assert items[0].metadata["table_count"] == 1
+
+
+def test_title_fallback_rejects_section_containing_figure() -> None:
+    document = FakeDocument(
+        [
+            (
+                FakeItem(
+                    FakeLabel.SECTION_HEADER,
+                    "A suspicious long section heading with enough words",
+                    level=1,
+                    pages=[1],
+                ),
+                1,
+            ),
+            (
+                FakeItem(
+                    FakeLabel.PICTURE,
+                    pages=[1],
+                    caption="Fig. 1 Proposed antenna geometry.",
+                ),
+                2,
+            ),
+        ]
+    )
+
+    items = docling_document_to_evidence_items(document, "input/article.pdf")
+
+    assert all(item.type != EvidenceType.title for item in items)
+    assert items[0].metadata["contains_figures"] is True

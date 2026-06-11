@@ -473,6 +473,9 @@ def _apply_title_fallback(drafts: list[dict[str, Any]]) -> None:
         if draft["type"] != EvidenceType.section or not _is_title_candidate(heading):
             continue
 
+        if not _has_safe_title_metadata(draft["metadata"]):
+            continue
+
         if len(_section_body(draft["text"])) > 300:
             continue
 
@@ -516,6 +519,17 @@ def _is_title_candidate(text: str) -> bool:
     if not cleaned or _is_obvious_content_heading(cleaned) or _is_placeholder(cleaned):
         return False
     return 15 <= len(cleaned) <= 300 and len(cleaned.split()) >= 4
+
+
+def _has_safe_title_metadata(metadata: dict[str, Any]) -> bool:
+    page_start = metadata.get("page_start")
+    if isinstance(page_start, int) and page_start > 3:
+        return False
+    if metadata.get("split_reason") == "section_too_large":
+        return False
+    if metadata.get("contains_tables") or metadata.get("table_count", 0) > 0:
+        return False
+    return not metadata.get("contains_figures")
 
 
 def _section_body(text: str) -> str:
