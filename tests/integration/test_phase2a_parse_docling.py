@@ -6,6 +6,7 @@ import pytest
 
 import antenna_ingest.parsing.docling_text_parser as parser
 from antenna_ingest.evidence.schemas import EvidenceStoreDocument, EvidenceType
+from antenna_ingest.layout.schemas import LayoutReport, TableArtifactDocument
 from antenna_ingest.orchestration.runs import create_run
 from antenna_ingest.orchestration.schemas import RunManifest
 from antenna_ingest.parsing.docling_text_parser import (
@@ -120,6 +121,13 @@ def test_phase2a_parse_docling_uses_markdown_fallback(tmp_path, monkeypatch) -> 
     evidence = EvidenceStoreDocument.model_validate(
         read_json(run_dir / "evidence/evidence_items.json")
     )
+    tables = TableArtifactDocument.model_validate(
+        read_json(run_dir / "parsed/tables.json")
+    )
+    layout_report = LayoutReport.model_validate(
+        read_json(run_dir / "parsed/layout_report.json")
+    )
+    manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
 
     assert MARKDOWN_FALLBACK_WARNING in report.warnings
     assert evidence.items
@@ -127,6 +135,13 @@ def test_phase2a_parse_docling_uses_markdown_fallback(tmp_path, monkeypatch) -> 
         item.metadata["source"] == "markdown_fallback"
         for item in evidence.items
     )
+    assert tables.tables == []
+    assert layout_report.number_of_tables == 0
+    assert (
+        "Docling native document unavailable; table extraction skipped."
+        in layout_report.warnings
+    )
+    assert manifest.phase_status["layout_enrichment"] == "completed"
 
 
 def _create_test_run(tmp_path):

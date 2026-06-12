@@ -12,6 +12,17 @@ from antenna_ingest.evidence.schemas import (
     EvidenceType,
     ParserMetadata,
 )
+from antenna_ingest.layout.docling_table_extractor import (
+    TABLE_EXTRACTOR_NAME,
+    TABLE_EXTRACTOR_VERSION,
+    extract_table_artifacts,
+)
+from antenna_ingest.layout.schemas import (
+    LayoutOutputPaths,
+    LayoutReport,
+    TableArtifact,
+    TableArtifactDocument,
+)
 from antenna_ingest.orchestration.runs import sha256_file
 from antenna_ingest.orchestration.schemas import ArtifactReference, PhaseStatus, RunManifest
 from antenna_ingest.parsing.docling_evidence_builder import (
@@ -33,6 +44,8 @@ TEXT_PATH = "parsed/document.txt"
 DOCLING_JSON_PATH = "parsed/document.docling.json"
 PARSE_REPORT_PATH = "parsed/parse_report.json"
 EVIDENCE_PATH = "evidence/evidence_items.json"
+TABLES_PATH = "parsed/tables.json"
+LAYOUT_REPORT_PATH = "parsed/layout_report.json"
 
 PHASE_2A_ARTIFACTS = {
     "parsed_markdown": MARKDOWN_PATH,
@@ -41,6 +54,15 @@ PHASE_2A_ARTIFACTS = {
     "parse_report": PARSE_REPORT_PATH,
     "evidence_items": EVIDENCE_PATH,
 }
+
+PHASE_2B_TABLE_ARTIFACTS = {
+    "layout_tables": TABLES_PATH,
+    "layout_report": LAYOUT_REPORT_PATH,
+}
+
+TABLE_EXTRACTION_SKIPPED_WARNING = (
+    "Docling native document unavailable; table extraction skipped."
+)
 
 
 @dataclass
@@ -64,6 +86,10 @@ def parse_run_with_docling(
 
     _refuse_existing_outputs(run_dir, force)
     manifest = RunManifest.model_validate(manifest_data)
+    manifest.phase_status.setdefault(
+        "layout_enrichment",
+        PhaseStatus.PENDING,
+    )
     manifest.phase_status["parser_evidence"] = PhaseStatus.RUNNING
     write_json(manifest_path, manifest.model_dump(mode="json"))
 
@@ -102,6 +128,35 @@ def parse_run_with_docling(
         )
         write_json(run_dir / EVIDENCE_PATH, evidence_document.model_dump(mode="json"))
 
+        manifest.phase_status["layout_enrichment"] = PhaseStatus.RUNNING
+        write_json(manifest_path, manifest.model_dump(mode="json"))
+        if result.document is not None:
+            table_artifacts, layout_warnings = extract_table_artifacts(
+                document=result.document,
+                source_document=source_document,
+                evidence_document=evidence_document,
+            )
+        else:
+            table_artifacts = []
+            layout_warnings = [TABLE_EXTRACTION_SKIPPED_WARNING]
+
+        table_document = TableArtifactDocument(
+            paper_id=manifest.paper_id,
+            source_document=source_document,
+            tables=table_artifacts,
+        )
+        write_json(run_dir / TABLES_PATH, table_document.model_dump(mode="json"))
+
+        layout_report = _build_layout_report(
+            source_document=source_document,
+            tables=table_artifacts,
+            warnings=layout_warnings,
+        )
+        write_json(
+            run_dir / LAYOUT_REPORT_PATH,
+            layout_report.model_dump(mode="json"),
+        )
+
         report = _build_parse_report(
             source_document=source_document,
             text=result.text,
@@ -113,12 +168,19 @@ def parse_run_with_docling(
 
         manifest = RunManifest.model_validate(read_json(manifest_path))
         manifest.phase_status["parser_evidence"] = PhaseStatus.COMPLETED
+        manifest.phase_status["layout_enrichment"] = PhaseStatus.COMPLETED
         _replace_phase_2a_artifacts(manifest, run_dir)
+        _replace_phase_2b_table_artifacts(manifest, run_dir)
         write_json(manifest_path, manifest.model_dump(mode="json"))
         return report
     except Exception:
         failed_manifest = RunManifest.model_validate(read_json(manifest_path))
         failed_manifest.phase_status["parser_evidence"] = PhaseStatus.FAILED
+        if (
+            failed_manifest.phase_status.get("layout_enrichment")
+            == PhaseStatus.RUNNING
+        ):
+            failed_manifest.phase_status["layout_enrichment"] = PhaseStatus.FAILED
         write_json(manifest_path, failed_manifest.model_dump(mode="json"))
         raise
 
@@ -144,6 +206,7 @@ def write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
 
+
 def convert_pdf_with_docling(pdf_path: Path) -> DoclingParseResult:
     from docling.document_converter import DocumentConverter
 
@@ -164,6 +227,33 @@ def convert_pdf_with_docling(pdf_path: Path) -> DoclingParseResult:
         docling_dict=docling_dict,
         number_of_pages=number_of_pages,
         document=document,
+    )
+
+
+def _build_layout_report(
+    source_document: str,
+    tables: list[TableArtifact],
+    warnings: list[str],
+) -> LayoutReport:
+    number_of_linked_tables = sum(
+        table.context_evidence_id is not None
+        for table in tables
+    )
+    return LayoutReport(
+        extractor_name=TABLE_EXTRACTOR_NAME,
+        extractor_version=TABLE_EXTRACTOR_VERSION,
+        backend="docling",
+        source_document=source_document,
+        outputs=LayoutOutputPaths(
+            tables=TABLES_PATH,
+            report=LAYOUT_REPORT_PATH,
+        ),
+        number_of_tables=len(tables),
+        number_of_tables_with_markdown=sum(bool(table.markdown) for table in tables),
+        number_of_tables_with_rows=sum(bool(table.rows) for table in tables),
+        number_of_linked_tables=number_of_linked_tables,
+        number_of_unlinked_tables=len(tables) - number_of_linked_tables,
+        warnings=warnings,
     )
 
 
@@ -209,7 +299,11 @@ def _build_parse_report(
 
 def _replace_phase_2a_artifacts(manifest: RunManifest, run_dir: Path) -> None:
     artifact_names = set(PHASE_2A_ARTIFACTS)
-    manifest.artifacts = [artifact for artifact in manifest.artifacts if artifact.name not in artifact_names]
+    manifest.artifacts = [
+        artifact
+        for artifact in manifest.artifacts
+        if artifact.name not in artifact_names
+    ]
     for name, relative_path in PHASE_2A_ARTIFACTS.items():
         manifest.add_artifact(
             ArtifactReference(
@@ -221,12 +315,41 @@ def _replace_phase_2a_artifacts(manifest: RunManifest, run_dir: Path) -> None:
         )
 
 
+def _replace_phase_2b_table_artifacts(
+    manifest: RunManifest,
+    run_dir: Path,
+) -> None:
+    artifact_names = set(PHASE_2B_TABLE_ARTIFACTS)
+    manifest.artifacts = [
+        artifact
+        for artifact in manifest.artifacts
+        if artifact.name not in artifact_names
+    ]
+    for name, relative_path in PHASE_2B_TABLE_ARTIFACTS.items():
+        manifest.add_artifact(
+            ArtifactReference(
+                name=name,
+                relative_path=relative_path,
+                producing_phase="layout_enrichment",
+                checksum=sha256_file(run_dir / relative_path),
+            )
+        )
+
+
 def _refuse_existing_outputs(run_dir: Path, force: bool) -> None:
     if force:
         return
-    existing = [relative_path for relative_path in PHASE_2A_ARTIFACTS.values() if (run_dir / relative_path).exists()]
+    output_paths = [
+        *PHASE_2A_ARTIFACTS.values(),
+        *PHASE_2B_TABLE_ARTIFACTS.values(),
+    ]
+    existing = [
+        relative_path
+        for relative_path in output_paths
+        if (run_dir / relative_path).exists()
+    ]
     if existing:
-        raise FileExistsError(f"Phase 2A output already exists: {existing[0]}")
+        raise FileExistsError(f"Parsing output already exists: {existing[0]}")
 
 
 def _extract_number_of_pages(result: Any, docling_dict: dict[str, Any]) -> int | None:

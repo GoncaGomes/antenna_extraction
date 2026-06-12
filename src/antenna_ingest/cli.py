@@ -50,6 +50,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Docling JSON written to: {run_dir / report.outputs.docling_json}")
         print(f"Evidence written to: {run_dir / report.outputs.evidence}")
         print(f"Parse report written to: {run_dir / 'parsed/parse_report.json'}")
+        print(f"Tables written to: {run_dir / 'parsed/tables.json'}")
+        print(f"Layout report written to: {run_dir / 'parsed/layout_report.json'}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

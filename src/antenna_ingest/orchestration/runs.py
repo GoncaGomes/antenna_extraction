@@ -29,6 +29,7 @@ RUN_SUBDIRECTORIES = (
 INITIAL_PHASE_STATUS = {
     "run_infrastructure": PhaseStatus.COMPLETED,
     "parser_evidence": PhaseStatus.PENDING,
+    "layout_enrichment": PhaseStatus.PENDING,
     "evidence_store": PhaseStatus.PENDING,
     "document_interpretation": PhaseStatus.PENDING,
     "query_planning": PhaseStatus.PENDING,
