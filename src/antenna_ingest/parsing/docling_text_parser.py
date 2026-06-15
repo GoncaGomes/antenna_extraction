@@ -253,6 +253,18 @@ def _build_layout_report(
         number_of_tables_with_rows=sum(bool(table.rows) for table in tables),
         number_of_linked_tables=number_of_linked_tables,
         number_of_unlinked_tables=len(tables) - number_of_linked_tables,
+        number_of_usable_tables=sum(
+            table.quality_status == "usable"
+            for table in tables
+        ),
+        number_of_suspect_tables=sum(
+            table.quality_status == "suspect"
+            for table in tables
+        ),
+        number_of_rejected_tables=sum(
+            table.quality_status == "rejected"
+            for table in tables
+        ),
         warnings=warnings,
     )
 
@@ -284,10 +296,7 @@ def _build_parse_report(
         number_of_captions=sum(item.type == EvidenceType.caption for item in items),
         number_of_chunks=sum(item.type == EvidenceType.chunk for item in items),
         number_of_sections=len(sections),
-        number_of_tables_in_sections=sum(
-            int(item.metadata.get("table_count", 0))
-            for item in sections
-        ),
+        number_of_tables_in_sections=_count_unique_tables_in_sections(sections),
         number_of_page_ranges_missing=sum(
             item.metadata.get("page_start") is None
             or item.metadata.get("page_end") is None
@@ -295,6 +304,32 @@ def _build_parse_report(
         ),
         warnings=warnings,
     )
+
+
+def _count_unique_tables_in_sections(
+    sections: list[EvidenceItem],
+) -> int:
+    table_counts: dict[tuple[Any, ...], int] = {}
+    for item in sections:
+        try:
+            table_count = int(item.metadata.get("table_count", 0))
+        except (TypeError, ValueError):
+            continue
+        if table_count <= 0:
+            continue
+
+        section_path = item.metadata.get("section_path", [])
+        if not isinstance(section_path, (list, tuple)):
+            section_path = [str(section_path)]
+        key = (
+            tuple(section_path),
+            item.section,
+            item.metadata.get("heading_level"),
+            item.metadata.get("page_start"),
+            item.metadata.get("page_end"),
+        )
+        table_counts[key] = max(table_counts.get(key, 0), table_count)
+    return sum(table_counts.values())
 
 
 def _replace_phase_2a_artifacts(manifest: RunManifest, run_dir: Path) -> None:

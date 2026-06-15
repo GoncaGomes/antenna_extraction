@@ -10,6 +10,7 @@ from antenna_ingest.evidence.schemas import (
     ParserMetadata,
 )
 from antenna_ingest.layout.docling_table_extractor import (
+    assess_table_quality,
     extract_table_artifacts,
     link_table_to_context_evidence,
     make_table_id,
@@ -110,6 +111,9 @@ def test_extract_table_artifact_uses_native_exports() -> None:
     assert table.metadata["backend"] == "docling"
     assert table.metadata["has_dataframe"] is True
     assert table.metadata["has_markdown"] is True
+    assert table.quality_status == "usable"
+    assert table.quality_issues == []
+    assert table.use_for_claim_extraction is True
     assert "Table tbl_000001: no context evidence link found." in warnings
 
 
@@ -126,6 +130,8 @@ def test_dataframe_export_failure_is_graceful() -> None:
     assert table.row_count == 0
     assert table.column_count == 0
     assert table.metadata["has_dataframe"] is False
+    assert table.quality_status == "suspect"
+    assert table.use_for_claim_extraction is False
     assert "Table tbl_000001: dataframe export failed." in warnings
 
 
@@ -140,6 +146,8 @@ def test_markdown_export_failure_is_graceful() -> None:
     table = artifacts[0]
     assert table.markdown == ""
     assert table.metadata["has_markdown"] is False
+    assert table.quality_status == "rejected"
+    assert table.use_for_claim_extraction is False
     assert "Table tbl_000001: markdown export failed." in warnings
     assert "Table tbl_000001: markdown is empty." in warnings
 
@@ -223,6 +231,109 @@ def test_unlinked_table_returns_none_and_warning() -> None:
     assert artifacts[0].context_evidence_id is None
     assert artifacts[0].context_link_method is None
     assert "Table tbl_000001: no context evidence link found." in warnings
+
+
+def test_clean_table_quality_is_usable() -> None:
+    status, issues, use_for_claim_extraction = assess_table_quality(
+        markdown="| A | B |\n|---|---|\n| 1 | 2 |",
+        rows=[{"A": "1", "B": "2"}],
+        row_count=1,
+        column_count=2,
+        caption="Table 1.",
+        context_evidence_id="ev_000001",
+    )
+
+    assert status == "usable"
+    assert issues == []
+    assert use_for_claim_extraction is True
+
+
+def test_empty_markdown_quality_is_rejected() -> None:
+    status, issues, use_for_claim_extraction = assess_table_quality(
+        markdown="",
+        rows=[{"A": "1"}],
+        row_count=1,
+        column_count=1,
+        caption="Table 1.",
+        context_evidence_id="ev_000001",
+    )
+
+    assert status == "rejected"
+    assert "empty_markdown" in issues
+    assert use_for_claim_extraction is False
+
+
+def test_missing_rows_quality_is_suspect() -> None:
+    status, issues, use_for_claim_extraction = assess_table_quality(
+        markdown="| A |\n|---|\n| 1 |",
+        rows=[],
+        row_count=0,
+        column_count=1,
+        caption="Table 1.",
+        context_evidence_id="ev_000001",
+    )
+
+    assert status == "suspect"
+    assert "rows_missing" in issues
+    assert use_for_claim_extraction is False
+
+
+def test_single_column_many_rows_quality_is_suspect() -> None:
+    rows = [{"A": str(index)} for index in range(5)]
+
+    status, issues, _ = assess_table_quality(
+        markdown="| A |\n|---|",
+        rows=rows,
+        row_count=5,
+        column_count=1,
+        caption="Table 1.",
+        context_evidence_id="ev_000001",
+    )
+
+    assert status == "suspect"
+    assert "single_column_many_rows" in issues
+
+
+def test_long_prose_cell_quality_is_suspect() -> None:
+    status, issues, _ = assess_table_quality(
+        markdown="| Description |\n|---|",
+        rows=[{"Description": "x" * 251}],
+        row_count=1,
+        column_count=1,
+        caption="Table 1.",
+        context_evidence_id="ev_000001",
+    )
+
+    assert status == "suspect"
+    assert "long_prose_cells_detected" in issues
+
+
+def test_high_empty_cell_ratio_quality_is_suspect() -> None:
+    status, issues, _ = assess_table_quality(
+        markdown="| A | B | C |\n|---|---|---|",
+        rows=[{"A": "1", "B": None, "C": ""}],
+        row_count=1,
+        column_count=3,
+        caption="Table 1.",
+        context_evidence_id="ev_000001",
+    )
+
+    assert status == "suspect"
+    assert "high_empty_cell_ratio" in issues
+
+
+def test_missing_caption_and_context_quality_is_suspect() -> None:
+    status, issues, _ = assess_table_quality(
+        markdown="| A | B |\n|---|---|\n| 1 | 2 |",
+        rows=[{"A": "1", "B": "2"}],
+        row_count=1,
+        column_count=2,
+        caption=None,
+        context_evidence_id=None,
+    )
+
+    assert status == "suspect"
+    assert "weak_context" in issues
 
 
 def _section_item(

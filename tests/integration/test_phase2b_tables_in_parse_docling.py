@@ -124,8 +124,14 @@ def test_parse_docling_writes_phase2b_table_artifacts(tmp_path, monkeypatch) -> 
     )
     assert len(tables.tables) == 1
     assert tables.tables[0].context_evidence_id is not None
+    assert tables.tables[0].quality_status == "usable"
+    assert tables.tables[0].quality_issues == []
+    assert tables.tables[0].use_for_claim_extraction is True
     assert report.number_of_tables == 1
     assert report.number_of_linked_tables == 1
+    assert report.number_of_usable_tables == 1
+    assert report.number_of_suspect_tables == 0
+    assert report.number_of_rejected_tables == 0
 
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
     assert manifest.phase_status["parser_evidence"] == "completed"

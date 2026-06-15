@@ -31,7 +31,19 @@ class TableArtifact(StrictModel):
         "page_range_contains_tables",
         "page_range",
     ] | None = None
+    quality_status: Literal["usable", "suspect", "rejected"]
+    quality_issues: list[str]
+    use_for_claim_extraction: bool
     metadata: dict[str, Any]
+
+    @model_validator(mode="after")
+    def validate_claim_extraction_flag(self) -> TableArtifact:
+        expected = self.quality_status == "usable"
+        if self.use_for_claim_extraction != expected:
+            raise ValueError(
+                "use_for_claim_extraction must be true only for usable tables"
+            )
+        return self
 
 
 class TableArtifactDocument(StrictModel):
@@ -63,4 +75,7 @@ class LayoutReport(StrictModel):
     number_of_tables_with_rows: int = Field(ge=0)
     number_of_linked_tables: int = Field(ge=0)
     number_of_unlinked_tables: int = Field(ge=0)
+    number_of_usable_tables: int = Field(ge=0)
+    number_of_suspect_tables: int = Field(ge=0)
+    number_of_rejected_tables: int = Field(ge=0)
     warnings: list[str] = Field(default_factory=list)

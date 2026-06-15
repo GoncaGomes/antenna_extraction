@@ -25,6 +25,9 @@ def _table_artifact(table_id: str = "tbl_000001") -> TableArtifact:
         column_count=2,
         context_evidence_id="ev_000003",
         context_link_method="page_range_contains_tables",
+        quality_status="usable",
+        quality_issues=[],
+        use_for_claim_extraction=True,
         metadata={
             "backend": "docling",
             "self_ref": "#/tables/0",
@@ -49,6 +52,9 @@ def _layout_report(**overrides) -> LayoutReport:
         "number_of_tables_with_rows": 1,
         "number_of_linked_tables": 1,
         "number_of_unlinked_tables": 0,
+        "number_of_usable_tables": 1,
+        "number_of_suspect_tables": 0,
+        "number_of_rejected_tables": 0,
         "warnings": [],
     }
     data.update(overrides)
@@ -60,6 +66,8 @@ def test_valid_table_artifact() -> None:
 
     assert table.table_id == "tbl_000001"
     assert table.row_count == 1
+    assert table.quality_status == "usable"
+    assert table.use_for_claim_extraction is True
 
 
 def test_invalid_table_id_rejected() -> None:
@@ -93,6 +101,16 @@ def test_extra_fields_rejected() -> None:
         )
 
 
+def test_invalid_quality_status_rejected() -> None:
+    with pytest.raises(ValidationError):
+        TableArtifact.model_validate(
+            {
+                **_table_artifact().model_dump(),
+                "quality_status": "unknown",
+            }
+        )
+
+
 @pytest.mark.parametrize(
     "field",
     [
@@ -101,6 +119,9 @@ def test_extra_fields_rejected() -> None:
         "number_of_tables_with_rows",
         "number_of_linked_tables",
         "number_of_unlinked_tables",
+        "number_of_usable_tables",
+        "number_of_suspect_tables",
+        "number_of_rejected_tables",
     ],
 )
 def test_layout_report_rejects_negative_counts(field) -> None:
