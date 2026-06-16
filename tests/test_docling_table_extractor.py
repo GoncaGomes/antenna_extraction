@@ -111,6 +111,7 @@ def test_extract_table_artifact_uses_native_exports() -> None:
     assert table.metadata["backend"] == "docling"
     assert table.metadata["has_dataframe"] is True
     assert table.metadata["has_markdown"] is True
+    assert table.metadata["quality_checked"] is True
     assert table.quality_status == "usable"
     assert table.quality_issues == []
     assert table.use_for_claim_extraction is True
@@ -296,16 +297,25 @@ def test_single_column_many_rows_quality_is_suspect() -> None:
 
 def test_long_prose_cell_quality_is_suspect() -> None:
     status, issues, _ = assess_table_quality(
-        markdown="| Description |\n|---|",
-        rows=[{"Description": "x" * 251}],
+        markdown="| Description | A | B | C | D | E |\n|---|---|---|---|---|---|",
+        rows=[
+            {
+                "Description": "x" * 251,
+                "A": "1",
+                "B": "2",
+                "C": "3",
+                "D": "4",
+                "E": "5",
+            }
+        ],
         row_count=1,
-        column_count=1,
+        column_count=6,
         caption="Table 1.",
         context_evidence_id="ev_000001",
     )
 
     assert status == "suspect"
-    assert "long_prose_cells_detected" in issues
+    assert "long_text_cells_detected" in issues
 
 
 def test_high_empty_cell_ratio_quality_is_suspect() -> None:
@@ -334,6 +344,176 @@ def test_missing_caption_and_context_quality_is_suspect() -> None:
 
     assert status == "suspect"
     assert "weak_context" in issues
+
+
+def test_repeated_adjacent_tokens_are_suspect() -> None:
+    status, issues, use_for_claim_extraction = assess_table_quality(
+        markdown="| Label | Measurement |\n|---|---|",
+        rows=[{"Label": "Value Value", "Measurement": "3.14 3.14"}],
+        row_count=1,
+        column_count=2,
+        caption="Measured values.",
+        context_evidence_id="ev_000001",
+    )
+
+    assert "repeated_adjacent_tokens_detected" in issues
+    assert status != "usable"
+    assert use_for_claim_extraction is False
+
+
+def test_caption_duplication_is_suspect() -> None:
+    caption = "Measured dimensions of the experimental structure"
+    status, issues, _ = assess_table_quality(
+        markdown=f"{caption}\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n{caption}",
+        rows=[{"A": "1", "B": "2"}],
+        row_count=1,
+        column_count=2,
+        caption=caption,
+        context_evidence_id="ev_000001",
+    )
+
+    assert "caption_duplicated_in_markdown" in issues
+    assert status != "usable"
+
+
+def test_prose_like_headers_are_suspect() -> None:
+    rows = [
+        {
+            "0": "description of the measured quantity",
+            "1": "value obtained from the experimental setup",
+            "2": "notes and interpretation",
+        }
+    ]
+
+    status, issues, _ = assess_table_quality(
+        markdown="| Description | Value | Notes |",
+        rows=rows,
+        row_count=1,
+        column_count=3,
+        caption="Experimental measurements.",
+        context_evidence_id="ev_000001",
+    )
+
+    assert "prose_like_headers_detected" in issues
+    assert status != "usable"
+
+
+def test_multi_value_cells_are_suspect() -> None:
+    rows = [{"A": "1 2 3 4", "B": "10 20 30 40", "C": "normal"}]
+
+    status, issues, _ = assess_table_quality(
+        markdown="| A | B | C |",
+        rows=rows,
+        row_count=1,
+        column_count=3,
+        caption="Measurements.",
+        context_evidence_id="ev_000001",
+    )
+
+    assert "multi_value_cells_detected" in issues
+    assert status != "usable"
+
+
+def test_severe_text_leakage_is_rejected() -> None:
+    long_sentence = (
+        "This cell contains a long scientific paragraph with explanatory "
+        "material that should not have been collapsed into a structured table "
+        "cell. It continues with enough descriptive prose to exceed the "
+        "quality threshold and indicate leakage from surrounding document "
+        "text into the extracted table representation. "
+    )
+    rows = [
+        {
+            "A": long_sentence,
+            "B": long_sentence + "Additional explanatory content.",
+        }
+    ]
+
+    status, issues, use_for_claim_extraction = assess_table_quality(
+        markdown="| A | B |",
+        rows=rows,
+        row_count=1,
+        column_count=2,
+        caption="Measurements.",
+        context_evidence_id="ev_000001",
+    )
+
+    assert "severe_text_leakage" in issues
+    assert status == "rejected"
+    assert use_for_claim_extraction is False
+
+
+def test_numeric_header_drift_is_suspect() -> None:
+    rows = [
+        {
+            "Parameter 1 2": "10",
+            "Measurement 3 4": "20",
+            "Average 5 6": "30",
+        }
+    ]
+
+    status, issues, _ = assess_table_quality(
+        markdown="| Parameter | Measurement | Average |",
+        rows=rows,
+        row_count=1,
+        column_count=3,
+        caption="Measurements.",
+        context_evidence_id="ev_000001",
+    )
+
+    assert "numeric_header_drift_detected" in issues
+    assert status != "usable"
+
+
+def test_header_cell_overlap_is_suspect() -> None:
+    rows = [
+        {"A": "Parameter Parameter", "B": "Unit Unit"},
+        {"A": "Length", "B": "mm"},
+    ]
+
+    status, issues, _ = assess_table_quality(
+        markdown="| A | B |",
+        rows=rows,
+        row_count=2,
+        column_count=2,
+        caption="Dimensions.",
+        context_evidence_id="ev_000001",
+    )
+
+    assert "header_cell_overlap_detected" in issues
+    assert status != "usable"
+
+
+def test_generic_corrupted_export_is_not_usable() -> None:
+    rows = [
+        {
+            "0": "Measurements",
+            "1": "first first",
+            "2": "second",
+            "3": "average fifth",
+            "4": "average",
+        },
+        {
+            "0": "Values Values",
+            "1": "4.32 4.32",
+            "2": "4.27",
+            "3": "4.308 4.29",
+            "4": "4.308",
+        },
+    ]
+
+    status, issues, use_for_claim_extraction = assess_table_quality(
+        markdown="| Measurements | First | Second | Average fifth | Average |",
+        rows=rows,
+        row_count=2,
+        column_count=5,
+        caption="Experimental measurements.",
+        context_evidence_id="ev_000001",
+    )
+
+    assert status != "usable"
+    assert use_for_claim_extraction is False
+    assert "repeated_adjacent_tokens_detected" in issues
 
 
 def _section_item(
