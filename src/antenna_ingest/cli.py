@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Sequence
 
 from antenna_ingest.orchestration.runs import create_run
-from antenna_ingest.parsing.docling_text_parser import parse_run_with_docling
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -18,10 +17,6 @@ def build_parser() -> argparse.ArgumentParser:
     init_run.add_argument("--pipeline-version", default="0.1.0")
     init_run.add_argument("--paper-id")
     init_run.add_argument("--force", action="store_true")
-
-    parse_docling = subparsers.add_parser("parse-docling")
-    parse_docling.add_argument("run_dir", type=Path)
-    parse_docling.add_argument("--force", action="store_true")
 
     return parser
 
@@ -40,18 +35,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         print(f"Created run: {context.run_dir}")
         print(f"Manifest: {context.run_dir / 'manifest.json'}")
-        return 0
-
-    if args.command == "parse-docling":
-        report = parse_run_with_docling(run_dir=args.run_dir, force=args.force)
-        run_dir = args.run_dir
-        print(f"Parsed Markdown written to: {run_dir / report.outputs.markdown}")
-        print(f"Parsed text written to: {run_dir / report.outputs.text}")
-        print(f"Docling JSON written to: {run_dir / report.outputs.docling_json}")
-        print(f"Evidence written to: {run_dir / report.outputs.evidence}")
-        print(f"Parse report written to: {run_dir / 'parsed/parse_report.json'}")
-        print(f"Tables written to: {run_dir / 'parsed/tables.json'}")
-        print(f"Layout report written to: {run_dir / 'parsed/layout_report.json'}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

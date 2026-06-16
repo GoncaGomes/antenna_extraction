@@ -14,7 +14,9 @@ wheels/
 # Generated pipeline run artifacts
 runs/*
 runs.zip
+old_runs.zip
 !runs/.gitkeep
+legacy/
 
 #PDF Documents
 SystemRefactor.pdf

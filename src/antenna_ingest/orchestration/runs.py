@@ -18,26 +18,19 @@ from antenna_ingest.utils.json_io import write_json
 RUN_SUBDIRECTORIES = (
     "input",
     "parsed",
-    "evidence",
-    "planning",
-    "retrieval",
-    "claims",
+    "extraction",
     "canonicalization",
+    "planning",
     "reports",
 )
 
 INITIAL_PHASE_STATUS = {
     "run_infrastructure": PhaseStatus.COMPLETED,
-    "parser_evidence": PhaseStatus.PENDING,
-    "layout_enrichment": PhaseStatus.PENDING,
-    "evidence_store": PhaseStatus.PENDING,
-    "document_interpretation": PhaseStatus.PENDING,
-    "query_planning": PhaseStatus.PENDING,
-    "retrieval": PhaseStatus.PENDING,
-    "claim_extraction": PhaseStatus.PENDING,
-    "claim_validation": PhaseStatus.PENDING,
+    "page_rendering": PhaseStatus.PENDING,
+    "nuextract_markdown": PhaseStatus.PENDING,
+    "nuextract_raw_extraction": PhaseStatus.PENDING,
     "canonicalization": PhaseStatus.PENDING,
-    "final_schema": PhaseStatus.PENDING,
+    "cst_integration_intent": PhaseStatus.PENDING,
 }
 
 

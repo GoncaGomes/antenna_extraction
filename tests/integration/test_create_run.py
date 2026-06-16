@@ -24,11 +24,9 @@ def test_create_run_creates_phase_1_run_structure(tmp_path) -> None:
     for folder in (
         "input",
         "parsed",
-        "evidence",
-        "planning",
-        "retrieval",
-        "claims",
+        "extraction",
         "canonicalization",
+        "planning",
         "reports",
     ):
         assert (run_dir / folder).is_dir()
@@ -53,14 +51,12 @@ def test_create_run_creates_phase_1_run_structure(tmp_path) -> None:
     assert source_pdf.checksum
 
     for downstream_file in (
-        "parsed/document_text.md",
-        "evidence/evidence_items.json",
-        "planning/interpretation_record.json",
-        "planning/query_plan.json",
-        "retrieval/retrieval_summary.json",
-        "claims/claims.json",
+        "parsed/document.nuextract.md",
+        "parsed/page_render_report.json",
+        "extraction/nuextract_raw.json",
+        "extraction/nuextract_raw_report.json",
         "canonicalization/canonical_antenna_record.json",
-        "canonicalization/antenna_characteristics.json",
+        "planning/cst_integration_intent.json",
     ):
         assert not (run_dir / downstream_file).exists()
 
