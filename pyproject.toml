@@ -8,6 +8,7 @@ dependencies = [
     "openai>=2.41.1",
     "pydantic",
     "pydantic-settings",
+    "pymupdf",
     "python-dotenv",
 ]
 

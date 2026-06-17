@@ -5,6 +5,11 @@ from pathlib import Path
 from typing import Sequence
 
 from antenna_ingest.nuextract.doctor import run_nuextract_doctor
+from antenna_ingest.nuextract.pdf_rendering import (
+    PAGE_RENDER_REPORT_PATH,
+    PAGES_DIR,
+    render_run_pages,
+)
 from antenna_ingest.orchestration.runs import create_run
 
 
@@ -25,6 +30,10 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
     )
     nuextract_subparsers.add_parser("doctor")
+    render_pages = nuextract_subparsers.add_parser("render-pages")
+    render_pages.add_argument("run_dir", type=Path)
+    render_pages.add_argument("--dpi", type=int, default=170)
+    render_pages.add_argument("--force", action="store_true")
 
     return parser
 
@@ -56,6 +65,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("Status: FAILED")
         print(f"Error: {result.error}")
         return 1
+
+    if args.command == "nuextract" and args.nuextract_command == "render-pages":
+        report = render_run_pages(
+            run_dir=args.run_dir,
+            dpi=args.dpi,
+            force=args.force,
+        )
+        print(f"Rendered pages: {report.page_count}")
+        print(f"Pages directory: {args.run_dir / PAGES_DIR}")
+        print(f"Report: {args.run_dir / PAGE_RENDER_REPORT_PATH}")
+        return 0
 
     parser.error(f"unknown command: {args.command}")
     return 2
