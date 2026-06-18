@@ -5,6 +5,12 @@ from pathlib import Path
 from typing import Sequence
 
 from antenna_ingest.nuextract.doctor import run_nuextract_doctor
+from antenna_ingest.nuextract.markdown_conversion import (
+    DOCUMENT_MARKDOWN_PATH,
+    MARKDOWN_REPORT_PATH,
+    convert_run_pages_to_markdown,
+    parse_pdf_to_markdown,
+)
 from antenna_ingest.nuextract.pdf_rendering import (
     PAGE_RENDER_REPORT_PATH,
     PAGES_DIR,
@@ -34,6 +40,16 @@ def build_parser() -> argparse.ArgumentParser:
     render_pages.add_argument("run_dir", type=Path)
     render_pages.add_argument("--dpi", type=int, default=170)
     render_pages.add_argument("--force", action="store_true")
+    markdown = nuextract_subparsers.add_parser("markdown")
+    markdown.add_argument("run_dir", type=Path)
+    markdown.add_argument("--force", action="store_true")
+    parse_markdown = nuextract_subparsers.add_parser("parse-markdown")
+    parse_markdown.add_argument("input_pdf", type=Path)
+    parse_markdown.add_argument("--runs-root", type=Path, default=Path("runs"))
+    parse_markdown.add_argument("--pipeline-version", default="0.1.0")
+    parse_markdown.add_argument("--paper-id")
+    parse_markdown.add_argument("--dpi", type=int, default=170)
+    parse_markdown.add_argument("--force", action="store_true")
 
     return parser
 
@@ -75,6 +91,33 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Rendered pages: {report.page_count}")
         print(f"Pages directory: {args.run_dir / PAGES_DIR}")
         print(f"Report: {args.run_dir / PAGE_RENDER_REPORT_PATH}")
+        return 0
+
+    if args.command == "nuextract" and args.nuextract_command == "markdown":
+        report = convert_run_pages_to_markdown(
+            run_dir=args.run_dir,
+            force=args.force,
+        )
+        print(f"Markdown written to: {args.run_dir / DOCUMENT_MARKDOWN_PATH}")
+        print(f"Report: {args.run_dir / MARKDOWN_REPORT_PATH}")
+        print(f"Pages converted: {report.page_count}")
+        print(f"Characters: {report.character_count}")
+        return 0
+
+    if args.command == "nuextract" and args.nuextract_command == "parse-markdown":
+        context, report = parse_pdf_to_markdown(
+            input_pdf=args.input_pdf,
+            runs_root=args.runs_root,
+            dpi=args.dpi,
+            pipeline_version=args.pipeline_version,
+            paper_id=args.paper_id,
+            force=args.force,
+        )
+        print(f"Created run: {context.run_dir}")
+        print(f"Markdown written to: {context.run_dir / DOCUMENT_MARKDOWN_PATH}")
+        print(f"Report: {context.run_dir / MARKDOWN_REPORT_PATH}")
+        print(f"Rendered/converted pages: {report.page_count}")
+        print(f"Characters: {report.character_count}")
         return 0
 
     parser.error(f"unknown command: {args.command}")
