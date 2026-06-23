@@ -1,29 +1,33 @@
 from __future__ import annotations
 
 
-EXTRACTED_VALUE_TEMPLATE = {
-    "name": "string",
-    "value": "verbatim-string",
-    "numeric_value": "number",
-    "unit": "unit-code",
-    "source_page": "integer",
-    "source_text": "verbatim-string",
+EVIDENCE_TEMPLATE = {
+    "page": "integer",
+    "quote": "verbatim-string",
     "confidence": "number",
+}
+
+PROPERTY_TEMPLATE = {
+    "name": "string",
+    "raw_value": "verbatim-string",
+    "value": "verbatim-string",
+    "unit": "unit-code",
+    "evidence": [EVIDENCE_TEMPLATE],
+    "notes": ["verbatim-string"],
 }
 
 RESULT_TEMPLATE = {
     "metric": "string",
+    "raw_value": "verbatim-string",
     "value": "verbatim-string",
-    "numeric_value": "number",
     "unit": "unit-code",
     "condition": "verbatim-string",
-    "source_page": "integer",
-    "source_text": "verbatim-string",
-    "confidence": "number",
+    "evidence": [EVIDENCE_TEMPLATE],
+    "notes": ["verbatim-string"],
 }
 
 ANTENNA_DESIGN_CANDIDATE_TEMPLATE = {
-    "schema_name": "string",
+    "schema_name": "antenna_design_candidate_v2",
     "document": {
         "title": "verbatim-string",
         "authors": ["verbatim-string"],
@@ -31,32 +35,25 @@ ANTENNA_DESIGN_CANDIDATE_TEMPLATE = {
         "doi": "verbatim-string",
         "venue": "verbatim-string",
     },
-    "candidate_summary": {
+    "summary": {
         "antenna_name": "verbatim-string",
         "antenna_class": "string",
         "application": "verbatim-string",
         "operating_band": "verbatim-string",
-        "final_design_claim": "verbatim-string",
         "reconstruction_status": "string",
-        "source_page": "integer",
-        "source_text": "verbatim-string",
+        "evidence": [EVIDENCE_TEMPLATE],
     },
-    "final_design_candidate": {
+    "final_design": {
         "design_label": "verbatim-string",
         "is_explicitly_final_or_proposed": "boolean",
-        "final_design_evidence": [
-            {
-                "source_page": "integer",
-                "source_text": "verbatim-string",
-                "confidence": "number",
-            }
-        ],
+        "evidence": [EVIDENCE_TEMPLATE],
         "materials": [
             {
                 "material_id": "string",
                 "name": "verbatim-string",
                 "role": "string",
-                "properties": [EXTRACTED_VALUE_TEMPLATE],
+                "properties": [PROPERTY_TEMPLATE],
+                "evidence": [EVIDENCE_TEMPLATE],
             }
         ],
         "components": [
@@ -70,27 +67,25 @@ ANTENNA_DESIGN_CANDIDATE_TEMPLATE = {
                     "primitive_type": "string",
                     "shape_family": "string",
                     "description": "verbatim-string",
-                    "dimensions": [EXTRACTED_VALUE_TEMPLATE],
-                    "parameters": [EXTRACTED_VALUE_TEMPLATE],
-                    "location_description": "verbatim-string",
+                    "properties": [PROPERTY_TEMPLATE],
+                    "location": "verbatim-string",
                     "reconstruction_status": "string",
+                    "evidence": [EVIDENCE_TEMPLATE],
                 },
-                "source_pages": ["integer"],
-                "source_texts": ["verbatim-string"],
+                "properties": [PROPERTY_TEMPLATE],
+                "evidence": [EVIDENCE_TEMPLATE],
             }
         ],
-        "geometry_features": [
+        "features": [
             {
                 "feature_id": "string",
                 "label": "verbatim-string",
                 "feature_type": "string",
                 "associated_component_id": "string",
                 "description": "verbatim-string",
-                "parameters": [EXTRACTED_VALUE_TEMPLATE],
-                "location_description": "verbatim-string",
-                "source_page": "integer",
-                "source_text": "verbatim-string",
-                "confidence": "number",
+                "properties": [PROPERTY_TEMPLATE],
+                "location": "verbatim-string",
+                "evidence": [EVIDENCE_TEMPLATE],
             }
         ],
         "feeds": [
@@ -99,94 +94,113 @@ ANTENNA_DESIGN_CANDIDATE_TEMPLATE = {
                 "feed_type": "string",
                 "associated_component_id": "string",
                 "description": "verbatim-string",
-                "parameters": [EXTRACTED_VALUE_TEMPLATE],
-                "source_page": "integer",
-                "source_text": "verbatim-string",
-                "confidence": "number",
+                "properties": [PROPERTY_TEMPLATE],
+                "evidence": [EVIDENCE_TEMPLATE],
             }
         ],
         "simulation_setup": {
-            "software": EXTRACTED_VALUE_TEMPLATE,
-            "frequency_range": [EXTRACTED_VALUE_TEMPLATE],
-            "solver": EXTRACTED_VALUE_TEMPLATE,
-            "boundary_conditions": EXTRACTED_VALUE_TEMPLATE,
+            "software": "verbatim-string",
+            "solver": "verbatim-string",
+            "boundary_conditions": "verbatim-string",
+            "frequency_sweep": [PROPERTY_TEMPLATE],
+            "properties": [PROPERTY_TEMPLATE],
             "notes": ["verbatim-string"],
+            "evidence": [EVIDENCE_TEMPLATE],
         },
         "results": [RESULT_TEMPLATE],
     },
-    "design_variants": [
+    "variants": [
         {
-            "variant_label": "verbatim-string",
-            "variant_role": "string",
-            "relationship_to_final": "string",
+            "variant_id": "string",
+            "label": "verbatim-string",
+            "role": "string",
+            "relationship_to_final": "verbatim-string",
             "description": "verbatim-string",
-            "key_parameters": [EXTRACTED_VALUE_TEMPLATE],
-            "reported_results": [RESULT_TEMPLATE],
-            "source_pages": ["integer"],
-            "source_texts": ["verbatim-string"],
-        }
-    ],
-    "missing_information": [
-        {
-            "missing_field": "string",
-            "severity": "string",
-            "reason": "verbatim-string",
+            "properties": [PROPERTY_TEMPLATE],
+            "results": [RESULT_TEMPLATE],
+            "evidence": [EVIDENCE_TEMPLATE],
         }
     ],
     "conflicts": [
         {
             "field": "string",
             "values": ["verbatim-string"],
-            "source_pages": ["integer"],
+            "evidence": [EVIDENCE_TEMPLATE],
             "notes": "verbatim-string",
         }
     ],
-    "extraction_notes": [
+    "missing_information": [
+        {
+            "field": "string",
+            "severity": "string",
+            "reason": "verbatim-string",
+            "evidence": [EVIDENCE_TEMPLATE],
+        }
+    ],
+    "notes": [
         {
             "note": "verbatim-string",
-            "source_page": "integer",
+            "evidence": [EVIDENCE_TEMPLATE],
         }
     ],
 }
 
 ANTENNA_DESIGN_CANDIDATE_INSTRUCTIONS = """\
-Extract a near-final antenna design candidate from the full scientific paper.
+Extract a compact, near-final antenna design candidate from the full scientific paper.
 
-The input images are the pages of one PDF, provided in correct page order. Use 1-based page numbers when filling source_page.
+Use schema_name exactly as antenna_design_candidate_v2.
 
-The output must follow the provided JSON template.
+The input images are the pages of one PDF. The request includes explicit text labels in the form PDF_INPUT_PAGE=N before each image. Use only those PDF_INPUT_PAGE numbers in evidence.page. Do not use journal page numbers, footer page numbers, article page numbers, or printed page labels.
 
-Focus on the antenna that the paper presents as the proposed, final, optimized, selected, fabricated, simulated, or main contribution.
+Use evidence arrays for provenance. Every important material, component, geometry, feed, result, conflict, and missing-information item should include evidence when available.
 
-Do not mix intermediate design variants into final_design_candidate.
+Use properties for all extracted scalar facts. Do not split facts into dimensions versus parameters.
 
-If the paper contains multiple design stages, configurations, radiators, cases, steps, iterations, parametric variants, or comparison antennas, place non-final versions under design_variants.
+Use components for physical antenna parts.
 
-Use a generic component-based geometry description. Do not assume the antenna is a rectangular patch.
+Use features only for geometric modifications or special features of components, such as slots, notches, cut-outs, meanders, gaps, defected ground structures, truncations, branches, apertures, and fractal features.
 
-Use components for physical antenna parts, such as substrate, ground plane, radiating element, patch, feedline, parasitic element, via, shorting pin, reflector, director, dielectric resonator, array element, or similar.
+Do not create features for basic component shapes that are already represented in geometry.
 
-Use geometry_features for descriptive physical features of components, such as slots, notches, cut-outs, meanders, gaps, defected ground structures, truncations, branches, apertures, or fractal features.
+Use feeds for feed type, feed location, feed impedance, feed dimensions, and port-related descriptions.
 
-Do not include an operations field.
+Do not create a feed component for a coaxial probe unless the paper explicitly provides physical feed geometry. If the paper describes a microstrip feedline with dimensions, it may be represented as a component and also referenced by the feed.
 
-For every numeric value, include:
-- value as written when possible
-- numeric_value when explicitly available
-- unit when available
-- source_page
-- shortest supporting source_text
-- confidence from 0 to 1
+Do not include an operations field. Do not output CST commands, CAD build steps, boolean operations, or simulation execution steps.
 
-If a value is visible only in a figure but not numerically specified, describe it in text and do not invent a number.
+Use reconstruction_status only from:
+- buildable
+- partially_buildable
+- not_buildable_from_paper
+- unknown
 
-If a page has tables, preserve table-derived values accurately.
+Do not mark a design or component as buildable if build-critical details are missing.
 
-If the exact geometry cannot be reconstructed from the paper, set reconstruction_status to partially_buildable or not_buildable_from_paper and explain missing fields under missing_information.
+Do not use generic background statements as final-design facts. If a sentence says patches are generally made of copper or gold, treat it as background unless the proposed antenna is explicitly stated to use copper or gold.
 
-Return null or empty arrays for missing information. Do not infer missing dimensions, materials, feed positions, solver settings, or results.
+Preserve original units in raw_value and unit. Do not normalize units in this candidate phase.
 
-Keep source_text short but sufficient to verify the extraction.
+Preferred result metric names are:
+- resonant_frequency
+- operating_frequency_range
+- bandwidth
+- return_loss
+- s11
+- s11_magnitude
+- vswr
+- gain
+- directivity
+- efficiency
+- input_impedance
+- axial_ratio
+- radiation_pattern
+- sar
+- current_distribution
+- unknown
 
-Return only valid JSON matching the template.
+If a value is visible only in a figure but not numerically specified, describe it but do not invent a number.
+
+Report conflicts when prose values and table values differ, when different operating bands are stated, when ground type is described inconsistently, or when final-design wording conflicts with variants.
+
+Return null or empty arrays for missing information. Return only valid JSON matching the template.
 """

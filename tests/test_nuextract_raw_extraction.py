@@ -35,7 +35,7 @@ def test_extraction_sends_all_pages_once_and_writes_outputs(tmp_path) -> None:
         client=client,
     )
 
-    assert candidate.schema_name == "antenna_design_candidate_v1"
+    assert candidate.schema_name == "antenna_design_candidate_v2"
     assert report.page_count == 2
     assert report.thinking_enabled is True
     assert report.temperature == 0.6
@@ -45,9 +45,17 @@ def test_extraction_sends_all_pages_once_and_writes_outputs(tmp_path) -> None:
 
     request = client.requests[0]
     content = request["messages"][0]["content"]
-    assert [item["image_url"]["url"] for item in content] == [
-        _data_url(b"first page"),
-        _data_url(b"second page"),
+    assert content == [
+        {"type": "text", "text": "PDF_INPUT_PAGE=1"},
+        {
+            "type": "image_url",
+            "image_url": {"url": _data_url(b"first page")},
+        },
+        {"type": "text", "text": "PDF_INPUT_PAGE=2"},
+        {
+            "type": "image_url",
+            "image_url": {"url": _data_url(b"second page")},
+        },
     ]
     chat_template = request["extra_body"]["chat_template_kwargs"]
     assert chat_template["template"] == json.dumps(
@@ -73,7 +81,24 @@ def test_thinking_and_json_fences_are_removed_before_parsing() -> None:
 
     assert "private reasoning" not in cleaned
     assert cleaned.startswith("{")
-    assert candidate.schema_name == "antenna_design_candidate_v1"
+    assert candidate.schema_name == "antenna_design_candidate_v2"
+
+
+def test_invalid_source_page_adds_report_warning(tmp_path) -> None:
+    run_dir = _make_rendered_run(tmp_path)
+    client = FakeClient(_candidate_json(summary_evidence_page=1207))
+
+    _candidate, report = extract_antenna_candidate_from_run(
+        run_dir,
+        settings=_settings(),
+        client=client,
+    )
+
+    assert report.warnings
+    assert "1207" in report.warnings[0]
+    assert "1..2" in report.warnings[0]
+    stored_report = read_json(run_dir / EXTRACTION_REPORT_PATH)
+    assert stored_report["warnings"] == report.warnings
 
 
 def test_existing_outputs_are_refused_without_force(tmp_path) -> None:
@@ -167,11 +192,27 @@ def _make_rendered_run(tmp_path: Path) -> Path:
     return run_dir
 
 
-def _candidate_json(title: str = "Test antenna") -> str:
+def _candidate_json(
+    title: str = "Test antenna",
+    summary_evidence_page: int | None = None,
+) -> str:
+    evidence = []
+    if summary_evidence_page is not None:
+        evidence.append(
+            {
+                "page": summary_evidence_page,
+                "quote": "reported on journal page 1207",
+                "confidence": 0.8,
+            }
+        )
+
     return json.dumps(
         {
-            "schema_name": "antenna_design_candidate_v1",
+            "schema_name": "antenna_design_candidate_v2",
             "document": {"title": title},
+            "summary": {
+                "evidence": evidence,
+            },
         }
     )
 

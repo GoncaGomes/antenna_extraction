@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from pydantic import Field
 
-from antenna_ingest.nuextract.candidate_schemas import AntennaDesignCandidate
+from antenna_ingest.nuextract.candidate_schemas import (
+    AntennaDesignCandidate,
+    EvidenceRef,
+    ExtractedProperty,
+    ResultCandidate,
+)
 from antenna_ingest.nuextract.candidate_template import (
     ANTENNA_DESIGN_CANDIDATE_INSTRUCTIONS,
     ANTENNA_DESIGN_CANDIDATE_TEMPLATE,
@@ -38,6 +44,12 @@ RAW_EXTRACTION_PHASE = "nuextract_raw_extraction"
 ANTENNA_CANDIDATE_PATH = "extraction/nuextract3_antenna_candidate.json"
 EXTRACTION_REPORT_PATH = "extraction/nuextract3_extraction_report.json"
 EXTRACTOR_NAME = "nuextract3_full_document_structured_extraction"
+
+
+@dataclass(frozen=True)
+class PageImagePayload:
+    page_number: int
+    data_url: str
 
 
 class NuExtractExtractionReport(StrictModel):
@@ -79,19 +91,26 @@ def extract_antenna_candidate_from_run(
     write_json(manifest_path, manifest.model_dump(mode="json"))
 
     try:
-        data_urls = [
-            image_file_to_data_url(run_dir / page.relative_path)
+        page_payloads = [
+            PageImagePayload(
+                page_number=page.page_number,
+                data_url=image_file_to_data_url(run_dir / page.relative_path),
+            )
             for page in page_report.pages
         ]
         response_content = request_antenna_candidate(
             client=client,
             model=settings.ollama_model,
-            data_urls=data_urls,
+            page_payloads=page_payloads,
             temperature=temperature,
             max_tokens=max_tokens,
             enable_thinking=enable_thinking,
         )
         candidate = parse_candidate_response(response_content)
+        warnings = validate_candidate_source_pages(
+            candidate,
+            page_count=page_report.page_count,
+        )
 
         candidate_path = run_dir / ANTENNA_CANDIDATE_PATH
         write_json(candidate_path, candidate.model_dump(mode="json"))
@@ -107,7 +126,7 @@ def extract_antenna_candidate_from_run(
             candidate_character_count=len(
                 candidate_path.read_text(encoding="utf-8")
             ),
-            warnings=[],
+            warnings=warnings,
         )
         write_json(run_dir / EXTRACTION_REPORT_PATH, report.model_dump(mode="json"))
 
@@ -157,7 +176,7 @@ def parse_pdf_to_candidate(
 def request_antenna_candidate(
     client: object,
     model: str,
-    data_urls: list[str],
+    page_payloads: list[PageImagePayload],
     temperature: float = 0.6,
     max_tokens: int | None = None,
     enable_thinking: bool = True,
@@ -168,13 +187,7 @@ def request_antenna_candidate(
         "messages": [
             {
                 "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": data_url},
-                    }
-                    for data_url in data_urls
-                ],
+                "content": build_page_image_content(page_payloads),
             }
         ],
         "extra_body": {
@@ -193,6 +206,124 @@ def request_antenna_candidate(
 
     response = client.chat.completions.create(**request)
     return response.choices[0].message.content or ""
+
+
+def build_page_image_content(page_payloads: list[PageImagePayload]) -> list[dict]:
+    content: list[dict] = []
+    for payload in page_payloads:
+        content.append(
+            {
+                "type": "text",
+                "text": f"PDF_INPUT_PAGE={payload.page_number}",
+            }
+        )
+        content.append(
+            {
+                "type": "image_url",
+                "image_url": {"url": payload.data_url},
+            }
+        )
+    return content
+
+
+def validate_candidate_source_pages(
+    candidate: AntennaDesignCandidate,
+    page_count: int,
+) -> list[str]:
+    warnings: list[str] = []
+
+    def check_evidence(evidence: list[EvidenceRef], location: str) -> None:
+        for index, item in enumerate(evidence):
+            if item.page is None:
+                continue
+            if item.page < 1 or item.page > page_count:
+                warnings.append(
+                    f"Invalid evidence page at {location}[{index}].page: "
+                    f"{item.page} is outside PDF input page range 1..{page_count}."
+                )
+
+    def check_properties(
+        properties: list[ExtractedProperty],
+        location: str,
+    ) -> None:
+        for index, prop in enumerate(properties):
+            check_evidence(prop.evidence, f"{location}[{index}].evidence")
+
+    def check_results(results: list[ResultCandidate], location: str) -> None:
+        for index, result in enumerate(results):
+            check_evidence(result.evidence, f"{location}[{index}].evidence")
+
+    check_evidence(candidate.summary.evidence, "summary.evidence")
+
+    final_design = candidate.final_design
+    check_evidence(final_design.evidence, "final_design.evidence")
+
+    for material_index, material in enumerate(final_design.materials):
+        material_location = f"final_design.materials[{material_index}]"
+        check_evidence(material.evidence, f"{material_location}.evidence")
+        check_properties(material.properties, f"{material_location}.properties")
+
+    for component_index, component in enumerate(final_design.components):
+        component_location = f"final_design.components[{component_index}]"
+        check_evidence(component.evidence, f"{component_location}.evidence")
+        check_evidence(
+            component.geometry.evidence,
+            f"{component_location}.geometry.evidence",
+        )
+        check_properties(
+            component.geometry.properties,
+            f"{component_location}.geometry.properties",
+        )
+        check_properties(component.properties, f"{component_location}.properties")
+
+    for feature_index, feature in enumerate(final_design.features):
+        feature_location = f"final_design.features[{feature_index}]"
+        check_evidence(feature.evidence, f"{feature_location}.evidence")
+        check_properties(feature.properties, f"{feature_location}.properties")
+
+    for feed_index, feed in enumerate(final_design.feeds):
+        feed_location = f"final_design.feeds[{feed_index}]"
+        check_evidence(feed.evidence, f"{feed_location}.evidence")
+        check_properties(feed.properties, f"{feed_location}.properties")
+
+    simulation_setup = final_design.simulation_setup
+    check_evidence(
+        simulation_setup.evidence,
+        "final_design.simulation_setup.evidence",
+    )
+    check_properties(
+        simulation_setup.frequency_sweep,
+        "final_design.simulation_setup.frequency_sweep",
+    )
+    check_properties(
+        simulation_setup.properties,
+        "final_design.simulation_setup.properties",
+    )
+
+    check_results(final_design.results, "final_design.results")
+
+    for variant_index, variant in enumerate(candidate.variants):
+        variant_location = f"variants[{variant_index}]"
+        check_evidence(variant.evidence, f"{variant_location}.evidence")
+        check_properties(variant.properties, f"{variant_location}.properties")
+        check_results(variant.results, f"{variant_location}.results")
+
+    for conflict_index, conflict in enumerate(candidate.conflicts):
+        check_evidence(
+            conflict.evidence,
+            f"conflicts[{conflict_index}].evidence",
+        )
+
+    for missing_index, missing in enumerate(candidate.missing_information):
+        check_evidence(
+            missing.evidence,
+            f"missing_information[{missing_index}].evidence",
+        )
+
+    for note_index, note in enumerate(candidate.notes):
+        check_evidence(note.evidence, f"notes[{note_index}].evidence")
+
+    return warnings
 
 
 def refuse_existing_extraction_outputs(run_dir: Path, force: bool) -> None:

@@ -15,6 +15,7 @@ wheels/
 runs/*
 runs.zip
 old_runs.zip
+old_runs.rar
 !runs/.gitkeep
 legacy/
 

@@ -67,6 +67,8 @@ def build_parser() -> argparse.ArgumentParser:
     parse_candidate.add_argument("--paper-id")
     parse_candidate.add_argument("--dpi", type=int, default=170)
     parse_candidate.add_argument("--force", action="store_true")
+    parse_candidate.add_argument("--temperature", type=float, default=0.6)
+    parse_candidate.add_argument("--max-tokens", type=int)
 
     return parser
 
@@ -155,6 +157,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             paper_id=args.paper_id,
             dpi=args.dpi,
             force=args.force,
+            temperature=args.temperature,
+            max_tokens=args.max_tokens,
         )
         print(f"Created run: {context.run_dir}")
         print(f"Candidate: {context.run_dir / ANTENNA_CANDIDATE_PATH}")

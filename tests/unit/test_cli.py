@@ -26,6 +26,10 @@ def test_parse_candidate_command_parses() -> None:
             "runs",
             "--paper-id",
             "example",
+            "--temperature",
+            "0.2",
+            "--max-tokens",
+            "2048",
             "--force",
         ]
     )
@@ -34,4 +38,6 @@ def test_parse_candidate_command_parses() -> None:
     assert args.input_pdf == Path("paper.pdf")
     assert args.runs_root == Path("runs")
     assert args.paper_id == "example"
+    assert args.temperature == 0.2
+    assert args.max_tokens == 2048
     assert args.force is True
