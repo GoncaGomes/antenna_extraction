@@ -1,0 +1,256 @@
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+
+from pydantic import Field
+
+from antenna_ingest.nuextract.candidate_schemas import AntennaDesignCandidate
+from antenna_ingest.nuextract.candidate_template import (
+    ANTENNA_DESIGN_CANDIDATE_INSTRUCTIONS,
+    ANTENNA_DESIGN_CANDIDATE_TEMPLATE,
+)
+from antenna_ingest.nuextract.client import build_nuextract_client
+from antenna_ingest.nuextract.images import image_file_to_data_url
+from antenna_ingest.nuextract.pdf_rendering import (
+    PAGE_RENDER_REPORT_PATH,
+    PAGES_DIR,
+    PageRenderReport,
+    render_run_pages,
+)
+from antenna_ingest.nuextract.settings import (
+    NuExtractSettings,
+    load_nuextract_settings,
+)
+from antenna_ingest.orchestration.runs import create_run, sha256_file
+from antenna_ingest.orchestration.schemas import (
+    ArtifactReference,
+    PhaseStatus,
+    RunContext,
+    RunManifest,
+    StrictModel,
+)
+from antenna_ingest.utils.json_io import read_json, write_json
+
+
+RAW_EXTRACTION_PHASE = "nuextract_raw_extraction"
+ANTENNA_CANDIDATE_PATH = "extraction/nuextract3_antenna_candidate.json"
+EXTRACTION_REPORT_PATH = "extraction/nuextract3_extraction_report.json"
+EXTRACTOR_NAME = "nuextract3_full_document_structured_extraction"
+
+
+class NuExtractExtractionReport(StrictModel):
+    extractor_name: str = Field(min_length=1)
+    model: str = Field(min_length=1)
+    source_pages_dir: str = Field(min_length=1)
+    source_page_render_report: str = Field(min_length=1)
+    output_candidate: str = Field(min_length=1)
+    page_count: int = Field(ge=1)
+    thinking_enabled: bool
+    temperature: float
+    candidate_character_count: int = Field(ge=0)
+    warnings: list[str] = Field(default_factory=list)
+
+
+def extract_antenna_candidate_from_run(
+    run_dir: Path,
+    force: bool = False,
+    settings: NuExtractSettings | None = None,
+    client: object | None = None,
+    temperature: float = 0.6,
+    max_tokens: int | None = None,
+    enable_thinking: bool = True,
+) -> tuple[AntennaDesignCandidate, NuExtractExtractionReport]:
+    run_dir = Path(run_dir).resolve()
+    manifest_path = run_dir / "manifest.json"
+    manifest = RunManifest.model_validate(read_json(manifest_path))
+    render_report_path = run_dir / PAGE_RENDER_REPORT_PATH
+    if not render_report_path.exists():
+        render_run_pages(run_dir, force=force)
+    page_report = PageRenderReport.model_validate(read_json(render_report_path))
+
+    refuse_existing_extraction_outputs(run_dir, force)
+    settings = settings or load_nuextract_settings()
+    client = client or build_nuextract_client(settings)
+
+    manifest = RunManifest.model_validate(read_json(manifest_path))
+    manifest.phase_status[RAW_EXTRACTION_PHASE] = PhaseStatus.RUNNING
+    write_json(manifest_path, manifest.model_dump(mode="json"))
+
+    try:
+        data_urls = [
+            image_file_to_data_url(run_dir / page.relative_path)
+            for page in page_report.pages
+        ]
+        response_content = request_antenna_candidate(
+            client=client,
+            model=settings.ollama_model,
+            data_urls=data_urls,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            enable_thinking=enable_thinking,
+        )
+        candidate = parse_candidate_response(response_content)
+
+        candidate_path = run_dir / ANTENNA_CANDIDATE_PATH
+        write_json(candidate_path, candidate.model_dump(mode="json"))
+        report = NuExtractExtractionReport(
+            extractor_name=EXTRACTOR_NAME,
+            model=settings.ollama_model,
+            source_pages_dir=PAGES_DIR,
+            source_page_render_report=PAGE_RENDER_REPORT_PATH,
+            output_candidate=ANTENNA_CANDIDATE_PATH,
+            page_count=page_report.page_count,
+            thinking_enabled=enable_thinking,
+            temperature=temperature,
+            candidate_character_count=len(
+                candidate_path.read_text(encoding="utf-8")
+            ),
+            warnings=[],
+        )
+        write_json(run_dir / EXTRACTION_REPORT_PATH, report.model_dump(mode="json"))
+
+        manifest = RunManifest.model_validate(read_json(manifest_path))
+        manifest.phase_status[RAW_EXTRACTION_PHASE] = PhaseStatus.COMPLETED
+        replace_raw_extraction_artifacts(manifest, run_dir)
+        write_json(manifest_path, manifest.model_dump(mode="json"))
+        return candidate, report
+    except Exception:
+        failed_manifest = RunManifest.model_validate(read_json(manifest_path))
+        failed_manifest.phase_status[RAW_EXTRACTION_PHASE] = PhaseStatus.FAILED
+        write_json(manifest_path, failed_manifest.model_dump(mode="json"))
+        raise
+
+
+def parse_pdf_to_candidate(
+    input_pdf: Path,
+    runs_root: Path = Path("runs"),
+    paper_id: str | None = None,
+    dpi: int = 170,
+    force: bool = False,
+    settings: NuExtractSettings | None = None,
+    client: object | None = None,
+    temperature: float = 0.6,
+    max_tokens: int | None = None,
+    enable_thinking: bool = True,
+) -> tuple[RunContext, AntennaDesignCandidate, NuExtractExtractionReport]:
+    context = create_run(
+        input_pdf=input_pdf,
+        runs_root=runs_root,
+        force=force,
+        paper_id=paper_id,
+    )
+    render_run_pages(context.run_dir, dpi=dpi, force=force)
+    candidate, report = extract_antenna_candidate_from_run(
+        context.run_dir,
+        force=force,
+        settings=settings,
+        client=client,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        enable_thinking=enable_thinking,
+    )
+    return context, candidate, report
+
+
+def request_antenna_candidate(
+    client: object,
+    model: str,
+    data_urls: list[str],
+    temperature: float = 0.6,
+    max_tokens: int | None = None,
+    enable_thinking: bool = True,
+) -> str:
+    request = {
+        "model": model,
+        "temperature": temperature,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": data_url},
+                    }
+                    for data_url in data_urls
+                ],
+            }
+        ],
+        "extra_body": {
+            "chat_template_kwargs": {
+                "template": json.dumps(
+                    ANTENNA_DESIGN_CANDIDATE_TEMPLATE,
+                    indent=2,
+                ),
+                "instructions": ANTENNA_DESIGN_CANDIDATE_INSTRUCTIONS,
+                "enable_thinking": enable_thinking,
+            }
+        },
+    }
+    if max_tokens is not None:
+        request["max_tokens"] = max_tokens
+
+    response = client.chat.completions.create(**request)
+    return response.choices[0].message.content or ""
+
+
+def refuse_existing_extraction_outputs(run_dir: Path, force: bool) -> None:
+    candidate_path = Path(run_dir) / ANTENNA_CANDIDATE_PATH
+    report_path = Path(run_dir) / EXTRACTION_REPORT_PATH
+    if not force:
+        if candidate_path.exists():
+            raise FileExistsError(f"candidate already exists: {candidate_path}")
+        if report_path.exists():
+            raise FileExistsError(f"extraction report already exists: {report_path}")
+        return
+
+    if candidate_path.exists():
+        candidate_path.unlink()
+    if report_path.exists():
+        report_path.unlink()
+
+
+def replace_raw_extraction_artifacts(
+    manifest: RunManifest,
+    run_dir: Path,
+) -> None:
+    artifact_names = {
+        "nuextract3_antenna_candidate",
+        "nuextract3_extraction_report",
+    }
+    manifest.artifacts = [
+        artifact
+        for artifact in manifest.artifacts
+        if artifact.name not in artifact_names
+    ]
+    manifest.add_artifact(
+        ArtifactReference(
+            name="nuextract3_antenna_candidate",
+            relative_path=ANTENNA_CANDIDATE_PATH,
+            producing_phase=RAW_EXTRACTION_PHASE,
+            checksum=sha256_file(Path(run_dir) / ANTENNA_CANDIDATE_PATH),
+        )
+    )
+    manifest.add_artifact(
+        ArtifactReference(
+            name="nuextract3_extraction_report",
+            relative_path=EXTRACTION_REPORT_PATH,
+            producing_phase=RAW_EXTRACTION_PHASE,
+            checksum=sha256_file(Path(run_dir) / EXTRACTION_REPORT_PATH),
+        )
+    )
+
+
+def clean_nuextract_json_response(content: str) -> str:
+    cleaned = content.rsplit("</think>", maxsplit=1)[-1].strip()
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"^json\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s*```$", "", cleaned).strip()
+    return cleaned
+
+
+def parse_candidate_response(content: str) -> AntennaDesignCandidate:
+    cleaned = clean_nuextract_json_response(content)
+    data = json.loads(cleaned)
+    return AntennaDesignCandidate.model_validate(data)

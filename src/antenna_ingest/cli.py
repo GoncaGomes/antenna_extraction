@@ -16,6 +16,12 @@ from antenna_ingest.nuextract.pdf_rendering import (
     PAGES_DIR,
     render_run_pages,
 )
+from antenna_ingest.nuextract.raw_extraction import (
+    ANTENNA_CANDIDATE_PATH,
+    EXTRACTION_REPORT_PATH,
+    extract_antenna_candidate_from_run,
+    parse_pdf_to_candidate,
+)
 from antenna_ingest.orchestration.runs import create_run
 
 
@@ -50,6 +56,17 @@ def build_parser() -> argparse.ArgumentParser:
     parse_markdown.add_argument("--paper-id")
     parse_markdown.add_argument("--dpi", type=int, default=170)
     parse_markdown.add_argument("--force", action="store_true")
+    extract_candidate = nuextract_subparsers.add_parser("extract-candidate")
+    extract_candidate.add_argument("run_dir", type=Path)
+    extract_candidate.add_argument("--force", action="store_true")
+    extract_candidate.add_argument("--temperature", type=float, default=0.6)
+    extract_candidate.add_argument("--max-tokens", type=int)
+    parse_candidate = nuextract_subparsers.add_parser("parse-candidate")
+    parse_candidate.add_argument("input_pdf", type=Path)
+    parse_candidate.add_argument("--runs-root", type=Path, default=Path("runs"))
+    parse_candidate.add_argument("--paper-id")
+    parse_candidate.add_argument("--dpi", type=int, default=170)
+    parse_candidate.add_argument("--force", action="store_true")
 
     return parser
 
@@ -118,6 +135,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Report: {context.run_dir / MARKDOWN_REPORT_PATH}")
         print(f"Rendered/converted pages: {report.page_count}")
         print(f"Characters: {report.character_count}")
+        return 0
+
+    if args.command == "nuextract" and args.nuextract_command == "extract-candidate":
+        extract_antenna_candidate_from_run(
+            run_dir=args.run_dir,
+            force=args.force,
+            temperature=args.temperature,
+            max_tokens=args.max_tokens,
+        )
+        print(f"Candidate: {args.run_dir / ANTENNA_CANDIDATE_PATH}")
+        print(f"Report: {args.run_dir / EXTRACTION_REPORT_PATH}")
+        return 0
+
+    if args.command == "nuextract" and args.nuextract_command == "parse-candidate":
+        context, _candidate, _report = parse_pdf_to_candidate(
+            input_pdf=args.input_pdf,
+            runs_root=args.runs_root,
+            paper_id=args.paper_id,
+            dpi=args.dpi,
+            force=args.force,
+        )
+        print(f"Created run: {context.run_dir}")
+        print(f"Candidate: {context.run_dir / ANTENNA_CANDIDATE_PATH}")
+        print(f"Report: {context.run_dir / EXTRACTION_REPORT_PATH}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

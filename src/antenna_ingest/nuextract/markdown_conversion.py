@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import base64
 import re
 from pathlib import Path
 
 from pydantic import Field
 
 from antenna_ingest.nuextract.client import build_nuextract_client
+from antenna_ingest.nuextract.images import image_file_to_data_url
 from antenna_ingest.nuextract.pdf_rendering import (
     PAGE_RENDER_REPORT_PATH,
     PAGES_DIR,
@@ -175,11 +175,6 @@ def refuse_existing_markdown_outputs(run_dir: Path, force: bool) -> None:
         markdown_path.unlink()
     if report_path.exists():
         report_path.unlink()
-
-
-def image_file_to_data_url(image_path: Path) -> str:
-    encoded = base64.b64encode(Path(image_path).read_bytes()).decode("ascii")
-    return f"data:image/png;base64,{encoded}"
 
 
 def clean_markdown_output(markdown: str) -> str:
