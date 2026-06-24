@@ -25,6 +25,7 @@ class EvidenceRef(StrictModel):
 
 class ExtractedProperty(StrictModel):
     name: str | None = None
+    symbol: str | None = None
     raw_value: str | None = None
     value: float | str | bool | None = None
     unit: str | None = None
@@ -34,6 +35,7 @@ class ExtractedProperty(StrictModel):
     def is_empty(self) -> bool:
         return (
             self.name is None
+            and self.symbol is None
             and self.raw_value is None
             and self.value is None
             and self.unit is None
@@ -78,7 +80,7 @@ class GeometryDescription(StrictModel):
     shape_family: str | None = None
     description: str | None = None
     properties: list[ExtractedProperty] = Field(default_factory=list)
-    location: str | None = None
+    topological_relationship: str | None = None
     reconstruction_status: str | None = None
     evidence: list[EvidenceRef] = Field(default_factory=list)
 
@@ -105,7 +107,7 @@ class FeatureCandidate(StrictModel):
     associated_component_id: str | None = None
     description: str | None = None
     properties: list[ExtractedProperty] = Field(default_factory=list)
-    location: str | None = None
+    topological_relationship: str | None = None
     evidence: list[EvidenceRef] = Field(default_factory=list)
 
 

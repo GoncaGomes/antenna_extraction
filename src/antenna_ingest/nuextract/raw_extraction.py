@@ -43,6 +43,9 @@ from antenna_ingest.utils.json_io import read_json, write_json
 RAW_EXTRACTION_PHASE = "nuextract_raw_extraction"
 ANTENNA_CANDIDATE_PATH = "extraction/nuextract3_antenna_candidate.json"
 EXTRACTION_REPORT_PATH = "extraction/nuextract3_extraction_report.json"
+RAW_RESPONSE_TRACE_PATH = "extraction/nuextract3_raw_response.txt"
+CLEANED_RESPONSE_TRACE_PATH = "extraction/nuextract3_cleaned_response.txt"
+PARSE_ERROR_TRACE_PATH = "extraction/nuextract3_parse_error.txt"
 EXTRACTOR_NAME = "nuextract3_full_document_structured_extraction"
 
 
@@ -106,7 +109,11 @@ def extract_antenna_candidate_from_run(
             max_tokens=max_tokens,
             enable_thinking=enable_thinking,
         )
-        candidate = parse_candidate_response(response_content)
+        try:
+            candidate = parse_candidate_response(response_content)
+        except Exception as error:
+            write_response_parse_traces(run_dir, response_content, error)
+            raise
         warnings = validate_candidate_source_pages(
             candidate,
             page_count=page_report.page_count,
@@ -379,6 +386,47 @@ def clean_nuextract_json_response(content: str) -> str:
     cleaned = re.sub(r"^json\s*", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\s*```$", "", cleaned).strip()
     return cleaned
+
+
+def write_response_parse_traces(
+    run_dir: Path,
+    response_content: str,
+    error: Exception,
+) -> None:
+    run_dir = Path(run_dir)
+    cleaned = clean_nuextract_json_response(response_content)
+    raw_path = run_dir / RAW_RESPONSE_TRACE_PATH
+    cleaned_path = run_dir / CLEANED_RESPONSE_TRACE_PATH
+    error_path = run_dir / PARSE_ERROR_TRACE_PATH
+    raw_path.parent.mkdir(parents=True, exist_ok=True)
+    raw_path.write_text(response_content, encoding="utf-8")
+    cleaned_path.write_text(cleaned, encoding="utf-8")
+    error_path.write_text(
+        format_parse_error_trace(cleaned, error),
+        encoding="utf-8",
+    )
+
+
+def format_parse_error_trace(cleaned: str, error: Exception) -> str:
+    lines = [
+        f"error_type: {type(error).__name__}",
+        f"error_message: {error}",
+    ]
+    if isinstance(error, json.JSONDecodeError):
+        start = max(error.pos - 500, 0)
+        end = min(error.pos + 500, len(cleaned))
+        lines.extend(
+            [
+                f"line: {error.lineno}",
+                f"column: {error.colno}",
+                f"char_position: {error.pos}",
+                f"context_start: {start}",
+                f"context_end: {end}",
+                "context:",
+                cleaned[start:end],
+            ]
+        )
+    return "\n".join(lines) + "\n"
 
 
 def parse_candidate_response(content: str) -> AntennaDesignCandidate:

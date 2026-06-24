@@ -8,6 +8,7 @@ from antenna_ingest.nuextract.candidate_schemas import (
     CandidateSummary,
     EvidenceRef,
     ExtractedProperty,
+    FeatureCandidate,
     GeometryDescription,
     RECONSTRUCTION_STATUSES,
 )
@@ -29,6 +30,7 @@ def test_invalid_schema_name_fails() -> None:
 def test_extracted_property_with_all_empty_fields_validates() -> None:
     prop = ExtractedProperty(
         name=None,
+        symbol=None,
         raw_value=None,
         value=None,
         unit=None,
@@ -37,6 +39,50 @@ def test_extracted_property_with_all_empty_fields_validates() -> None:
     )
 
     assert prop.is_empty() is True
+
+
+def test_extracted_property_symbol_validates() -> None:
+    prop = ExtractedProperty(symbol="Xf")
+
+    assert prop.symbol == "Xf"
+
+
+def test_extracted_property_with_symbol_is_not_empty() -> None:
+    prop = ExtractedProperty(symbol="Xf")
+
+    assert prop.is_empty() is False
+
+
+def test_geometry_topological_relationship_validates() -> None:
+    geometry = GeometryDescription(
+        topological_relationship="printed on one side of the substrate"
+    )
+
+    assert (
+        geometry.topological_relationship
+        == "printed on one side of the substrate"
+    )
+
+
+def test_feature_topological_relationship_validates() -> None:
+    feature = FeatureCandidate(
+        feature_id="slot_1",
+        topological_relationship="slot etched in the patch",
+    )
+
+    assert feature.topological_relationship == "slot etched in the patch"
+
+
+@pytest.mark.parametrize(
+    ("model_class", "kwargs"),
+    [
+        (GeometryDescription, {"location": "printed on substrate"}),
+        (FeatureCandidate, {"feature_id": "slot_1", "location": "etched in patch"}),
+    ],
+)
+def test_old_location_field_fails(model_class, kwargs) -> None:
+    with pytest.raises(ValidationError, match="location"):
+        model_class(**kwargs)
 
 
 @pytest.mark.parametrize(

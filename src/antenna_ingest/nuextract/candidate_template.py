@@ -9,6 +9,7 @@ EVIDENCE_TEMPLATE = {
 
 PROPERTY_TEMPLATE = {
     "name": "string",
+    "symbol": "string",
     "raw_value": "verbatim-string",
     "value": "verbatim-string",
     "unit": "unit-code",
@@ -68,7 +69,7 @@ ANTENNA_DESIGN_CANDIDATE_TEMPLATE = {
                     "shape_family": "string",
                     "description": "verbatim-string",
                     "properties": [PROPERTY_TEMPLATE],
-                    "location": "verbatim-string",
+                    "topological_relationship": "verbatim-string",
                     "reconstruction_status": "string",
                     "evidence": [EVIDENCE_TEMPLATE],
                 },
@@ -84,7 +85,7 @@ ANTENNA_DESIGN_CANDIDATE_TEMPLATE = {
                 "associated_component_id": "string",
                 "description": "verbatim-string",
                 "properties": [PROPERTY_TEMPLATE],
-                "location": "verbatim-string",
+                "topological_relationship": "verbatim-string",
                 "evidence": [EVIDENCE_TEMPLATE],
             }
         ],
@@ -168,6 +169,18 @@ Do not create a feed component for a coaxial probe unless the paper explicitly p
 
 Do not include an operations field. Do not output CST commands, CAD build steps, boolean operations, or simulation execution steps.
 
+ZERO HALLUCINATION POLICY:
+Extract only information explicitly stated in visible text, tables, captions, figure labels, equations, or numerical annotations. Do not infer, guess, calculate, or complete missing parameters based on visual plot style, standard RF practice, typical material defaults, or engineering assumptions. If a parameter, software name, boundary condition, material, dimension, coordinate, or result is not explicitly stated, output null or an empty array and report it under missing_information when relevant.
+
+CONFLICT DETECTION:
+Aggressively cross-reference numerical values found in prose, tables, captions, equations, and figure labels. If the same apparent field has different values in different places, do not resolve the conflict yourself. Add a conflict item containing all values and evidence for each value.
+
+SYMBOL CAPTURE:
+Whenever a dimension, material property, feed parameter, simulation parameter, result, or physical property is associated with an algebraic symbol or variable in the text, table, equation, caption, or diagram, extract that symbol into the symbol field exactly as written when possible. Examples: W, L, Wp, Lg, Wg, Xf, Yf, h, epsilon_r, tan_delta.
+
+TOPOLOGICAL RELATIONSHIPS:
+Use topological_relationship for verbatim relational placement, not calculated coordinates. Capture phrases such as printed on, etched in, located on the opposite side of, connected to, centered on, above, below, surrounding, or stacked over. Do not invent absolute coordinates from these phrases.
+
 Use reconstruction_status only from:
 - buildable
 - partially_buildable
@@ -175,6 +188,8 @@ Use reconstruction_status only from:
 - unknown
 
 Do not mark a design or component as buildable if build-critical details are missing.
+
+Substrate thickness must not be used as patch/conductor thickness unless the paper explicitly states that it is the conductor thickness.
 
 Do not use generic background statements as final-design facts. If a sentence says patches are generally made of copper or gold, treat it as background unless the proposed antenna is explicitly stated to use copper or gold.
 

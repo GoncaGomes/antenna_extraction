@@ -15,7 +15,10 @@ from antenna_ingest.nuextract.candidate_template import (
 from antenna_ingest.nuextract.pdf_rendering import PageRenderReport, RenderedPage
 from antenna_ingest.nuextract.raw_extraction import (
     ANTENNA_CANDIDATE_PATH,
+    CLEANED_RESPONSE_TRACE_PATH,
     EXTRACTION_REPORT_PATH,
+    PARSE_ERROR_TRACE_PATH,
+    RAW_RESPONSE_TRACE_PATH,
     clean_nuextract_json_response,
     extract_antenna_candidate_from_run,
     parse_candidate_response,
@@ -145,6 +148,31 @@ def test_client_error_marks_extraction_failed(tmp_path) -> None:
             client=FailingClient(),
         )
 
+    manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
+    assert manifest.phase_status["nuextract_raw_extraction"] == "failed"
+
+
+def test_invalid_json_response_writes_parse_traces(tmp_path) -> None:
+    run_dir = _make_rendered_run(tmp_path)
+    response = "<think>ignored</think>```json\n{\"schema_name\": bad}\n```"
+
+    with pytest.raises(json.JSONDecodeError):
+        extract_antenna_candidate_from_run(
+            run_dir,
+            settings=_settings(),
+            client=FakeClient(response),
+        )
+
+    assert (run_dir / RAW_RESPONSE_TRACE_PATH).read_text(
+        encoding="utf-8"
+    ) == response
+    assert (run_dir / CLEANED_RESPONSE_TRACE_PATH).read_text(
+        encoding="utf-8"
+    ) == '{"schema_name": bad}'
+    parse_error = (run_dir / PARSE_ERROR_TRACE_PATH).read_text(encoding="utf-8")
+    assert "JSONDecodeError" in parse_error
+    assert "char_position" in parse_error
+    assert "context:" in parse_error
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
     assert manifest.phase_status["nuextract_raw_extraction"] == "failed"
 

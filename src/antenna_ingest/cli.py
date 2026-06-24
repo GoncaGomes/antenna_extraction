@@ -61,6 +61,17 @@ def build_parser() -> argparse.ArgumentParser:
     extract_candidate.add_argument("--force", action="store_true")
     extract_candidate.add_argument("--temperature", type=float, default=0.6)
     extract_candidate.add_argument("--max-tokens", type=int)
+    extract_candidate.add_argument(
+        "--enable-thinking",
+        dest="enable_thinking",
+        action="store_true",
+        default=True,
+    )
+    extract_candidate.add_argument(
+        "--disable-thinking",
+        dest="enable_thinking",
+        action="store_false",
+    )
     parse_candidate = nuextract_subparsers.add_parser("parse-candidate")
     parse_candidate.add_argument("input_pdf", type=Path)
     parse_candidate.add_argument("--runs-root", type=Path, default=Path("runs"))
@@ -69,6 +80,37 @@ def build_parser() -> argparse.ArgumentParser:
     parse_candidate.add_argument("--force", action="store_true")
     parse_candidate.add_argument("--temperature", type=float, default=0.6)
     parse_candidate.add_argument("--max-tokens", type=int)
+    parse_candidate.add_argument(
+        "--enable-thinking",
+        dest="enable_thinking",
+        action="store_true",
+        default=True,
+    )
+    parse_candidate.add_argument(
+        "--disable-thinking",
+        dest="enable_thinking",
+        action="store_false",
+    )
+    parse_all = nuextract_subparsers.add_parser("parse-all")
+    parse_all.add_argument("input_pdf", type=Path)
+    parse_all.add_argument("--runs-root", type=Path, default=Path("runs"))
+    parse_all.add_argument("--pipeline-version", default="0.1.0")
+    parse_all.add_argument("--paper-id")
+    parse_all.add_argument("--dpi", type=int, default=170)
+    parse_all.add_argument("--force", action="store_true")
+    parse_all.add_argument("--temperature", type=float, default=0.6)
+    parse_all.add_argument("--max-tokens", type=int)
+    parse_all.add_argument(
+        "--enable-thinking",
+        dest="enable_thinking",
+        action="store_true",
+        default=True,
+    )
+    parse_all.add_argument(
+        "--disable-thinking",
+        dest="enable_thinking",
+        action="store_false",
+    )
 
     return parser
 
@@ -145,6 +187,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             force=args.force,
             temperature=args.temperature,
             max_tokens=args.max_tokens,
+            enable_thinking=args.enable_thinking,
         )
         print(f"Candidate: {args.run_dir / ANTENNA_CANDIDATE_PATH}")
         print(f"Report: {args.run_dir / EXTRACTION_REPORT_PATH}")
@@ -159,10 +202,44 @@ def main(argv: Sequence[str] | None = None) -> int:
             force=args.force,
             temperature=args.temperature,
             max_tokens=args.max_tokens,
+            enable_thinking=args.enable_thinking,
         )
         print(f"Created run: {context.run_dir}")
         print(f"Candidate: {context.run_dir / ANTENNA_CANDIDATE_PATH}")
         print(f"Report: {context.run_dir / EXTRACTION_REPORT_PATH}")
+        return 0
+
+    if args.command == "nuextract" and args.nuextract_command == "parse-all":
+        context = create_run(
+            input_pdf=args.input_pdf,
+            runs_root=args.runs_root,
+            force=args.force,
+            pipeline_version=args.pipeline_version,
+            paper_id=args.paper_id,
+        )
+        render_report = render_run_pages(
+            run_dir=context.run_dir,
+            dpi=args.dpi,
+            force=args.force,
+        )
+        markdown_report = convert_run_pages_to_markdown(
+            run_dir=context.run_dir,
+            force=args.force,
+        )
+        extract_antenna_candidate_from_run(
+            run_dir=context.run_dir,
+            force=args.force,
+            temperature=args.temperature,
+            max_tokens=args.max_tokens,
+            enable_thinking=args.enable_thinking,
+        )
+        print(f"Created run: {context.run_dir}")
+        print(f"Rendered pages: {render_report.page_count}")
+        print(f"Markdown written to: {context.run_dir / DOCUMENT_MARKDOWN_PATH}")
+        print(f"Markdown report: {context.run_dir / MARKDOWN_REPORT_PATH}")
+        print(f"Characters: {markdown_report.character_count}")
+        print(f"Candidate: {context.run_dir / ANTENNA_CANDIDATE_PATH}")
+        print(f"Extraction report: {context.run_dir / EXTRACTION_REPORT_PATH}")
         return 0
 
     parser.error(f"unknown command: {args.command}")
