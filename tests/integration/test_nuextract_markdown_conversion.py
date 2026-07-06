@@ -140,8 +140,8 @@ def _create_rendered_run(tmp_path):
 
 def _settings() -> NuExtractSettings:
     return NuExtractSettings(
-        OPENAI_BASE_URL="https://example.invalid/openai",
-        OLLAMA_MODEL="nuextract3",
+        SKYNET_BASE_URL="https://example.invalid/openai",
+        NUEXTRACT_MODEL="nuextract3",
         SKYNET_API_KEY=SecretStr("secret"),
     )
 

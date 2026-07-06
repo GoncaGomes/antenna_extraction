@@ -27,21 +27,21 @@ def run_nuextract_doctor(
 
     try:
         response = client.chat.completions.create(
-            model=settings.ollama_model,
+            model=settings.nuextract_model,
             messages=[{"role": "user", "content": "Reply exactly: NUEXTRACT3-OK"}],
             temperature=0,
         )
         response_text = response.choices[0].message.content
         return NuExtractDoctorResult(
             ok=True,
-            base_url=settings.openai_base_url,
-            model=settings.ollama_model,
+            base_url=settings.skynet_base_url,
+            model=settings.nuextract_model,
             response_text=response_text,
         )
     except Exception as exc:
         return NuExtractDoctorResult(
             ok=False,
-            base_url=settings.openai_base_url,
-            model=settings.ollama_model,
+            base_url=settings.skynet_base_url,
+            model=settings.nuextract_model,
             error=str(exc),
         )

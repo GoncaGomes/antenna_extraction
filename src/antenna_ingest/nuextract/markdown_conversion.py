@@ -91,7 +91,7 @@ def convert_run_pages_to_markdown(
             image_path = run_dir / page.relative_path
             markdown = request_page_markdown(
                 client=client,
-                model=settings.ollama_model,
+                model=settings.nuextract_model,
                 image_data_url=image_file_to_data_url(image_path),
             )
             markdown = clean_markdown_output(markdown)
@@ -111,7 +111,7 @@ def convert_run_pages_to_markdown(
 
         report = NuExtractMarkdownReport(
             converter_name=MARKDOWN_CONVERTER_NAME,
-            model=settings.ollama_model,
+            model=settings.nuextract_model,
             source_pages_dir=PAGES_DIR,
             source_page_render_report=PAGE_RENDER_REPORT_PATH,
             output_markdown=DOCUMENT_MARKDOWN_PATH,

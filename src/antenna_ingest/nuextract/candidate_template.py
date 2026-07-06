@@ -3,6 +3,7 @@ from __future__ import annotations
 
 EVIDENCE_TEMPLATE = {
     "page": "integer",
+    "figure_ref": "verbatim-string",
     "quote": "verbatim-string",
     "confidence": "number",
 }
@@ -19,6 +20,7 @@ PROPERTY_TEMPLATE = {
 
 RESULT_TEMPLATE = {
     "metric": "string",
+    "result_source": "string",
     "raw_value": "verbatim-string",
     "value": "verbatim-string",
     "unit": "unit-code",
@@ -48,6 +50,7 @@ ANTENNA_DESIGN_CANDIDATE_TEMPLATE = {
         "design_label": "verbatim-string",
         "is_explicitly_final_or_proposed": "boolean",
         "evidence": [EVIDENCE_TEMPLATE],
+        "properties": [PROPERTY_TEMPLATE],
         "materials": [
             {
                 "material_id": "string",
@@ -104,6 +107,8 @@ ANTENNA_DESIGN_CANDIDATE_TEMPLATE = {
             "solver": "verbatim-string",
             "boundary_conditions": "verbatim-string",
             "frequency_sweep": [PROPERTY_TEMPLATE],
+            "mesh_settings": [PROPERTY_TEMPLATE],
+            "port_settings": [PROPERTY_TEMPLATE],
             "properties": [PROPERTY_TEMPLATE],
             "notes": ["verbatim-string"],
             "evidence": [EVIDENCE_TEMPLATE],

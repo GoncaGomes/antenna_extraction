@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,11 +11,38 @@ class NuExtractSettings(BaseSettings):
         extra="ignore",
     )
 
-    openai_base_url: str = Field(validation_alias="OPENAI_BASE_URL")
-    ollama_model: str = Field(validation_alias="OLLAMA_MODEL")
+    skynet_base_url: str = Field(
+        validation_alias=AliasChoices("SKYNET_BASE_URL", "OPENAI_BASE_URL")
+    )
     skynet_api_key: SecretStr = Field(validation_alias="SKYNET_API_KEY")
+    nuextract_model: str = Field(
+        validation_alias=AliasChoices("NUEXTRACT_MODEL", "OLLAMA_MODEL")
+    )
+    canonicalizer_model: str = Field(
+        default="gemma-4-31b-it",
+        validation_alias="CANONICALIZER_MODEL",
+    )
+    verifier_model: str = Field(
+        default="gemma-4-31b-it",
+        validation_alias="VERIFIER_MODEL",
+    )
+    nuextract_timeout_seconds: int = Field(
+        default=180,
+        gt=0,
+        validation_alias="NUEXTRACT_TIMEOUT_SECONDS",
+    )
+    canonicalizer_timeout_seconds: int = Field(
+        default=600,
+        gt=0,
+        validation_alias="CANONICALIZER_TIMEOUT_SECONDS",
+    )
 
-    @field_validator("openai_base_url", "ollama_model")
+    @field_validator(
+        "skynet_base_url",
+        "nuextract_model",
+        "canonicalizer_model",
+        "verifier_model",
+    )
     @classmethod
     def validate_non_empty_string(cls, value: str) -> str:
         cleaned = value.strip()

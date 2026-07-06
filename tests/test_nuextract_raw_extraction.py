@@ -19,6 +19,7 @@ from antenna_ingest.nuextract.raw_extraction import (
     EXTRACTION_REPORT_PATH,
     PARSE_ERROR_TRACE_PATH,
     RAW_RESPONSE_TRACE_PATH,
+    REQUEST_METADATA_PATH,
     clean_nuextract_json_response,
     extract_antenna_candidate_from_run,
     parse_candidate_response,
@@ -41,9 +42,10 @@ def test_extraction_sends_all_pages_once_and_writes_outputs(tmp_path) -> None:
     assert candidate.schema_name == "antenna_design_candidate_v2"
     assert report.page_count == 2
     assert report.thinking_enabled is True
-    assert report.temperature == 0.6
+    assert report.temperature == 0.0
     assert (run_dir / ANTENNA_CANDIDATE_PATH).exists()
     assert (run_dir / EXTRACTION_REPORT_PATH).exists()
+    assert (run_dir / REQUEST_METADATA_PATH).exists()
     assert len(client.requests) == 1
 
     request = client.requests[0]
@@ -67,13 +69,41 @@ def test_extraction_sends_all_pages_once_and_writes_outputs(tmp_path) -> None:
     )
     assert chat_template["instructions"] == ANTENNA_DESIGN_CANDIDATE_INSTRUCTIONS
     assert chat_template["enable_thinking"] is True
-    assert request["temperature"] == 0.6
+    assert request["temperature"] == 0.0
+
+    metadata = read_json(run_dir / REQUEST_METADATA_PATH)
+    assert metadata == {
+        "model": "nuextract3",
+        "temperature": 0.0,
+        "max_tokens": None,
+        "enable_thinking": True,
+        "page_count": 2,
+        "template_version": "antenna_design_candidate_v2",
+        "timeout_seconds": 180,
+    }
 
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
     assert manifest.phase_status["nuextract_raw_extraction"] == "completed"
     artifact_names = {artifact.name for artifact in manifest.artifacts}
     assert "nuextract3_antenna_candidate" in artifact_names
     assert "nuextract3_extraction_report" in artifact_names
+    assert "nuextract3_request_metadata" in artifact_names
+
+
+def test_explicit_temperature_override_is_used(tmp_path) -> None:
+    run_dir = _make_rendered_run(tmp_path)
+    client = FakeClient(_candidate_json())
+
+    _candidate, report = extract_antenna_candidate_from_run(
+        run_dir,
+        settings=_settings(),
+        client=client,
+        temperature=0.2,
+    )
+
+    assert client.requests[0]["temperature"] == 0.2
+    assert report.temperature == 0.2
+    assert read_json(run_dir / REQUEST_METADATA_PATH)["temperature"] == 0.2
 
 
 def test_thinking_and_json_fences_are_removed_before_parsing() -> None:
@@ -247,8 +277,8 @@ def _candidate_json(
 
 def _settings() -> NuExtractSettings:
     return NuExtractSettings(
-        OPENAI_BASE_URL="https://example.invalid/openai",
-        OLLAMA_MODEL="nuextract3",
+        SKYNET_BASE_URL="https://example.invalid/openai",
+        NUEXTRACT_MODEL="nuextract3",
         SKYNET_API_KEY=SecretStr("secret"),
     )
 

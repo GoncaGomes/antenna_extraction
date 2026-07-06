@@ -59,7 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
     extract_candidate = nuextract_subparsers.add_parser("extract-candidate")
     extract_candidate.add_argument("run_dir", type=Path)
     extract_candidate.add_argument("--force", action="store_true")
-    extract_candidate.add_argument("--temperature", type=float, default=0.6)
+    extract_candidate.add_argument("--temperature", type=float, default=0.0)
     extract_candidate.add_argument("--max-tokens", type=int)
     extract_candidate.add_argument(
         "--enable-thinking",
@@ -78,7 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
     parse_candidate.add_argument("--paper-id")
     parse_candidate.add_argument("--dpi", type=int, default=170)
     parse_candidate.add_argument("--force", action="store_true")
-    parse_candidate.add_argument("--temperature", type=float, default=0.6)
+    parse_candidate.add_argument("--temperature", type=float, default=0.0)
     parse_candidate.add_argument("--max-tokens", type=int)
     parse_candidate.add_argument(
         "--enable-thinking",
@@ -98,7 +98,7 @@ def build_parser() -> argparse.ArgumentParser:
     parse_all.add_argument("--paper-id")
     parse_all.add_argument("--dpi", type=int, default=170)
     parse_all.add_argument("--force", action="store_true")
-    parse_all.add_argument("--temperature", type=float, default=0.6)
+    parse_all.add_argument("--temperature", type=float, default=0.0)
     parse_all.add_argument("--max-tokens", type=int)
     parse_all.add_argument(
         "--enable-thinking",

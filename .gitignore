@@ -16,6 +16,8 @@ runs/*
 runs.zip
 old_runs.zip
 old_runs.rar
+reports/
+temp/
 !runs/.gitkeep
 legacy/
 

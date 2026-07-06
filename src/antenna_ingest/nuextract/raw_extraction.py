@@ -46,6 +46,7 @@ EXTRACTION_REPORT_PATH = "extraction/nuextract3_extraction_report.json"
 RAW_RESPONSE_TRACE_PATH = "extraction/nuextract3_raw_response.txt"
 CLEANED_RESPONSE_TRACE_PATH = "extraction/nuextract3_cleaned_response.txt"
 PARSE_ERROR_TRACE_PATH = "extraction/nuextract3_parse_error.txt"
+REQUEST_METADATA_PATH = "extraction/nuextract3_request_metadata.json"
 EXTRACTOR_NAME = "nuextract3_full_document_structured_extraction"
 
 
@@ -68,12 +69,22 @@ class NuExtractExtractionReport(StrictModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class NuExtractRequestMetadata(StrictModel):
+    model: str = Field(min_length=1)
+    temperature: float
+    max_tokens: int | None = None
+    enable_thinking: bool
+    page_count: int = Field(ge=1)
+    template_version: str = Field(min_length=1)
+    timeout_seconds: int = Field(gt=0)
+
+
 def extract_antenna_candidate_from_run(
     run_dir: Path,
     force: bool = False,
     settings: NuExtractSettings | None = None,
     client: object | None = None,
-    temperature: float = 0.6,
+    temperature: float = 0.0,
     max_tokens: int | None = None,
     enable_thinking: bool = True,
 ) -> tuple[AntennaDesignCandidate, NuExtractExtractionReport]:
@@ -101,9 +112,22 @@ def extract_antenna_candidate_from_run(
             )
             for page in page_report.pages
         ]
+        metadata = NuExtractRequestMetadata(
+            model=settings.nuextract_model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            enable_thinking=enable_thinking,
+            page_count=page_report.page_count,
+            template_version=ANTENNA_DESIGN_CANDIDATE_TEMPLATE["schema_name"],
+            timeout_seconds=settings.nuextract_timeout_seconds,
+        )
+        write_json(
+            run_dir / REQUEST_METADATA_PATH,
+            metadata.model_dump(mode="json"),
+        )
         response_content = request_antenna_candidate(
             client=client,
-            model=settings.ollama_model,
+            model=settings.nuextract_model,
             page_payloads=page_payloads,
             temperature=temperature,
             max_tokens=max_tokens,
@@ -123,7 +147,7 @@ def extract_antenna_candidate_from_run(
         write_json(candidate_path, candidate.model_dump(mode="json"))
         report = NuExtractExtractionReport(
             extractor_name=EXTRACTOR_NAME,
-            model=settings.ollama_model,
+            model=settings.nuextract_model,
             source_pages_dir=PAGES_DIR,
             source_page_render_report=PAGE_RENDER_REPORT_PATH,
             output_candidate=ANTENNA_CANDIDATE_PATH,
@@ -157,7 +181,7 @@ def parse_pdf_to_candidate(
     force: bool = False,
     settings: NuExtractSettings | None = None,
     client: object | None = None,
-    temperature: float = 0.6,
+    temperature: float = 0.0,
     max_tokens: int | None = None,
     enable_thinking: bool = True,
 ) -> tuple[RunContext, AntennaDesignCandidate, NuExtractExtractionReport]:
@@ -184,7 +208,7 @@ def request_antenna_candidate(
     client: object,
     model: str,
     page_payloads: list[PageImagePayload],
-    temperature: float = 0.6,
+    temperature: float = 0.0,
     max_tokens: int | None = None,
     enable_thinking: bool = True,
 ) -> str:
@@ -336,17 +360,22 @@ def validate_candidate_source_pages(
 def refuse_existing_extraction_outputs(run_dir: Path, force: bool) -> None:
     candidate_path = Path(run_dir) / ANTENNA_CANDIDATE_PATH
     report_path = Path(run_dir) / EXTRACTION_REPORT_PATH
+    metadata_path = Path(run_dir) / REQUEST_METADATA_PATH
     if not force:
         if candidate_path.exists():
             raise FileExistsError(f"candidate already exists: {candidate_path}")
         if report_path.exists():
             raise FileExistsError(f"extraction report already exists: {report_path}")
+        if metadata_path.exists():
+            raise FileExistsError(f"request metadata already exists: {metadata_path}")
         return
 
     if candidate_path.exists():
         candidate_path.unlink()
     if report_path.exists():
         report_path.unlink()
+    if metadata_path.exists():
+        metadata_path.unlink()
 
 
 def replace_raw_extraction_artifacts(
@@ -356,6 +385,7 @@ def replace_raw_extraction_artifacts(
     artifact_names = {
         "nuextract3_antenna_candidate",
         "nuextract3_extraction_report",
+        "nuextract3_request_metadata",
     }
     manifest.artifacts = [
         artifact
@@ -376,6 +406,14 @@ def replace_raw_extraction_artifacts(
             relative_path=EXTRACTION_REPORT_PATH,
             producing_phase=RAW_EXTRACTION_PHASE,
             checksum=sha256_file(Path(run_dir) / EXTRACTION_REPORT_PATH),
+        )
+    )
+    manifest.add_artifact(
+        ArtifactReference(
+            name="nuextract3_request_metadata",
+            relative_path=REQUEST_METADATA_PATH,
+            producing_phase=RAW_EXTRACTION_PHASE,
+            checksum=sha256_file(Path(run_dir) / REQUEST_METADATA_PATH),
         )
     )
 

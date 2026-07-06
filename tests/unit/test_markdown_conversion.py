@@ -142,12 +142,12 @@ def test_request_page_markdown_sends_expected_payload() -> None:
 
 def test_fake_settings_can_be_injected() -> None:
     settings = NuExtractSettings(
-        OPENAI_BASE_URL="https://example.invalid/openai",
-        OLLAMA_MODEL="nuextract3",
+        SKYNET_BASE_URL="https://example.invalid/openai",
+        NUEXTRACT_MODEL="nuextract3",
         SKYNET_API_KEY=SecretStr("secret"),
     )
 
-    assert settings.ollama_model == "nuextract3"
+    assert settings.nuextract_model == "nuextract3"
 
 
 def test_convert_run_pages_to_markdown_stores_cleaned_markdown(tmp_path) -> None:
@@ -196,8 +196,8 @@ def test_convert_run_pages_to_markdown_stores_cleaned_markdown(tmp_path) -> None
 
 def _settings() -> NuExtractSettings:
     return NuExtractSettings(
-        OPENAI_BASE_URL="https://example.invalid/openai",
-        OLLAMA_MODEL="nuextract3",
+        SKYNET_BASE_URL="https://example.invalid/openai",
+        NUEXTRACT_MODEL="nuextract3",
         SKYNET_API_KEY=SecretStr("secret"),
     )
 

@@ -13,7 +13,7 @@ def test_extract_candidate_command_parses() -> None:
     assert args.nuextract_command == "extract-candidate"
     assert args.run_dir == Path("run")
     assert args.force is True
-    assert args.temperature == 0.6
+    assert args.temperature == 0.0
     assert args.enable_thinking is True
 
 
@@ -61,6 +61,7 @@ def test_parse_candidate_command_defaults_to_thinking_enabled() -> None:
     )
 
     assert args.nuextract_command == "parse-candidate"
+    assert args.temperature == 0.0
     assert args.enable_thinking is True
 
 
@@ -103,4 +104,5 @@ def test_parse_all_command_defaults_to_thinking_enabled() -> None:
     args = build_parser().parse_args(["nuextract", "parse-all", "paper.pdf"])
 
     assert args.nuextract_command == "parse-all"
+    assert args.temperature == 0.0
     assert args.enable_thinking is True

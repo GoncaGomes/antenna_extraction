@@ -77,7 +77,7 @@ def test_doctor_exception_returns_failed_result() -> None:
 
 def _settings() -> NuExtractSettings:
     return NuExtractSettings(
-        OPENAI_BASE_URL="https://skynet.av.it.pt/openai",
-        OLLAMA_MODEL="nuextract3",
+        SKYNET_BASE_URL="https://skynet.av.it.pt/openai",
+        NUEXTRACT_MODEL="nuextract3",
         SKYNET_API_KEY=SecretStr("secret-key"),
     )
