@@ -5,6 +5,26 @@ from pathlib import Path
 from antenna_ingest.cli import build_parser
 
 
+def test_evidence_blocks_command_parses() -> None:
+    args = build_parser().parse_args(
+        ["nuextract", "evidence-blocks", "run", "--force"]
+    )
+
+    assert args.nuextract_command == "evidence-blocks"
+    assert args.run_dir == Path("run")
+    assert args.force is True
+
+
+def test_extract_tables_command_parses() -> None:
+    args = build_parser().parse_args(
+        ["nuextract", "extract-tables", "run", "--force"]
+    )
+
+    assert args.nuextract_command == "extract-tables"
+    assert args.run_dir == Path("run")
+    assert args.force is True
+
+
 def test_extract_candidate_command_parses() -> None:
     args = build_parser().parse_args(
         ["nuextract", "extract-candidate", "run", "--force"]

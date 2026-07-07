@@ -28,6 +28,8 @@ INITIAL_PHASE_STATUS = {
     "run_infrastructure": PhaseStatus.COMPLETED,
     "page_rendering": PhaseStatus.PENDING,
     "nuextract_markdown": PhaseStatus.PENDING,
+    "evidence_blocks": PhaseStatus.PENDING,
+    "table_extraction": PhaseStatus.PENDING,
     "nuextract_raw_extraction": PhaseStatus.PENDING,
     "canonicalization": PhaseStatus.PENDING,
     "cst_integration_intent": PhaseStatus.PENDING,

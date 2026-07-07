@@ -4,6 +4,16 @@ import argparse
 from pathlib import Path
 from typing import Sequence
 
+from antenna_ingest.evidence.blocks import (
+    EVIDENCE_BLOCKS_PATH,
+    EVIDENCE_BLOCKS_REPORT_PATH,
+    build_evidence_blocks_from_run,
+)
+from antenna_ingest.evidence.tables import (
+    TABLES_PATH,
+    TABLES_REPORT_PATH,
+    extract_tables_from_run,
+)
 from antenna_ingest.nuextract.doctor import run_nuextract_doctor
 from antenna_ingest.nuextract.markdown_conversion import (
     DOCUMENT_MARKDOWN_PATH,
@@ -49,6 +59,12 @@ def build_parser() -> argparse.ArgumentParser:
     markdown = nuextract_subparsers.add_parser("markdown")
     markdown.add_argument("run_dir", type=Path)
     markdown.add_argument("--force", action="store_true")
+    evidence_blocks = nuextract_subparsers.add_parser("evidence-blocks")
+    evidence_blocks.add_argument("run_dir", type=Path)
+    evidence_blocks.add_argument("--force", action="store_true")
+    extract_tables = nuextract_subparsers.add_parser("extract-tables")
+    extract_tables.add_argument("run_dir", type=Path)
+    extract_tables.add_argument("--force", action="store_true")
     parse_markdown = nuextract_subparsers.add_parser("parse-markdown")
     parse_markdown.add_argument("input_pdf", type=Path)
     parse_markdown.add_argument("--runs-root", type=Path, default=Path("runs"))
@@ -165,6 +181,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Characters: {report.character_count}")
         return 0
 
+    if args.command == "nuextract" and args.nuextract_command == "evidence-blocks":
+        report = build_evidence_blocks_from_run(
+            run_dir=args.run_dir,
+            force=args.force,
+        )
+        print(f"Evidence blocks: {args.run_dir / EVIDENCE_BLOCKS_PATH}")
+        print(f"Report: {args.run_dir / EVIDENCE_BLOCKS_REPORT_PATH}")
+        print(f"Blocks: {report.block_count}")
+        return 0
+
+    if args.command == "nuextract" and args.nuextract_command == "extract-tables":
+        report = extract_tables_from_run(
+            run_dir=args.run_dir,
+            force=args.force,
+        )
+        print(f"Tables: {args.run_dir / TABLES_PATH}")
+        print(f"Report: {args.run_dir / TABLES_REPORT_PATH}")
+        print(f"Tables found: {report.table_count}")
+        return 0
+
     if args.command == "nuextract" and args.nuextract_command == "parse-markdown":
         context, report = parse_pdf_to_markdown(
             input_pdf=args.input_pdf,
@@ -226,6 +262,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             run_dir=context.run_dir,
             force=args.force,
         )
+        evidence_report = build_evidence_blocks_from_run(
+            run_dir=context.run_dir,
+            force=args.force,
+        )
+        tables_report = extract_tables_from_run(
+            run_dir=context.run_dir,
+            force=args.force,
+        )
         extract_antenna_candidate_from_run(
             run_dir=context.run_dir,
             force=args.force,
@@ -238,6 +282,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Markdown written to: {context.run_dir / DOCUMENT_MARKDOWN_PATH}")
         print(f"Markdown report: {context.run_dir / MARKDOWN_REPORT_PATH}")
         print(f"Characters: {markdown_report.character_count}")
+        print(f"Evidence blocks: {context.run_dir / EVIDENCE_BLOCKS_PATH}")
+        print(
+            "Evidence blocks report: "
+            f"{context.run_dir / EVIDENCE_BLOCKS_REPORT_PATH}"
+        )
+        print(f"Blocks: {evidence_report.block_count}")
+        print(f"Tables: {context.run_dir / TABLES_PATH}")
+        print(f"Tables report: {context.run_dir / TABLES_REPORT_PATH}")
+        print(f"Tables found: {tables_report.table_count}")
         print(f"Candidate: {context.run_dir / ANTENNA_CANDIDATE_PATH}")
         print(f"Extraction report: {context.run_dir / EXTRACTION_REPORT_PATH}")
         return 0
