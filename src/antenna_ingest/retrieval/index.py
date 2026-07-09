@@ -154,10 +154,13 @@ def build_index_items(
     tables: list[ExtractedTable],
 ) -> list[EvidenceIndexItem]:
     items: list[EvidenceIndexItem] = []
-    block_evidence_ids = [f"block_{block.block_id}" for block in blocks]
+    indexed_blocks = [
+        block for block in blocks if not is_raw_html_table_block(block)
+    ]
+    block_evidence_ids = [f"block_{block.block_id}" for block in indexed_blocks]
     current_section: str | None = None
 
-    for index, block in enumerate(blocks):
+    for index, block in enumerate(indexed_blocks):
         section = current_section
         if block.kind == "heading":
             current_section = block.text
@@ -178,7 +181,7 @@ def build_index_items(
                 previous_id=block_evidence_ids[index - 1] if index > 0 else None,
                 next_id=(
                     block_evidence_ids[index + 1]
-                    if index + 1 < len(blocks)
+                    if index + 1 < len(indexed_blocks)
                     else None
                 ),
                 source_artifact=EVIDENCE_BLOCKS_PATH,
@@ -186,7 +189,7 @@ def build_index_items(
         )
 
     for table in tables:
-        text = flatten_table_text(table)
+        text = render_table_as_pipe_markdown(table)
         metadata_text = "\n".join((text, table.raw_markdown))
         tokens = tokenize_text(metadata_text)
         units = _unique_preserving_order(
@@ -216,14 +219,47 @@ def build_index_items(
     return items
 
 
-def flatten_table_text(table: ExtractedTable) -> str:
-    parts = []
+def is_raw_html_table_block(block: EvidenceBlock) -> bool:
+    return block.kind == "table" and "<table" in block.text.lower()
+
+
+def render_table_as_pipe_markdown(table: ExtractedTable) -> str:
+    column_count = max(
+        [len(table.headers), *(len(row) for row in table.rows), 1]
+    )
+    headers = [_clean_table_cell(header) for header in table.headers]
+    if not headers:
+        headers = [f"Column {index}" for index in range(1, column_count + 1)]
+    elif len(headers) < column_count:
+        headers.extend(
+            f"Column {index}" for index in range(len(headers) + 1, column_count + 1)
+        )
+
+    lines = []
     if table.caption:
-        parts.append(table.caption)
-    if table.headers:
-        parts.append(" ".join(table.headers))
-    parts.extend(" ".join(row) for row in table.rows)
-    return "\n".join(part for part in parts if part.strip())
+        lines.extend((_clean_table_cell(table.caption), ""))
+    lines.append(_pipe_row(headers[:column_count]))
+    lines.append(_separator_row(column_count))
+    for row in table.rows:
+        cells = [_clean_table_cell(cell) for cell in row]
+        cells.extend([""] * (column_count - len(cells)))
+        lines.append(_pipe_row(cells[:column_count]))
+    return "\n".join(lines)
+
+
+def _pipe_row(cells: list[str]) -> str:
+    return "| " + " | ".join(cells) + " |"
+
+
+def _separator_row(column_count: int) -> str:
+    return "|" + "|".join("---" for _ in range(column_count)) + "|"
+
+
+def _clean_table_cell(value: str) -> str:
+    cleaned = " ".join(value.split()).strip()
+    if len(cleaned) >= 2 and cleaned.startswith("$") and cleaned.endswith("$"):
+        cleaned = cleaned[1:-1].strip()
+    return cleaned.replace("|", r"\|")
 
 
 def tokenize_text(text: str) -> list[str]:

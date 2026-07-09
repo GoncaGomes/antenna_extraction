@@ -42,7 +42,7 @@ def test_extract_tables_writes_document_report_and_manifest(tmp_path) -> None:
     assert table["page"] == 3
     assert table["headers"] == ["S1", "S2", "P1", "P2", "L1"]
     assert table["rows"] == [["92", "96", "45", "68", "76"]]
-    assert table["caption"] is not None
+    assert table["caption"] == "TABLE I OPTIMIZED DIMENSIONS OF THE PROPOSED ANTENNA"
 
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
     assert manifest.phase_status["table_extraction"] == PhaseStatus.COMPLETED
@@ -68,6 +68,30 @@ TABLE II (mm)
 
     table = read_json(run_dir / TABLES_PATH)["tables"][0]
     assert "mm" in table["units"]
+
+
+def test_extract_tables_uses_html_caption(tmp_path) -> None:
+    markdown = """\
+<!-- page: 3 -->
+
+<table>
+  <caption>TABLE I<br>ANTENNA PARAMETERS</caption>
+  <tbody>
+    <tr><td>Length</td><td>31.43 mm</td></tr>
+    <tr><td>Width</td><td>40.57 mm</td></tr>
+    <tr><td>$X_f$</td><td>11.66 mm</td></tr>
+    <tr><td>$Y_f$</td><td>20.29 mm</td></tr>
+    <tr><td>$L_g$</td><td>41.19 mm</td></tr>
+    <tr><td>$W_g$</td><td>50.32 mm</td></tr>
+  </tbody>
+</table>
+"""
+    run_dir = _make_run(tmp_path, markdown)
+
+    extract_tables_from_run(run_dir)
+
+    table = read_json(run_dir / TABLES_PATH)["tables"][0]
+    assert table["caption"] == "TABLE I ANTENNA PARAMETERS"
 
 
 def test_extract_tables_force_controls_overwrite(tmp_path) -> None:

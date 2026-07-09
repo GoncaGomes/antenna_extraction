@@ -60,23 +60,34 @@ class SimpleHTMLTableParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
         self.rows: list[list[str]] = []
+        self.caption_parts: list[str] = []
         self._current_row: list[str] | None = None
         self._current_cell: list[str] | None = None
+        self._in_caption = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         del attrs
-        if tag.lower() == "tr":
+        lowered = tag.lower()
+        if lowered == "caption":
+            self._in_caption = True
+        elif lowered == "br" and self._in_caption:
+            self.caption_parts.append(" ")
+        elif lowered == "tr":
             self._current_row = []
-        elif tag.lower() in {"th", "td"} and self._current_row is not None:
+        elif lowered in {"th", "td"} and self._current_row is not None:
             self._current_cell = []
 
     def handle_data(self, data: str) -> None:
-        if self._current_cell is not None:
+        if self._in_caption:
+            self.caption_parts.append(data)
+        elif self._current_cell is not None:
             self._current_cell.append(data)
 
     def handle_endtag(self, tag: str) -> None:
         lowered = tag.lower()
-        if lowered in {"th", "td"} and self._current_cell is not None:
+        if lowered == "caption":
+            self._in_caption = False
+        elif lowered in {"th", "td"} and self._current_cell is not None:
             if self._current_row is not None:
                 self._current_row.append(clean_text("".join(self._current_cell)))
             self._current_cell = None
@@ -84,6 +95,11 @@ class SimpleHTMLTableParser(HTMLParser):
             if self._current_row:
                 self.rows.append(self._current_row)
             self._current_row = None
+
+    @property
+    def caption(self) -> str | None:
+        caption = clean_text(" ".join(self.caption_parts))
+        return caption or None
 
 
 def extract_tables_from_run(
@@ -112,7 +128,10 @@ def extract_tables_from_run(
                 parser.feed(raw_table)
                 headers = parser.rows[0] if "<th" in raw_table.lower() and parser.rows else []
                 rows = parser.rows[1:] if headers else parser.rows
-                caption = find_nearby_caption(page_text, match.start())
+                caption = parser.caption or find_nearby_caption(
+                    page_text,
+                    match.start(),
+                )
                 tables.append(
                     ExtractedTable(
                         table_id=f"table_{len(tables) + 1:03d}",
@@ -155,11 +174,55 @@ def extract_tables_from_run(
 def find_nearby_caption(page_text: str, table_start: int) -> str | None:
     before = page_text[:table_start]
     lines = [line.strip() for line in before.splitlines() if line.strip()]
-    for line in reversed(lines[-8:]):
-        lowered = line.lower()
-        if lowered.startswith(("table", "tab.", "**table")):
-            return clean_text(line)
-    return None
+    nearby_lines = lines[-12:]
+    table_line_index = None
+    for index in range(len(nearby_lines) - 1, -1, -1):
+        if is_table_caption_start(nearby_lines[index]):
+            table_line_index = index
+            break
+    if table_line_index is None:
+        return None
+
+    caption_lines = [nearby_lines[table_line_index]]
+    for line in nearby_lines[table_line_index + 1 :]:
+        if is_caption_continuation(line):
+            caption_lines.append(line)
+        else:
+            break
+    return clean_text(" ".join(caption_lines))
+
+
+def is_table_caption_start(line: str) -> bool:
+    return line.lower().startswith(("table", "tab.", "**table"))
+
+
+def is_caption_continuation(line: str) -> bool:
+    cleaned = clean_text(line)
+    if not cleaned or len(cleaned) > 100:
+        return False
+    if cleaned.lower().startswith(("<table", "figure", "fig.")):
+        return False
+    if cleaned.endswith(".") and len(cleaned.split()) > 6:
+        return False
+    letters = [character for character in cleaned if character.isalpha()]
+    if letters:
+        uppercase_ratio = sum(1 for character in letters if character.isupper()) / len(
+            letters
+        )
+        if uppercase_ratio >= 0.7:
+            return True
+    words = [
+        word.strip("()[]{}:;,.")
+        for word in cleaned.split()
+        if any(character.isalpha() for character in word)
+    ]
+    if not words or len(words) > 10:
+        return False
+    small_words = {"a", "an", "and", "by", "for", "in", "of", "on", "the", "to"}
+    return all(
+        word.lower() in small_words or word[:1].isupper()
+        for word in words
+    )
 
 
 def detect_units(
