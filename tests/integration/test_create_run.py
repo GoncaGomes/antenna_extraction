@@ -25,6 +25,7 @@ def test_create_run_creates_phase_1_run_structure(tmp_path) -> None:
         "input",
         "parsed",
         "extraction",
+        "retrieval",
         "canonicalization",
         "planning",
         "reports",
@@ -55,6 +56,9 @@ def test_create_run_creates_phase_1_run_structure(tmp_path) -> None:
         "parsed/page_render_report.json",
         "extraction/nuextract_raw.json",
         "extraction/nuextract_raw_report.json",
+        "retrieval/evidence_index.jsonl",
+        "retrieval/evidence_index_report.json",
+        "retrieval/query_trace.json",
         "canonicalization/canonical_antenna_record.json",
         "planning/cst_integration_intent.json",
     ):

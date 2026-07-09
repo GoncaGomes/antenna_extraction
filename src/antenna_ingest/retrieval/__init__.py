@@ -1,1 +1,1 @@
-
+"""Local deterministic evidence retrieval."""

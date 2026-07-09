@@ -12,6 +12,9 @@ dependencies = [
     "python-dotenv",
 ]
 
+[project.scripts]
+antenna-ingest = "antenna_ingest.cli:main"
+
 [dependency-groups]
 dev = [
     "pytest",
