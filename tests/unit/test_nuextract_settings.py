@@ -40,7 +40,7 @@ def test_legacy_base_url_and_model_names_are_supported(monkeypatch) -> None:
 def test_role_and_timeout_defaults(monkeypatch) -> None:
     _set_valid_environment(monkeypatch)
 
-    settings = NuExtractSettings()
+    settings = NuExtractSettings(_env_file=None)
 
     assert settings.canonicalizer_model == "gemma-4-31b-it"
     assert settings.verifier_model == "gemma-4-31b-it"
