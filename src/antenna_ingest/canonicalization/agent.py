@@ -8,6 +8,7 @@ from antenna_ingest.canonicalization.prompt import (
     CANONICALIZATION_SYSTEM_PROMPT,
     build_canonicalization_user_prompt,
 )
+from antenna_ingest.canonicalization.schemas import CanonicalDesignRecord
 from antenna_ingest.canonicalization.tools import search_evidence
 from antenna_ingest.nuextract.client import build_openai_compatible_client
 from antenna_ingest.nuextract.raw_extraction import ANTENNA_CANDIDATE_PATH
@@ -50,6 +51,15 @@ SEARCH_EVIDENCE_TOOL = {
             "required": ["query"],
             "additionalProperties": False,
         },
+    },
+}
+
+CANONICAL_DESIGN_RESPONSE_FORMAT = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "canonical_design_record",
+        "strict": True,
+        "schema": CanonicalDesignRecord.model_json_schema(),
     },
 }
 
@@ -96,6 +106,7 @@ def run_canonicalization_agent(
             tools=[SEARCH_EVIDENCE_TOOL],
             tool_choice="auto",
             temperature=0.0,
+            response_format=CANONICAL_DESIGN_RESPONSE_FORMAT,
         )
         message = response.choices[0].message
         tool_calls = message.tool_calls or []

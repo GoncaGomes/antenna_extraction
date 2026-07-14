@@ -6,8 +6,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from antenna_ingest.canonicalization.agent import run_canonicalization_agent
+from antenna_ingest.canonicalization.agent import (
+    CANONICAL_DESIGN_RESPONSE_FORMAT,
+    SEARCH_EVIDENCE_TOOL,
+    run_canonicalization_agent,
+)
 from antenna_ingest.canonicalization.prompt import build_canonicalization_user_prompt
+from antenna_ingest.canonicalization.schemas import CanonicalDesignRecord
 from antenna_ingest.nuextract.raw_extraction import ANTENNA_CANDIDATE_PATH
 from antenna_ingest.nuextract.settings import NuExtractSettings
 from antenna_ingest.retrieval.index import (
@@ -34,6 +39,63 @@ def test_model_can_return_final_response_without_tool(tmp_path: Path) -> None:
 
     assert result == FINAL_RESPONSE
     assert len(client.completions.calls) == 1
+
+
+def test_structured_response_format_is_sent(tmp_path: Path) -> None:
+    run_dir = make_run(tmp_path)
+    client = FakeClient([model_response(content=FINAL_RESPONSE)])
+
+    run_canonicalization_agent(
+        run_dir,
+        settings=make_settings(),
+        client=client,
+    )
+
+    response_format = client.completions.calls[0]["response_format"]
+    assert response_format["type"] == "json_schema"
+    assert response_format["json_schema"]["name"] == "canonical_design_record"
+    assert response_format["json_schema"]["strict"] is True
+    assert response_format["json_schema"]["schema"] == (
+        CanonicalDesignRecord.model_json_schema()
+    )
+
+
+def test_structured_output_remains_enabled_after_tool_call(tmp_path: Path) -> None:
+    run_dir = make_run(tmp_path)
+    client = FakeClient(
+        [
+            model_response(tool_calls=[tool_call("call_1", query="FR4")]),
+            model_response(content=FINAL_RESPONSE),
+        ]
+    )
+
+    run_canonicalization_agent(
+        run_dir,
+        settings=make_settings(),
+        client=client,
+    )
+
+    assert len(client.completions.calls) == 2
+    assert all(
+        call["response_format"] == CANONICAL_DESIGN_RESPONSE_FORMAT
+        for call in client.completions.calls
+    )
+
+
+def test_native_tools_and_structured_output_are_sent_together(tmp_path: Path) -> None:
+    run_dir = make_run(tmp_path)
+    client = FakeClient([model_response(content=FINAL_RESPONSE)])
+
+    run_canonicalization_agent(
+        run_dir,
+        settings=make_settings(),
+        client=client,
+    )
+
+    call = client.completions.calls[0]
+    assert call["tools"] == [SEARCH_EVIDENCE_TOOL]
+    assert call["tool_choice"] == "auto"
+    assert call["response_format"] == CANONICAL_DESIGN_RESPONSE_FORMAT
 
 
 def test_one_search_is_executed_before_final_response(tmp_path: Path) -> None:
