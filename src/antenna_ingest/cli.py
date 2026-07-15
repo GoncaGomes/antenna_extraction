@@ -4,6 +4,11 @@ import argparse
 from pathlib import Path
 from typing import Sequence
 
+from antenna_ingest.canonicalization.canonicalize import (
+    CANONICAL_DESIGN_RECORD_PATH,
+    CANONICALIZATION_REPORT_PATH,
+    canonicalize_run,
+)
 from antenna_ingest.evidence.blocks import (
     EVIDENCE_BLOCKS_PATH,
     EVIDENCE_BLOCKS_REPORT_PATH,
@@ -148,6 +153,16 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--top-k", type=int, default=5)
     search.add_argument("--context-window", type=int, default=0)
     search.add_argument("--write-trace", action="store_true")
+
+    canonicalization = subparsers.add_parser("canonicalization")
+    canonicalization_subparsers = canonicalization.add_subparsers(
+        dest="canonicalization_command",
+        required=True,
+    )
+    canonicalization_run = canonicalization_subparsers.add_parser("run")
+    canonicalization_run.add_argument("run_dir", type=Path)
+    canonicalization_run.add_argument("--force", action="store_true")
+    canonicalization_run.add_argument("--max-tool-calls", type=int, default=12)
 
     return parser
 
@@ -300,6 +315,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             if len(result.text) > 600:
                 text += "..."
             print(text)
+        return 0
+
+    if (
+        args.command == "canonicalization"
+        and args.canonicalization_command == "run"
+    ):
+        _record, report = canonicalize_run(
+            run_dir=args.run_dir,
+            force=args.force,
+            max_tool_calls=args.max_tool_calls,
+        )
+        print(f"Canonical design: {args.run_dir / CANONICAL_DESIGN_RECORD_PATH}")
+        print(f"Validation report: {args.run_dir / CANONICALIZATION_REPORT_PATH}")
+        print(f"Validation: {'valid' if report.valid else 'invalid'}")
+        print(f"Objects: {report.object_count}")
+        print(f"Materials: {report.material_count}")
+        print(f"Relationships: {report.relationship_count}")
+        print(f"Excitations: {report.excitation_count}")
         return 0
 
     if args.command == "nuextract" and args.nuextract_command == "parse-all":

@@ -138,6 +138,7 @@ def test_agent_parameters_are_forwarded(
         settings,
         client,
         max_tool_calls,
+        enable_thinking,
     ) -> str:
         captured.update(
             {
@@ -145,6 +146,7 @@ def test_agent_parameters_are_forwarded(
                 "settings": settings,
                 "client": client,
                 "max_tool_calls": max_tool_calls,
+                "enable_thinking": enable_thinking,
             }
         )
         return minimal_response()
@@ -159,6 +161,7 @@ def test_agent_parameters_are_forwarded(
         settings=settings,
         client=client,
         max_tool_calls=7,
+        enable_thinking=False,
     )
 
     assert captured == {
@@ -166,6 +169,7 @@ def test_agent_parameters_are_forwarded(
         "settings": settings,
         "client": client,
         "max_tool_calls": 7,
+        "enable_thinking": False,
     }
 
 

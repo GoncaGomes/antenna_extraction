@@ -70,6 +70,7 @@ def run_canonicalization_agent(
     settings: NuExtractSettings | None = None,
     client: object | None = None,
     max_tool_calls: int = 12,
+    enable_thinking: bool = True,
 ) -> str:
     run_dir = Path(run_dir).resolve()
     candidate_path = run_dir / ANTENNA_CANDIDATE_PATH
@@ -107,6 +108,11 @@ def run_canonicalization_agent(
             tool_choice="auto",
             temperature=0.0,
             response_format=CANONICAL_DESIGN_RESPONSE_FORMAT,
+            extra_body={
+                "chat_template_kwargs": {
+                    "enable_thinking": enable_thinking,
+                }
+            },
         )
         message = response.choices[0].message
         tool_calls = message.tool_calls or []

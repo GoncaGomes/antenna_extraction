@@ -98,6 +98,28 @@ def test_native_tools_and_structured_output_are_sent_together(tmp_path: Path) ->
     assert call["response_format"] == CANONICAL_DESIGN_RESPONSE_FORMAT
 
 
+@pytest.mark.parametrize("enable_thinking", [True, False])
+def test_thinking_mode_is_sent_to_every_model_request(
+    tmp_path: Path,
+    enable_thinking: bool,
+) -> None:
+    run_dir = make_run(tmp_path)
+    client = FakeClient([model_response(content=FINAL_RESPONSE)])
+
+    run_canonicalization_agent(
+        run_dir,
+        settings=make_settings(),
+        client=client,
+        enable_thinking=enable_thinking,
+    )
+
+    assert client.completions.calls[0]["extra_body"] == {
+        "chat_template_kwargs": {
+            "enable_thinking": enable_thinking,
+        }
+    }
+
+
 def test_one_search_is_executed_before_final_response(tmp_path: Path) -> None:
     run_dir = make_run(tmp_path)
     client = FakeClient(
