@@ -235,6 +235,14 @@ Do not create references to canonical entities that do not exist in the record.
 
 Remember that these internally created entity identifiers are separate from evidence_id values supplied by search_evidence.
 
+CanonicalRelationship.subject_id and CanonicalRelationship.object_id must reference object_id values from the objects list only. Never use a material_id as a relationship endpoint.
+
+Associate a material with a physical object only through CanonicalObject.material_id.
+
+For example, if FR-4 is represented by material_id "fr4" and the physical substrate is represented by object_id "substrate", a relationship involving the physical substrate must reference "substrate", not "fr4".
+
+Before returning the final record, verify that every relationship subject_id and object_id exactly matches an object_id present in the objects list.
+
 COMPLETION
 
 Continue retrieving evidence while additional searches are reasonably useful for identifying the final design, verifying important architectural facts, resolving important ambiguity, or separating the final design from other variants.
@@ -246,6 +254,8 @@ When further retrieval is unlikely to resolve a remaining uncertainty, preserve 
 Before returning the final result, verify that the selected final design is supported by retrieved evidence, included architectural elements belong to that design, factual values are evidence-grounded, different variants have not been merged, materials are associated with the correct objects, physical feed structures and electrical excitations are not conflated, simulated and measured results are correctly distinguished, references between canonical entities are internally consistent, unsupported details have not been invented, and important unresolved gaps or conflicts are represented explicitly.
 
 Finally, verify that every value in every evidence_ids field was copied exactly from an evidence_id returned by search_evidence during the current run. No evidence_id may be created, renamed, paraphrased, shortened, normalized, or reconstructed.
+
+Verify that every placement reference_object_id, relationship subject_id, relationship object_id, excitation target_object_id, and missing-information related_object_id references an object_id that actually exists in the objects list.
 
 Return exactly one JSON object matching the supplied CanonicalDesignRecord schema.
 
