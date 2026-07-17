@@ -16,6 +16,7 @@ from antenna_ingest.nuextract.settings import (
     NuExtractSettings,
     load_nuextract_settings,
 )
+from antenna_ingest.orchestration.schemas import StrictModel
 from antenna_ingest.utils.json_io import read_json
 
 
@@ -64,6 +65,22 @@ CANONICAL_DESIGN_RESPONSE_FORMAT = {
 }
 
 
+class CanonicalizationSearchTrace(StrictModel):
+    tool_call_id: str
+    query: str
+    top_k: int
+    context_window: int
+    returned_evidence_ids: list[str]
+
+
+class CanonicalizationAgentResult(StrictModel):
+    model: str
+    enable_thinking: bool
+    raw_response: str
+    searches: list[CanonicalizationSearchTrace]
+    retrieved_evidence_ids: list[str]
+
+
 def run_canonicalization_agent(
     run_dir: Path,
     *,
@@ -71,7 +88,7 @@ def run_canonicalization_agent(
     client: object | None = None,
     max_tool_calls: int = 12,
     enable_thinking: bool = True,
-) -> str:
+) -> CanonicalizationAgentResult:
     run_dir = Path(run_dir).resolve()
     candidate_path = run_dir / ANTENNA_CANDIDATE_PATH
     if not candidate_path.is_file():
@@ -99,6 +116,9 @@ def run_canonicalization_agent(
         },
     ]
     tool_call_count = 0
+    searches: list[CanonicalizationSearchTrace] = []
+    retrieved_evidence_ids: list[str] = []
+    retrieved_evidence_id_set: set[str] = set()
 
     while True:
         response = client.chat.completions.create(
@@ -122,7 +142,22 @@ def run_canonicalization_agent(
                 raise RuntimeError(
                     "canonicalizer returned neither tool calls nor final text content"
                 )
-            return message.content
+            if not searches:
+                raise RuntimeError(
+                    "canonicalization agent attempted to finalize before "
+                    "retrieving evidence"
+                )
+            if not retrieved_evidence_ids:
+                raise RuntimeError(
+                    "canonicalization agent retrieved no evidence before finalizing"
+                )
+            return CanonicalizationAgentResult(
+                model=settings.canonicalizer_model,
+                enable_thinking=enable_thinking,
+                raw_response=message.content,
+                searches=searches,
+                retrieved_evidence_ids=retrieved_evidence_ids,
+            )
 
         if tool_call_count + len(tool_calls) > max_tool_calls:
             raise RuntimeError("maximum canonicalization tool-call limit reached")
@@ -141,6 +176,22 @@ def run_canonicalization_agent(
                 top_k=arguments.get("top_k", 8),
                 context_window=arguments.get("context_window", 1),
             )
+            returned_evidence_ids = [
+                item.evidence_id for item in result.results
+            ]
+            searches.append(
+                CanonicalizationSearchTrace(
+                    tool_call_id=tool_call.id,
+                    query=result.query,
+                    top_k=arguments.get("top_k", 8),
+                    context_window=arguments.get("context_window", 1),
+                    returned_evidence_ids=returned_evidence_ids,
+                )
+            )
+            for evidence_id in returned_evidence_ids:
+                if evidence_id not in retrieved_evidence_id_set:
+                    retrieved_evidence_id_set.add(evidence_id)
+                    retrieved_evidence_ids.append(evidence_id)
             messages.append(
                 {
                     "role": "tool",

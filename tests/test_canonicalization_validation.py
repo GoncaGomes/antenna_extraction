@@ -4,6 +4,7 @@ from pathlib import Path
 
 from antenna_ingest.canonicalization.schemas import CanonicalDesignRecord
 from antenna_ingest.canonicalization.validation import (
+    build_canonicalization_validation_report,
     collect_evidence_ids,
     load_valid_evidence_ids,
     validate_evidence_references,
@@ -88,6 +89,100 @@ def test_valid_ids_load_from_synthetic_index(tmp_path: Path) -> None:
     valid_ids = load_valid_evidence_ids(run_dir)
 
     assert valid_ids == {"block_a", "table_001"}
+
+
+def test_existing_but_unretrieved_id_fails_session_provenance() -> None:
+    record = nested_record()
+    valid_ids = set(expected_nested_ids())
+    retrieved_ids = [
+        evidence_id
+        for evidence_id in expected_nested_ids()
+        if evidence_id != "e_result"
+    ]
+
+    report = build_canonicalization_validation_report(
+        record,
+        valid_ids,
+        retrieved_ids,
+        search_call_count=2,
+    )
+
+    assert report.evidence_references_valid is True
+    assert report.session_provenance_valid is False
+    assert report.unretrieved_evidence_ids == ["e_result"]
+    assert report.valid is False
+
+
+def test_evidence_returned_during_session_passes_provenance() -> None:
+    record = nested_record()
+    evidence_ids = expected_nested_ids()
+
+    report = build_canonicalization_validation_report(
+        record,
+        set(evidence_ids),
+        evidence_ids,
+        search_call_count=3,
+    )
+
+    assert report.valid is True
+    assert report.evidence_references_valid is True
+    assert report.session_provenance_valid is True
+    assert report.search_call_count == 3
+
+
+def test_unknown_and_unretrieved_ids_are_reported_separately() -> None:
+    record = nested_record()
+    record.design.evidence_ids.append("invented_evidence")
+    valid_ids = set(expected_nested_ids())
+    retrieved_ids = [
+        evidence_id
+        for evidence_id in expected_nested_ids()
+        if evidence_id != "e_result"
+    ]
+
+    report = build_canonicalization_validation_report(
+        record,
+        valid_ids,
+        retrieved_ids,
+        search_call_count=1,
+    )
+
+    assert report.unknown_evidence_ids == ["invented_evidence"]
+    assert report.unretrieved_evidence_ids == ["e_result"]
+    assert report.evidence_references_valid is False
+    assert report.session_provenance_valid is False
+    assert report.valid is False
+
+
+def test_duplicate_references_do_not_affect_report_counts() -> None:
+    record = nested_record()
+    evidence_ids = expected_nested_ids()
+
+    report = build_canonicalization_validation_report(
+        record,
+        set(evidence_ids),
+        [*evidence_ids, "e_design", "e_result"],
+        search_call_count=2,
+    )
+
+    assert report.referenced_evidence_count == len(evidence_ids)
+    assert report.retrieved_evidence_count == len(evidence_ids)
+
+
+def test_valid_requires_existence_and_session_provenance() -> None:
+    record = nested_record()
+    record.design.evidence_ids.append("invented_evidence")
+
+    report = build_canonicalization_validation_report(
+        record,
+        set(expected_nested_ids()),
+        [],
+        search_call_count=1,
+    )
+
+    assert report.evidence_references_valid is False
+    assert report.session_provenance_valid is False
+    assert report.valid is False
 
 
 def nested_record() -> CanonicalDesignRecord:

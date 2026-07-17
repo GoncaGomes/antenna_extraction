@@ -9,6 +9,7 @@ from antenna_ingest.canonicalization.canonicalize import (
     CANONICALIZATION_REPORT_PATH,
     canonicalize_run,
 )
+from antenna_ingest.canonicalization.doctor import run_canonicalization_doctor
 from antenna_ingest.evidence.blocks import (
     EVIDENCE_BLOCKS_PATH,
     EVIDENCE_BLOCKS_REPORT_PATH,
@@ -159,6 +160,7 @@ def build_parser() -> argparse.ArgumentParser:
         dest="canonicalization_command",
         required=True,
     )
+    canonicalization_subparsers.add_parser("doctor")
     canonicalization_run = canonicalization_subparsers.add_parser("run")
     canonicalization_run.add_argument("run_dir", type=Path)
     canonicalization_run.add_argument("--force", action="store_true")
@@ -316,6 +318,24 @@ def main(argv: Sequence[str] | None = None) -> int:
                 text += "..."
             print(text)
         return 0
+
+    if (
+        args.command == "canonicalization"
+        and args.canonicalization_command == "doctor"
+    ):
+        result = run_canonicalization_doctor()
+        print(f"Model: {result.model}")
+        print(f"Tool calling: {'OK' if result.tool_call_ok else 'FAILED'}")
+        print(
+            "Structured output: "
+            f"{'OK' if result.structured_output_ok else 'FAILED'}"
+        )
+        if result.ok:
+            print("Status: OK")
+            return 0
+        print("Status: FAILED")
+        print(f"Error: {result.error}")
+        return 1
 
     if (
         args.command == "canonicalization"

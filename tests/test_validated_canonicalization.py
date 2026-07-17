@@ -7,6 +7,10 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
+from antenna_ingest.canonicalization.agent import (
+    CanonicalizationAgentResult,
+    CanonicalizationSearchTrace,
+)
 from antenna_ingest.canonicalization.canonicalize import (
     run_validated_canonicalization,
 )
@@ -123,6 +127,38 @@ def test_exact_valid_evidence_ids_pass(tmp_path: Path) -> None:
     assert report.unknown_evidence_ids == []
 
 
+def test_existing_but_unretrieved_evidence_id_fails(tmp_path: Path) -> None:
+    run_dir = make_run(tmp_path)
+    response = minimal_record_data()
+    response["reported_results"] = [
+        {
+            "metric": "resonant frequency",
+            "result_source": "simulated",
+            "value": 2.45,
+            "unit": "GHz",
+            "evidence_ids": ["table_dimensions"],
+        }
+    ]
+    client = FakeClient(
+        json.dumps(response),
+        query="block_design",
+        top_k=1,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "canonical design references evidence IDs not retrieved during "
+            "this run: table_dimensions"
+        ),
+    ):
+        run_validated_canonicalization(
+            run_dir,
+            settings=make_settings(),
+            client=client,
+        )
+
+
 def test_agent_parameters_are_forwarded(
     tmp_path: Path,
     monkeypatch,
@@ -139,7 +175,7 @@ def test_agent_parameters_are_forwarded(
         client,
         max_tool_calls,
         enable_thinking,
-    ) -> str:
+    ) -> CanonicalizationAgentResult:
         captured.update(
             {
                 "run_dir": received_run_dir,
@@ -149,7 +185,21 @@ def test_agent_parameters_are_forwarded(
                 "enable_thinking": enable_thinking,
             }
         )
-        return minimal_response()
+        return CanonicalizationAgentResult(
+            model=settings.canonicalizer_model,
+            enable_thinking=enable_thinking,
+            raw_response=minimal_response(),
+            searches=[
+                CanonicalizationSearchTrace(
+                    tool_call_id="call_1",
+                    query="block_design",
+                    top_k=1,
+                    context_window=0,
+                    returned_evidence_ids=["block_design"],
+                )
+            ],
+            retrieved_evidence_ids=["block_design"],
+        )
 
     monkeypatch.setattr(
         "antenna_ingest.canonicalization.canonicalize.run_canonicalization_agent",
@@ -174,18 +224,42 @@ def test_agent_parameters_are_forwarded(
 
 
 class FakeClient:
-    def __init__(self, response_text: str) -> None:
-        self.completions = FakeCompletions(response_text)
+    def __init__(
+        self,
+        response_text: str,
+        query: str = "Evidence",
+        top_k: int = 8,
+    ) -> None:
+        self.completions = FakeCompletions(response_text, query, top_k)
         self.chat = SimpleNamespace(completions=self.completions)
 
 
 class FakeCompletions:
-    def __init__(self, response_text: str) -> None:
+    def __init__(self, response_text: str, query: str, top_k: int) -> None:
         self.response_text = response_text
+        self.query = query
+        self.top_k = top_k
         self.calls: list[dict] = []
 
     def create(self, **kwargs) -> SimpleNamespace:
         self.calls.append(kwargs)
+        if len(self.calls) == 1:
+            tool_call = SimpleNamespace(
+                id="call_1",
+                type="function",
+                function=SimpleNamespace(
+                    name="search_evidence",
+                    arguments=json.dumps(
+                        {
+                            "query": self.query,
+                            "top_k": self.top_k,
+                            "context_window": 0,
+                        }
+                    ),
+                ),
+            )
+            message = SimpleNamespace(content=None, tool_calls=[tool_call])
+            return SimpleNamespace(choices=[SimpleNamespace(message=message)])
         message = SimpleNamespace(content=self.response_text, tool_calls=None)
         return SimpleNamespace(choices=[SimpleNamespace(message=message)])
 

@@ -15,7 +15,7 @@ Your final output must be a faithful, solver-independent representation of the a
 
 PRELIMINARY CANDIDATE
 
-The preliminary candidate is a hypothesis and a guide for investigation. It is not authoritative evidence. It may contain correct information, missing information, incorrect values, incorrect associations between values and physical elements, information from intermediate or alternative variants, or incomplete interpretations of the paper.
+The preliminary candidate is untrusted. It is a hypothesis and a guide for investigation, not authoritative evidence. It may contain correct information, missing information, incorrect values, incorrect associations between values and physical elements, information from intermediate or alternative variants, or incomplete interpretations of the paper.
 
 Use the preliminary candidate to understand the possible design and determine what needs to be investigated. Independently verify the information required for the canonical record.
 
@@ -24,6 +24,8 @@ A factual claim from the preliminary candidate may appear in the final record on
 EVIDENCE RETRIEVAL
 
 Use search_evidence autonomously.
+
+At least one search_evidence call that returns evidence is mandatory before producing the final record.
 
 Determine what information must be verified, what queries are appropriate, when the available evidence is insufficient, when a query should be reformulated, when retrieved evidence reveals new information that should be investigated, and when enough evidence has been collected to produce the canonical record.
 

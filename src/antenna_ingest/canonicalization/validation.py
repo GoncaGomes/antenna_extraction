@@ -22,8 +22,13 @@ class EvidenceReferenceValidationReport(StrictModel):
 
 class CanonicalizationValidationReport(StrictModel):
     valid: bool
+    evidence_references_valid: bool
+    session_provenance_valid: bool
     referenced_evidence_count: int = Field(ge=0)
+    retrieved_evidence_count: int = Field(ge=0)
+    search_call_count: int = Field(ge=0)
     unknown_evidence_ids: list[str] = Field(default_factory=list)
+    unretrieved_evidence_ids: list[str] = Field(default_factory=list)
     object_count: int = Field(ge=0)
     material_count: int = Field(ge=0)
     relationship_count: int = Field(ge=0)
@@ -84,12 +89,28 @@ def validate_evidence_references(
 def build_canonicalization_validation_report(
     record: CanonicalDesignRecord,
     valid_evidence_ids: set[str],
+    retrieved_evidence_ids: list[str],
+    search_call_count: int,
 ) -> CanonicalizationValidationReport:
     evidence_report = validate_evidence_references(record, valid_evidence_ids)
+    retrieved_ids = list(dict.fromkeys(retrieved_evidence_ids))
+    retrieved_id_set = set(retrieved_ids)
+    unretrieved_ids = [
+        evidence_id
+        for evidence_id in evidence_report.referenced_evidence_ids
+        if evidence_id in valid_evidence_ids
+        and evidence_id not in retrieved_id_set
+    ]
+    session_provenance_valid = not unretrieved_ids
     return CanonicalizationValidationReport(
-        valid=evidence_report.valid,
+        valid=evidence_report.valid and session_provenance_valid,
+        evidence_references_valid=evidence_report.valid,
+        session_provenance_valid=session_provenance_valid,
         referenced_evidence_count=len(evidence_report.referenced_evidence_ids),
+        retrieved_evidence_count=len(retrieved_ids),
+        search_call_count=search_call_count,
         unknown_evidence_ids=evidence_report.unknown_evidence_ids,
+        unretrieved_evidence_ids=unretrieved_ids,
         object_count=len(record.objects),
         material_count=len(record.materials),
         relationship_count=len(record.relationships),

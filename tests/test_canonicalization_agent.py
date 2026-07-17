@@ -27,17 +27,19 @@ from antenna_ingest.utils.json_io import write_json
 FINAL_RESPONSE = '{"schema_name":"canonical_design_record_v1"}'
 
 
-def test_model_can_return_final_response_without_tool(tmp_path: Path) -> None:
+def test_finalization_without_search_fails(tmp_path: Path) -> None:
     run_dir = make_run(tmp_path)
     client = FakeClient([model_response(content=FINAL_RESPONSE)])
 
-    result = run_canonicalization_agent(
-        run_dir,
-        settings=make_settings(),
-        client=client,
-    )
-
-    assert result == FINAL_RESPONSE
+    with pytest.raises(
+        RuntimeError,
+        match="attempted to finalize before retrieving evidence",
+    ):
+        run_canonicalization_agent(
+            run_dir,
+            settings=make_settings(),
+            client=client,
+        )
     assert len(client.completions.calls) == 1
 
 
@@ -45,11 +47,12 @@ def test_structured_response_format_is_sent(tmp_path: Path) -> None:
     run_dir = make_run(tmp_path)
     client = FakeClient([model_response(content=FINAL_RESPONSE)])
 
-    run_canonicalization_agent(
-        run_dir,
-        settings=make_settings(),
-        client=client,
-    )
+    with pytest.raises(RuntimeError, match="before retrieving evidence"):
+        run_canonicalization_agent(
+            run_dir,
+            settings=make_settings(),
+            client=client,
+        )
 
     response_format = client.completions.calls[0]["response_format"]
     assert response_format["type"] == "json_schema"
@@ -86,11 +89,12 @@ def test_native_tools_and_structured_output_are_sent_together(tmp_path: Path) ->
     run_dir = make_run(tmp_path)
     client = FakeClient([model_response(content=FINAL_RESPONSE)])
 
-    run_canonicalization_agent(
-        run_dir,
-        settings=make_settings(),
-        client=client,
-    )
+    with pytest.raises(RuntimeError, match="before retrieving evidence"):
+        run_canonicalization_agent(
+            run_dir,
+            settings=make_settings(),
+            client=client,
+        )
 
     call = client.completions.calls[0]
     assert call["tools"] == [SEARCH_EVIDENCE_TOOL]
@@ -106,12 +110,13 @@ def test_thinking_mode_is_sent_to_every_model_request(
     run_dir = make_run(tmp_path)
     client = FakeClient([model_response(content=FINAL_RESPONSE)])
 
-    run_canonicalization_agent(
-        run_dir,
-        settings=make_settings(),
-        client=client,
-        enable_thinking=enable_thinking,
-    )
+    with pytest.raises(RuntimeError, match="before retrieving evidence"):
+        run_canonicalization_agent(
+            run_dir,
+            settings=make_settings(),
+            client=client,
+            enable_thinking=enable_thinking,
+        )
 
     assert client.completions.calls[0]["extra_body"] == {
         "chat_template_kwargs": {
@@ -135,7 +140,18 @@ def test_one_search_is_executed_before_final_response(tmp_path: Path) -> None:
         client=client,
     )
 
-    assert result == FINAL_RESPONSE
+    assert result.raw_response == FINAL_RESPONSE
+    assert result.model == "test-canonicalizer"
+    assert result.enable_thinking is True
+    assert len(result.searches) == 1
+    assert result.searches[0].tool_call_id == "call_1"
+    assert result.searches[0].query == "FR4"
+    assert result.searches[0].top_k == 8
+    assert result.searches[0].context_window == 1
+    assert result.searches[0].returned_evidence_ids
+    assert result.retrieved_evidence_ids == (
+        result.searches[0].returned_evidence_ids
+    )
     second_messages = client.completions.calls[1]["messages"]
     tool_message = second_messages[-1]
     tool_result = json.loads(tool_message["content"])
@@ -143,7 +159,9 @@ def test_one_search_is_executed_before_final_response(tmp_path: Path) -> None:
     assert tool_result["results"][0]["evidence_id"] == "block_material"
 
 
-def test_several_sequential_searches_share_one_conversation(tmp_path: Path) -> None:
+def test_several_searches_collect_ordered_deduplicated_evidence(
+    tmp_path: Path,
+) -> None:
     run_dir = make_run(tmp_path)
     client = FakeClient(
         [
@@ -153,7 +171,7 @@ def test_several_sequential_searches_share_one_conversation(tmp_path: Path) -> N
         ]
     )
 
-    run_canonicalization_agent(
+    result = run_canonicalization_agent(
         run_dir,
         settings=make_settings(),
         client=client,
@@ -168,6 +186,36 @@ def test_several_sequential_searches_share_one_conversation(tmp_path: Path) -> N
         "assistant",
         "tool",
     ]
+    returned_ids = [
+        evidence_id
+        for search in result.searches
+        for evidence_id in search.returned_evidence_ids
+    ]
+    assert len(result.searches) == 2
+    assert result.retrieved_evidence_ids == list(dict.fromkeys(returned_ids))
+    assert len(result.retrieved_evidence_ids) < len(returned_ids)
+
+
+def test_finalization_after_only_empty_searches_fails(tmp_path: Path) -> None:
+    run_dir = make_run(tmp_path)
+    client = FakeClient(
+        [
+            model_response(
+                tool_calls=[tool_call("call_1", query="no_match_xyz_123")]
+            ),
+            model_response(content=FINAL_RESPONSE),
+        ]
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="retrieved no evidence before finalizing",
+    ):
+        run_canonicalization_agent(
+            run_dir,
+            settings=make_settings(),
+            client=client,
+        )
 
 
 def test_multiple_tool_calls_in_one_response_are_executed(tmp_path: Path) -> None:
@@ -304,7 +352,8 @@ def test_configured_canonicalizer_model_is_passed_to_request(tmp_path: Path) -> 
     client = FakeClient([model_response(content=FINAL_RESPONSE)])
     settings = make_settings(model="configured-gemma-model")
 
-    run_canonicalization_agent(run_dir, settings=settings, client=client)
+    with pytest.raises(RuntimeError, match="before retrieving evidence"):
+        run_canonicalization_agent(run_dir, settings=settings, client=client)
 
     call = client.completions.calls[0]
     assert call["model"] == "configured-gemma-model"

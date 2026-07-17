@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from antenna_ingest.canonicalization.agent import run_canonicalization_agent
+from antenna_ingest.canonicalization.agent import (
+    CanonicalizationAgentResult,
+    run_canonicalization_agent,
+)
 from antenna_ingest.canonicalization.schemas import CanonicalDesignRecord
 from antenna_ingest.canonicalization.validation import (
     CanonicalizationValidationReport,
@@ -22,6 +25,8 @@ from antenna_ingest.utils.json_io import read_json, write_json
 CANONICALIZATION_PHASE = "canonicalization"
 CANONICAL_DESIGN_RECORD_PATH = "canonicalization/canonical_design_record.json"
 CANONICALIZATION_REPORT_PATH = "canonicalization/canonicalization_report.json"
+RAW_MODEL_RESPONSE_PATH = "canonicalization/raw_model_response.txt"
+CANONICALIZATION_TRACE_PATH = "canonicalization/canonicalization_trace.json"
 
 
 def parse_canonical_design_response(
@@ -38,23 +43,43 @@ def run_validated_canonicalization(
     max_tool_calls: int = 12,
     enable_thinking: bool = True,
 ) -> tuple[CanonicalDesignRecord, CanonicalizationValidationReport]:
-    raw_response = run_canonicalization_agent(
+    agent_result = run_canonicalization_agent(
         run_dir,
         settings=settings,
         client=client,
         max_tool_calls=max_tool_calls,
         enable_thinking=enable_thinking,
     )
-    record = parse_canonical_design_response(raw_response)
+    return _validate_agent_result(run_dir, agent_result)
+
+
+def _validate_agent_result(
+    run_dir: Path,
+    agent_result: CanonicalizationAgentResult,
+) -> tuple[CanonicalDesignRecord, CanonicalizationValidationReport]:
+    record = parse_canonical_design_response(agent_result.raw_response)
     valid_evidence_ids = load_valid_evidence_ids(run_dir)
     report = build_canonicalization_validation_report(
         record,
         valid_evidence_ids,
+        agent_result.retrieved_evidence_ids,
+        len(agent_result.searches),
     )
-    if not report.valid:
-        raise ValueError(
+    errors = []
+    if report.unknown_evidence_ids:
+        errors.append(
             "canonical design references unknown evidence IDs: "
             + ", ".join(report.unknown_evidence_ids)
+        )
+    if report.unretrieved_evidence_ids:
+        errors.append(
+            "canonical design references evidence IDs not retrieved during "
+            "this run: "
+            + ", ".join(report.unretrieved_evidence_ids)
+        )
+    if errors:
+        raise ValueError(
+            "; ".join(errors)
         )
     return record, report
 
@@ -77,13 +102,15 @@ def canonicalize_run(
     write_json(manifest_path, manifest.model_dump(mode="json"))
 
     try:
-        record, report = run_validated_canonicalization(
+        agent_result = run_canonicalization_agent(
             run_dir,
             settings=settings,
             client=client,
             max_tool_calls=max_tool_calls,
             enable_thinking=enable_thinking,
         )
+        write_canonicalization_audit_outputs(run_dir, agent_result)
+        record, report = _validate_agent_result(run_dir, agent_result)
         write_json(
             run_dir / CANONICAL_DESIGN_RECORD_PATH,
             record.model_dump(mode="json"),
@@ -112,6 +139,8 @@ def refuse_existing_canonicalization_outputs(
     paths = [
         Path(run_dir) / CANONICAL_DESIGN_RECORD_PATH,
         Path(run_dir) / CANONICALIZATION_REPORT_PATH,
+        Path(run_dir) / RAW_MODEL_RESPONSE_PATH,
+        Path(run_dir) / CANONICALIZATION_TRACE_PATH,
     ]
     existing = [path for path in paths if path.exists()]
     if existing and not force:
@@ -126,7 +155,12 @@ def replace_canonicalization_artifacts(
     manifest: RunManifest,
     run_dir: Path,
 ) -> None:
-    artifact_names = {"canonical_design_record", "canonicalization_report"}
+    artifact_names = {
+        "canonical_design_record",
+        "canonicalization_report",
+        "canonicalization_raw_model_response",
+        "canonicalization_trace",
+    }
     manifest.artifacts = [
         artifact
         for artifact in manifest.artifacts
@@ -135,6 +169,8 @@ def replace_canonicalization_artifacts(
     for name, relative_path in (
         ("canonical_design_record", CANONICAL_DESIGN_RECORD_PATH),
         ("canonicalization_report", CANONICALIZATION_REPORT_PATH),
+        ("canonicalization_raw_model_response", RAW_MODEL_RESPONSE_PATH),
+        ("canonicalization_trace", CANONICALIZATION_TRACE_PATH),
     ):
         manifest.add_artifact(
             ArtifactReference(
@@ -144,3 +180,20 @@ def replace_canonicalization_artifacts(
                 checksum=sha256_file(Path(run_dir) / relative_path),
             )
         )
+
+
+def write_canonicalization_audit_outputs(
+    run_dir: Path,
+    agent_result: CanonicalizationAgentResult,
+) -> None:
+    raw_response_path = Path(run_dir) / RAW_MODEL_RESPONSE_PATH
+    raw_response_path.parent.mkdir(parents=True, exist_ok=True)
+    raw_response_path.write_text(
+        agent_result.raw_response,
+        encoding="utf-8",
+        newline="",
+    )
+    write_json(
+        Path(run_dir) / CANONICALIZATION_TRACE_PATH,
+        agent_result.model_dump(mode="json", exclude={"raw_response"}),
+    )
