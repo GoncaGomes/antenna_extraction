@@ -121,13 +121,20 @@ def run_canonicalization_agent(
     retrieved_evidence_id_set: set[str] = set()
 
     while True:
+        tool_choice: str | dict[str, Any]
+        if tool_call_count == 0:
+            tool_choice = {
+                "type": "function",
+                "function": {"name": "search_evidence"},
+            }
+        else:
+            tool_choice = "auto"
         response = client.chat.completions.create(
             model=settings.canonicalizer_model,
             messages=messages,
             tools=[SEARCH_EVIDENCE_TOOL],
-            tool_choice="auto",
+            tool_choice=tool_choice,
             temperature=0.0,
-            response_format=CANONICAL_DESIGN_RESPONSE_FORMAT,
             extra_body={
                 "chat_template_kwargs": {
                     "enable_thinking": enable_thinking,
@@ -138,10 +145,6 @@ def run_canonicalization_agent(
         tool_calls = message.tool_calls or []
 
         if not tool_calls:
-            if not isinstance(message.content, str) or not message.content.strip():
-                raise RuntimeError(
-                    "canonicalizer returned neither tool calls nor final text content"
-                )
             if not searches:
                 raise RuntimeError(
                     "canonicalization agent attempted to finalize before "
@@ -151,13 +154,7 @@ def run_canonicalization_agent(
                 raise RuntimeError(
                     "canonicalization agent retrieved no evidence before finalizing"
                 )
-            return CanonicalizationAgentResult(
-                model=settings.canonicalizer_model,
-                enable_thinking=enable_thinking,
-                raw_response=message.content,
-                searches=searches,
-                retrieved_evidence_ids=retrieved_evidence_ids,
-            )
+            break
 
         if tool_call_count + len(tool_calls) > max_tool_calls:
             raise RuntimeError("maximum canonicalization tool-call limit reached")
@@ -199,6 +196,44 @@ def run_canonicalization_agent(
                     "content": result.model_dump_json(),
                 }
             )
+
+    finalization_messages = [
+        *messages,
+        {
+            "role": "user",
+            "content": (
+                "Using only the evidence returned by search_evidence during "
+                "this execution, produce the final canonical design record. "
+                "Cite only evidence IDs returned during this execution. "
+                "Do not call any tools."
+            ),
+        },
+    ]
+    final_response = client.chat.completions.create(
+        model=settings.canonicalizer_model,
+        messages=finalization_messages,
+        temperature=0.0,
+        response_format=CANONICAL_DESIGN_RESPONSE_FORMAT,
+        extra_body={
+            "chat_template_kwargs": {
+                "enable_thinking": enable_thinking,
+            }
+        },
+    )
+    final_message = final_response.choices[0].message
+    if final_message.tool_calls:
+        raise RuntimeError(
+            "canonicalizer returned unexpected tool calls during finalization"
+        )
+    if not isinstance(final_message.content, str) or not final_message.content.strip():
+        raise RuntimeError("canonicalizer returned no final structured response text")
+    return CanonicalizationAgentResult(
+        model=settings.canonicalizer_model,
+        enable_thinking=enable_thinking,
+        raw_response=final_message.content,
+        searches=searches,
+        retrieved_evidence_ids=retrieved_evidence_ids,
+    )
 
 
 def _assistant_tool_call_message(

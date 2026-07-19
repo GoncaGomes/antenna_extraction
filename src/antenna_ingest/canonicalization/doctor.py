@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Literal
 
 from antenna_ingest.nuextract.client import build_openai_compatible_client
@@ -73,9 +74,7 @@ def run_canonicalization_doctor(
     ]
     request_options = {
         "model": settings.canonicalizer_model,
-        "tools": [DOCTOR_TOOL],
         "temperature": 0.0,
-        "response_format": DOCTOR_RESPONSE_FORMAT,
         "extra_body": {
             "chat_template_kwargs": {"enable_thinking": enable_thinking}
         },
@@ -84,6 +83,7 @@ def run_canonicalization_doctor(
     try:
         response = client.chat.completions.create(
             messages=messages,
+            tools=[DOCTOR_TOOL],
             tool_choice={
                 "type": "function",
                 "function": {"name": "get_test_value"},
@@ -99,6 +99,12 @@ def run_canonicalization_doctor(
             raise RuntimeError(
                 f"backend returned unexpected tool: {tool_call.function.name}"
             )
+        try:
+            arguments = json.loads(tool_call.function.arguments)
+        except json.JSONDecodeError as error:
+            raise RuntimeError("backend returned invalid tool arguments") from error
+        if not isinstance(arguments, dict):
+            raise RuntimeError("backend returned non-object tool arguments")
         tool_call_ok = True
 
         messages.append(
@@ -127,13 +133,16 @@ def run_canonicalization_doctor(
         messages.append(
             {
                 "role": "user",
-                "content": 'Return exactly the structured object {"status":"ok"}.',
+                "content": (
+                    "Using the tool result, return exactly the structured "
+                    'object {"status":"ok"}.'
+                ),
             }
         )
 
         response = client.chat.completions.create(
             messages=messages,
-            tool_choice="none",
+            response_format=DOCTOR_RESPONSE_FORMAT,
             **request_options,
         )
         response_text = response.choices[0].message.content

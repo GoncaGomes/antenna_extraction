@@ -325,13 +325,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     ):
         result = run_canonicalization_doctor()
         print(f"Model: {result.model}")
-        print(f"Tool calling: {'OK' if result.tool_call_ok else 'FAILED'}")
+        print(
+            f"Tool calling: {'PASSED' if result.tool_call_ok else 'FAILED'}"
+        )
         print(
             "Structured output: "
-            f"{'OK' if result.structured_output_ok else 'FAILED'}"
+            f"{'PASSED' if result.structured_output_ok else 'FAILED'}"
         )
         if result.ok:
-            print("Status: OK")
+            print("Status: PASSED")
             return 0
         print("Status: FAILED")
         print(f"Error: {result.error}")
