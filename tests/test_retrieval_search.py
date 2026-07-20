@@ -150,7 +150,7 @@ def test_search_can_append_query_trace(tmp_path) -> None:
         "dimensions",
     ]
     manifest = read_json(run_dir / "manifest.json")
-    assert manifest["phase_status"]["evidence_search"] == "completed"
+    assert manifest["phases"]["evidence_search"]["status"] == "completed"
     assert "query_trace" in {
         artifact["name"] for artifact in manifest["artifacts"]
     }

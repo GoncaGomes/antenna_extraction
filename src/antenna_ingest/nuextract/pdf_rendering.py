@@ -6,14 +6,14 @@ from pathlib import Path
 import fitz
 from pydantic import Field
 
-from antenna_ingest.orchestration.runs import sha256_file
+from antenna_ingest.orchestration.phases import complete_phase, fail_phase, start_phase
+from antenna_ingest.orchestration.runs import load_run_manifest, sha256_file
 from antenna_ingest.orchestration.schemas import (
     ArtifactReference,
-    PhaseStatus,
     RunManifest,
     StrictModel,
 )
-from antenna_ingest.utils.json_io import read_json, write_json
+from antenna_ingest.utils.json_io import write_json
 
 
 RENDERER_NAME = "pymupdf"
@@ -45,7 +45,7 @@ def render_run_pages(
 ) -> PageRenderReport:
     run_dir = Path(run_dir).resolve()
     manifest_path = run_dir / "manifest.json"
-    manifest = RunManifest.model_validate(read_json(manifest_path))
+    manifest = load_run_manifest(manifest_path)
     input_pdf = find_input_pdf(run_dir, manifest)
     source_document = input_pdf.relative_to(run_dir).as_posix()
 
@@ -53,7 +53,7 @@ def render_run_pages(
     pages_dir = run_dir / PAGES_DIR
     pages_dir.mkdir(parents=True, exist_ok=True)
 
-    manifest.phase_status[PAGE_RENDERING_PHASE] = PhaseStatus.RUNNING
+    start_phase(manifest, PAGE_RENDERING_PHASE)
     write_json(manifest_path, manifest.model_dump(mode="json"))
 
     try:
@@ -68,14 +68,14 @@ def render_run_pages(
         )
         write_json(run_dir / PAGE_RENDER_REPORT_PATH, report.model_dump(mode="json"))
 
-        manifest = RunManifest.model_validate(read_json(manifest_path))
-        manifest.phase_status[PAGE_RENDERING_PHASE] = PhaseStatus.COMPLETED
+        manifest = load_run_manifest(manifest_path)
+        complete_phase(manifest, PAGE_RENDERING_PHASE)
         replace_page_rendering_artifacts(manifest, run_dir)
         write_json(manifest_path, manifest.model_dump(mode="json"))
         return report
     except Exception:
-        failed_manifest = RunManifest.model_validate(read_json(manifest_path))
-        failed_manifest.phase_status[PAGE_RENDERING_PHASE] = PhaseStatus.FAILED
+        failed_manifest = load_run_manifest(manifest_path)
+        fail_phase(failed_manifest, PAGE_RENDERING_PHASE, None)
         write_json(manifest_path, failed_manifest.model_dump(mode="json"))
         raise
 

@@ -1,0 +1,56 @@
+{
+  "benchmark_id": "antenna_ingest_v1",
+  "created_at": "2026-07-20T15:07:37.913971+00:00",
+  "runs": [
+    {
+      "run_id": "run_20260706_154030_fe56e789",
+      "paper_id": null,
+      "document_id": "document_c47fa4544557",
+      "input_filename": "001_rectangular_patch_coaxial.pdf",
+      "input_sha256": "c47fa454455737e44110f54f95340a48b511139146746dfc5a4001a2ac755b4f",
+      "pipeline_version": "0.1.0",
+      "canonicalization_phase_result": "completed",
+      "source_run_path": "runs/run_20260706_154030_fe56e789"
+    },
+    {
+      "run_id": "run_20260706_154603_8feefe59",
+      "paper_id": null,
+      "document_id": "document_647e96ce943f",
+      "input_filename": "002_circular_slotted_triangular_patch.pdf",
+      "input_sha256": "647e96ce943f297dfa936fa68f90fc5e2b5048131e78eaf6797013b0a4d1dee6",
+      "pipeline_version": "0.1.0",
+      "canonicalization_phase_result": "completed",
+      "source_run_path": "runs/run_20260706_154603_8feefe59"
+    },
+    {
+      "run_id": "run_20260706_154931_3391dba9",
+      "paper_id": null,
+      "document_id": "document_6a1c4667b006",
+      "input_filename": "003_5g_microstrip_patch_28ghz.pdf",
+      "input_sha256": "6a1c4667b0063ec10d1d39dceff33770e0e7babcd1c8f2ec6d701fdcaa959957",
+      "pipeline_version": "0.1.0",
+      "canonicalization_phase_result": "completed",
+      "source_run_path": "runs/run_20260706_154931_3391dba9"
+    },
+    {
+      "run_id": "run_20260706_160201_0bec359c",
+      "paper_id": null,
+      "document_id": "document_cc9f76d7cad5",
+      "input_filename": "004_microstrip_patch.pdf",
+      "input_sha256": "cc9f76d7cad58bb735cdebdb1e9d0cb8ca0c81edf682932e467f3b2fe24cf659",
+      "pipeline_version": "0.1.0",
+      "canonicalization_phase_result": "completed",
+      "source_run_path": "runs/run_20260706_160201_0bec359c"
+    },
+    {
+      "run_id": "run_20260706_160555_621939bf",
+      "paper_id": null,
+      "document_id": "document_b05cc3da81ff",
+      "input_filename": "005_cp_patch.pdf",
+      "input_sha256": "b05cc3da81ffe693ccb7dbf3d51a32568984e47c4391881a0e6715a3d37689df",
+      "pipeline_version": "0.1.0",
+      "canonicalization_phase_result": "running",
+      "source_run_path": "runs/run_20260706_160555_621939bf"
+    }
+  ]
+}

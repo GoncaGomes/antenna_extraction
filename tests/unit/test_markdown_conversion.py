@@ -144,6 +144,7 @@ def test_fake_settings_can_be_injected() -> None:
     settings = NuExtractSettings(
         SKYNET_BASE_URL="https://example.invalid/openai",
         NUEXTRACT_MODEL="nuextract3",
+        CANONICALIZER_MODEL="canonicalizer",
         SKYNET_API_KEY=SecretStr("secret"),
     )
 
@@ -161,7 +162,7 @@ def test_convert_run_pages_to_markdown_stores_cleaned_markdown(tmp_path) -> None
             run_id="run_1",
             input_file="input/article.pdf",
             pipeline_version="0.1.0",
-            phase_status={"nuextract_markdown": "pending"},
+            phases={"nuextract_markdown": "pending"},
         ).model_dump(mode="json"),
     )
     write_json(
@@ -198,6 +199,7 @@ def _settings() -> NuExtractSettings:
     return NuExtractSettings(
         SKYNET_BASE_URL="https://example.invalid/openai",
         NUEXTRACT_MODEL="nuextract3",
+        CANONICALIZER_MODEL="canonicalizer",
         SKYNET_API_KEY=SecretStr("secret"),
     )
 

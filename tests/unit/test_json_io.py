@@ -40,6 +40,15 @@ def test_read_json_raises_value_error_for_list_root(tmp_path) -> None:
         read_json(path)
 
 
+def test_atomic_write_leaves_no_temporary_file(tmp_path) -> None:
+    path = tmp_path / "data.json"
+
+    write_json(path, {"value": 1})
+
+    assert read_json(path) == {"value": 1}
+    assert list(tmp_path.glob(".data.json.*.tmp")) == []
+
+
 def test_utf8_content_is_preserved(tmp_path) -> None:
     path = tmp_path / "data.json"
     content = {"title": "Medição de antena"}

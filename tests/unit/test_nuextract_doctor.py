@@ -79,5 +79,6 @@ def _settings() -> NuExtractSettings:
     return NuExtractSettings(
         SKYNET_BASE_URL="https://skynet.av.it.pt/openai",
         NUEXTRACT_MODEL="nuextract3",
+        CANONICALIZER_MODEL="canonicalizer",
         SKYNET_API_KEY=SecretStr("secret-key"),
     )

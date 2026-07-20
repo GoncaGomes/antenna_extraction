@@ -4,10 +4,10 @@ from pathlib import Path
 
 from pydantic import Field
 
-from antenna_ingest.orchestration.runs import sha256_file
+from antenna_ingest.orchestration.phases import complete_phase, fail_phase, start_phase
+from antenna_ingest.orchestration.runs import load_run_manifest, sha256_file
 from antenna_ingest.orchestration.schemas import (
     ArtifactReference,
-    PhaseStatus,
     RunManifest,
     StrictModel,
 )
@@ -64,8 +64,8 @@ def search_evidence_index(
 ) -> EvidenceSearchResponse:
     run_dir = Path(run_dir).resolve()
     manifest_path = run_dir / "manifest.json"
-    manifest = RunManifest.model_validate(read_json(manifest_path))
-    manifest.phase_status[EVIDENCE_SEARCH_PHASE] = PhaseStatus.RUNNING
+    manifest = load_run_manifest(manifest_path)
+    start_phase(manifest, EVIDENCE_SEARCH_PHASE)
     write_json(manifest_path, manifest.model_dump(mode="json"))
 
     try:
@@ -79,16 +79,16 @@ def search_evidence_index(
             top_k=top_k,
             context_window=context_window,
         )
-        manifest = RunManifest.model_validate(read_json(manifest_path))
-        manifest.phase_status[EVIDENCE_SEARCH_PHASE] = PhaseStatus.COMPLETED
+        manifest = load_run_manifest(manifest_path)
+        complete_phase(manifest, EVIDENCE_SEARCH_PHASE)
         if write_trace:
             append_query_trace(run_dir, response)
             replace_query_trace_artifact(manifest, run_dir)
         write_json(manifest_path, manifest.model_dump(mode="json"))
         return response
     except Exception:
-        failed_manifest = RunManifest.model_validate(read_json(manifest_path))
-        failed_manifest.phase_status[EVIDENCE_SEARCH_PHASE] = PhaseStatus.FAILED
+        failed_manifest = load_run_manifest(manifest_path)
+        fail_phase(failed_manifest, EVIDENCE_SEARCH_PHASE, None)
         write_json(manifest_path, failed_manifest.model_dump(mode="json"))
         raise
 

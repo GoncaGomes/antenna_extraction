@@ -25,6 +25,7 @@ from antenna_ingest.nuextract.raw_extraction import (
     parse_candidate_response,
 )
 from antenna_ingest.nuextract.settings import NuExtractSettings
+from antenna_ingest.orchestration.runs import sha256_file
 from antenna_ingest.orchestration.schemas import RunManifest
 from antenna_ingest.utils.json_io import read_json, write_json
 
@@ -46,6 +47,9 @@ def test_extraction_sends_all_pages_once_and_writes_outputs(tmp_path) -> None:
     assert (run_dir / ANTENNA_CANDIDATE_PATH).exists()
     assert (run_dir / EXTRACTION_REPORT_PATH).exists()
     assert (run_dir / REQUEST_METADATA_PATH).exists()
+    assert (run_dir / RAW_RESPONSE_TRACE_PATH).read_text(
+        encoding="utf-8"
+    ) == _candidate_json()
     assert len(client.requests) == 1
 
     request = client.requests[0]
@@ -78,16 +82,34 @@ def test_extraction_sends_all_pages_once_and_writes_outputs(tmp_path) -> None:
         "max_tokens": None,
         "enable_thinking": True,
         "page_count": 2,
-        "template_version": "antenna_design_candidate_v2",
-        "timeout_seconds": 180,
+            "template_version": "antenna_design_candidate_v2",
+            "timeout_seconds": 180,
+            "images": [
+                {
+                    "page_number": 1,
+                    "relative_path": "parsed/pages/page_001.png",
+                    "checksum": sha256_file(
+                        run_dir / "parsed/pages/page_001.png"
+                    ),
+                },
+                {
+                    "page_number": 2,
+                    "relative_path": "parsed/pages/page_002.png",
+                    "checksum": sha256_file(
+                        run_dir / "parsed/pages/page_002.png"
+                    ),
+                },
+            ],
     }
+    assert "base64" not in json.dumps(metadata)
 
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
-    assert manifest.phase_status["nuextract_raw_extraction"] == "completed"
+    assert manifest.phases["nuextract_raw_extraction"].status == "completed"
     artifact_names = {artifact.name for artifact in manifest.artifacts}
     assert "nuextract3_antenna_candidate" in artifact_names
     assert "nuextract3_extraction_report" in artifact_names
     assert "nuextract3_request_metadata" in artifact_names
+    assert "nuextract3_raw_response" in artifact_names
 
 
 def test_explicit_temperature_override_is_used(tmp_path) -> None:
@@ -179,7 +201,19 @@ def test_client_error_marks_extraction_failed(tmp_path) -> None:
         )
 
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
-    assert manifest.phase_status["nuextract_raw_extraction"] == "failed"
+    assert manifest.phases["nuextract_raw_extraction"].status == "failed"
+    phase = manifest.phases["nuextract_raw_extraction"]
+    assert phase.failure_reference is not None
+    failure = read_json(run_dir / phase.failure_reference)
+    assert failure["substage"] == "request"
+    assert failure["response_artifact"] is None
+    assert (run_dir / REQUEST_METADATA_PATH).is_file()
+    generated_text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in run_dir.rglob("*")
+        if path.suffix in {".json", ".txt"}
+    )
+    assert "secret" not in generated_text
 
 
 def test_invalid_json_response_writes_parse_traces(tmp_path) -> None:
@@ -204,7 +238,12 @@ def test_invalid_json_response_writes_parse_traces(tmp_path) -> None:
     assert "char_position" in parse_error
     assert "context:" in parse_error
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
-    assert manifest.phase_status["nuextract_raw_extraction"] == "failed"
+    assert manifest.phases["nuextract_raw_extraction"].status == "failed"
+    phase = manifest.phases["nuextract_raw_extraction"]
+    assert phase.failure_reference is not None
+    failure = read_json(run_dir / phase.failure_reference)
+    assert failure["substage"] == "response_parsing"
+    assert failure["response_artifact"] == RAW_RESPONSE_TRACE_PATH
 
 
 def _make_rendered_run(tmp_path: Path) -> Path:
@@ -234,7 +273,7 @@ def _make_rendered_run(tmp_path: Path) -> Path:
             run_id="run_1",
             input_file="input/article.pdf",
             pipeline_version="0.1.0",
-            phase_status={"nuextract_raw_extraction": "pending"},
+            phases={"nuextract_raw_extraction": "pending"},
         ).model_dump(mode="json"),
     )
     write_json(
@@ -279,6 +318,7 @@ def _settings() -> NuExtractSettings:
     return NuExtractSettings(
         SKYNET_BASE_URL="https://example.invalid/openai",
         NUEXTRACT_MODEL="nuextract3",
+        CANONICALIZER_MODEL="canonicalizer",
         SKYNET_API_KEY=SecretStr("secret"),
     )
 

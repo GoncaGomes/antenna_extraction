@@ -19,11 +19,10 @@ class NuExtractSettings(BaseSettings):
         validation_alias=AliasChoices("NUEXTRACT_MODEL", "OLLAMA_MODEL")
     )
     canonicalizer_model: str = Field(
-        default="gemma-4-31b-it",
         validation_alias="CANONICALIZER_MODEL",
     )
-    verifier_model: str = Field(
-        default="gemma-4-31b-it",
+    verifier_model: str | None = Field(
+        default=None,
         validation_alias="VERIFIER_MODEL",
     )
     nuextract_timeout_seconds: int = Field(
@@ -41,10 +40,19 @@ class NuExtractSettings(BaseSettings):
         "skynet_base_url",
         "nuextract_model",
         "canonicalizer_model",
-        "verifier_model",
     )
     @classmethod
     def validate_non_empty_string(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("value must not be empty")
+        return cleaned
+
+    @field_validator("verifier_model")
+    @classmethod
+    def validate_optional_model(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         cleaned = value.strip()
         if not cleaned:
             raise ValueError("value must not be empty")

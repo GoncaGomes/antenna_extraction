@@ -44,6 +44,7 @@ def test_build_nuextract_client_uses_role_settings(monkeypatch) -> None:
         SKYNET_BASE_URL="https://skynet.invalid/openai",
         SKYNET_API_KEY=SecretStr("secret-key"),
         NUEXTRACT_MODEL="nuextract3",
+        CANONICALIZER_MODEL="canonicalizer",
         NUEXTRACT_TIMEOUT_SECONDS=240,
     )
 

@@ -29,10 +29,15 @@ from antenna_ingest.nuextract.settings import (
     NuExtractSettings,
     load_nuextract_settings,
 )
-from antenna_ingest.orchestration.runs import create_run, sha256_file
+from antenna_ingest.orchestration.failures import write_failure_record
+from antenna_ingest.orchestration.phases import complete_phase, fail_phase, start_phase
+from antenna_ingest.orchestration.runs import (
+    create_run,
+    load_run_manifest,
+    sha256_file,
+)
 from antenna_ingest.orchestration.schemas import (
     ArtifactReference,
-    PhaseStatus,
     RunContext,
     RunManifest,
     StrictModel,
@@ -69,6 +74,12 @@ class NuExtractExtractionReport(StrictModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class PageImageReference(StrictModel):
+    page_number: int = Field(ge=1)
+    relative_path: str = Field(min_length=1)
+    checksum: str = Field(min_length=1)
+
+
 class NuExtractRequestMetadata(StrictModel):
     model: str = Field(min_length=1)
     temperature: float
@@ -77,6 +88,7 @@ class NuExtractRequestMetadata(StrictModel):
     page_count: int = Field(ge=1)
     template_version: str = Field(min_length=1)
     timeout_seconds: int = Field(gt=0)
+    images: list[PageImageReference]
 
 
 def extract_antenna_candidate_from_run(
@@ -90,25 +102,27 @@ def extract_antenna_candidate_from_run(
 ) -> tuple[AntennaDesignCandidate, NuExtractExtractionReport]:
     run_dir = Path(run_dir).resolve()
     manifest_path = run_dir / "manifest.json"
-    manifest = RunManifest.model_validate(read_json(manifest_path))
+    manifest = load_run_manifest(manifest_path)
     render_report_path = run_dir / PAGE_RENDER_REPORT_PATH
     if not render_report_path.exists():
         render_run_pages(run_dir, force=force)
     page_report = PageRenderReport.model_validate(read_json(render_report_path))
 
     refuse_existing_extraction_outputs(run_dir, force)
-    settings = settings or load_nuextract_settings()
-    client = client or build_nuextract_client(settings)
 
-    manifest = RunManifest.model_validate(read_json(manifest_path))
-    manifest.phase_status[RAW_EXTRACTION_PHASE] = PhaseStatus.RUNNING
+    manifest = load_run_manifest(manifest_path)
+    start_phase(manifest, RAW_EXTRACTION_PHASE)
     write_json(manifest_path, manifest.model_dump(mode="json"))
 
+    substage = "preparation"
     try:
-        page_payloads = [
-            PageImagePayload(
+        settings = settings or load_nuextract_settings()
+        client = client or build_nuextract_client(settings)
+        image_references = [
+            PageImageReference(
                 page_number=page.page_number,
-                data_url=image_file_to_data_url(run_dir / page.relative_path),
+                relative_path=page.relative_path,
+                checksum=sha256_file(run_dir / page.relative_path),
             )
             for page in page_report.pages
         ]
@@ -120,11 +134,20 @@ def extract_antenna_candidate_from_run(
             page_count=page_report.page_count,
             template_version=ANTENNA_DESIGN_CANDIDATE_TEMPLATE["schema_name"],
             timeout_seconds=settings.nuextract_timeout_seconds,
+            images=image_references,
         )
         write_json(
             run_dir / REQUEST_METADATA_PATH,
             metadata.model_dump(mode="json"),
         )
+        page_payloads = [
+            PageImagePayload(
+                page_number=page.page_number,
+                data_url=image_file_to_data_url(run_dir / page.relative_path),
+            )
+            for page in page_report.pages
+        ]
+        substage = "request"
         response_content = request_antenna_candidate(
             client=client,
             model=settings.nuextract_model,
@@ -133,6 +156,10 @@ def extract_antenna_candidate_from_run(
             max_tokens=max_tokens,
             enable_thinking=enable_thinking,
         )
+        raw_response_path = run_dir / RAW_RESPONSE_TRACE_PATH
+        raw_response_path.parent.mkdir(parents=True, exist_ok=True)
+        raw_response_path.write_text(response_content, encoding="utf-8")
+        substage = "response_parsing"
         try:
             candidate = parse_candidate_response(response_content)
         except Exception as error:
@@ -143,6 +170,7 @@ def extract_antenna_candidate_from_run(
             page_count=page_report.page_count,
         )
 
+        substage = "artifact_writing"
         candidate_path = run_dir / ANTENNA_CANDIDATE_PATH
         write_json(candidate_path, candidate.model_dump(mode="json"))
         report = NuExtractExtractionReport(
@@ -161,14 +189,33 @@ def extract_antenna_candidate_from_run(
         )
         write_json(run_dir / EXTRACTION_REPORT_PATH, report.model_dump(mode="json"))
 
-        manifest = RunManifest.model_validate(read_json(manifest_path))
-        manifest.phase_status[RAW_EXTRACTION_PHASE] = PhaseStatus.COMPLETED
+        manifest = load_run_manifest(manifest_path)
+        complete_phase(manifest, RAW_EXTRACTION_PHASE)
         replace_raw_extraction_artifacts(manifest, run_dir)
         write_json(manifest_path, manifest.model_dump(mode="json"))
         return candidate, report
-    except Exception:
-        failed_manifest = RunManifest.model_validate(read_json(manifest_path))
-        failed_manifest.phase_status[RAW_EXTRACTION_PHASE] = PhaseStatus.FAILED
+    except Exception as error:
+        failed_manifest = load_run_manifest(manifest_path)
+        response_artifact = (
+            RAW_RESPONSE_TRACE_PATH
+            if (run_dir / RAW_RESPONSE_TRACE_PATH).is_file()
+            else None
+        )
+        partial_artifacts = _existing_extraction_progress(run_dir)
+        failure_reference = write_failure_record(
+            run_dir,
+            phase=RAW_EXTRACTION_PHASE,
+            attempt=failed_manifest.phases[RAW_EXTRACTION_PHASE].attempt,
+            substage=substage,
+            error=error,
+            response_artifact=response_artifact,
+            partial_artifacts=partial_artifacts,
+        )
+        fail_phase(
+            failed_manifest,
+            RAW_EXTRACTION_PHASE,
+            failure_reference,
+        )
         write_json(manifest_path, failed_manifest.model_dump(mode="json"))
         raise
 
@@ -358,24 +405,25 @@ def validate_candidate_source_pages(
 
 
 def refuse_existing_extraction_outputs(run_dir: Path, force: bool) -> None:
-    candidate_path = Path(run_dir) / ANTENNA_CANDIDATE_PATH
-    report_path = Path(run_dir) / EXTRACTION_REPORT_PATH
-    metadata_path = Path(run_dir) / REQUEST_METADATA_PATH
+    paths = [
+        Path(run_dir) / relative_path
+        for relative_path in (
+            ANTENNA_CANDIDATE_PATH,
+            EXTRACTION_REPORT_PATH,
+            REQUEST_METADATA_PATH,
+            RAW_RESPONSE_TRACE_PATH,
+            CLEANED_RESPONSE_TRACE_PATH,
+            PARSE_ERROR_TRACE_PATH,
+        )
+    ]
     if not force:
-        if candidate_path.exists():
-            raise FileExistsError(f"candidate already exists: {candidate_path}")
-        if report_path.exists():
-            raise FileExistsError(f"extraction report already exists: {report_path}")
-        if metadata_path.exists():
-            raise FileExistsError(f"request metadata already exists: {metadata_path}")
+        existing = next((path for path in paths if path.exists()), None)
+        if existing is not None:
+            raise FileExistsError(f"extraction output already exists: {existing}")
         return
 
-    if candidate_path.exists():
-        candidate_path.unlink()
-    if report_path.exists():
-        report_path.unlink()
-    if metadata_path.exists():
-        metadata_path.unlink()
+    for path in paths:
+        path.unlink(missing_ok=True)
 
 
 def replace_raw_extraction_artifacts(
@@ -386,6 +434,7 @@ def replace_raw_extraction_artifacts(
         "nuextract3_antenna_candidate",
         "nuextract3_extraction_report",
         "nuextract3_request_metadata",
+        "nuextract3_raw_response",
     }
     manifest.artifacts = [
         artifact
@@ -414,6 +463,14 @@ def replace_raw_extraction_artifacts(
             relative_path=REQUEST_METADATA_PATH,
             producing_phase=RAW_EXTRACTION_PHASE,
             checksum=sha256_file(Path(run_dir) / REQUEST_METADATA_PATH),
+        )
+    )
+    manifest.add_artifact(
+        ArtifactReference(
+            name="nuextract3_raw_response",
+            relative_path=RAW_RESPONSE_TRACE_PATH,
+            producing_phase=RAW_EXTRACTION_PHASE,
+            checksum=sha256_file(Path(run_dir) / RAW_RESPONSE_TRACE_PATH),
         )
     )
 
@@ -471,3 +528,13 @@ def parse_candidate_response(content: str) -> AntennaDesignCandidate:
     cleaned = clean_nuextract_json_response(content)
     data = json.loads(cleaned)
     return AntennaDesignCandidate.model_validate(data)
+
+
+def _existing_extraction_progress(run_dir: Path) -> list[str]:
+    paths = (
+        REQUEST_METADATA_PATH,
+        RAW_RESPONSE_TRACE_PATH,
+        CLEANED_RESPONSE_TRACE_PATH,
+        PARSE_ERROR_TRACE_PATH,
+    )
+    return [path for path in paths if (Path(run_dir) / path).is_file()]

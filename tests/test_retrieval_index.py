@@ -48,7 +48,7 @@ def test_build_index_from_blocks_and_tables(tmp_path) -> None:
     assert "mm" in table["units"]
 
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
-    assert manifest.phase_status["evidence_indexing"] == PhaseStatus.COMPLETED
+    assert manifest.phases["evidence_indexing"].status == PhaseStatus.COMPLETED
     artifact_names = {artifact.name for artifact in manifest.artifacts}
     assert {"evidence_index", "evidence_index_report"} <= artifact_names
 
@@ -279,7 +279,7 @@ def write_fake_manifest(run_dir: Path) -> None:
         run_id="run_test",
         input_file="input/test.pdf",
         pipeline_version="0.1.0",
-        phase_status={
+        phases={
             "run_infrastructure": PhaseStatus.COMPLETED,
             "page_rendering": PhaseStatus.COMPLETED,
             "nuextract_markdown": PhaseStatus.COMPLETED,

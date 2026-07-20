@@ -7,6 +7,10 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
+from antenna_ingest.canonicalization.agent import (
+    LATEST_MODEL_RESPONSE_PATH,
+    SEARCH_CHECKPOINT_PATH,
+)
 from antenna_ingest.canonicalization.canonicalize import (
     CANONICAL_DESIGN_RECORD_PATH,
     CANONICALIZATION_REPORT_PATH,
@@ -57,6 +61,11 @@ def test_successful_canonicalization_run_persists_outputs(tmp_path: Path) -> Non
             "returned_evidence_ids": ["block_design"],
         }
     ]
+    checkpoint = read_json(run_dir / SEARCH_CHECKPOINT_PATH)
+    assert checkpoint["searches"] == trace["searches"]
+    assert (run_dir / LATEST_MODEL_RESPONSE_PATH).read_text(
+        encoding="utf-8"
+    ) == valid_response()
     assert read_json(run_dir / CANONICAL_DESIGN_RECORD_PATH) == record.model_dump(
         mode="json"
     )
@@ -65,7 +74,7 @@ def test_successful_canonicalization_run_persists_outputs(tmp_path: Path) -> Non
     )
 
     manifest = load_manifest(run_dir)
-    assert manifest.phase_status["canonicalization"] == PhaseStatus.COMPLETED
+    assert manifest.phases["canonicalization"].status == PhaseStatus.COMPLETED
     artifacts = {
         artifact.name: artifact
         for artifact in manifest.artifacts
@@ -155,7 +164,13 @@ def test_failed_canonicalization_marks_phase_failed(tmp_path: Path) -> None:
         )
 
     manifest = load_manifest(run_dir)
-    assert manifest.phase_status["canonicalization"] == PhaseStatus.FAILED
+    assert manifest.phases["canonicalization"].status == PhaseStatus.FAILED
+    failure_reference = manifest.phases["canonicalization"].failure_reference
+    assert failure_reference is not None
+    failure = read_json(run_dir / failure_reference)
+    assert failure["phase"] == "canonicalization"
+    assert failure["substage"] == "structured response parsing"
+    assert failure["response_artifact"] == RAW_MODEL_RESPONSE_PATH
     assert not (run_dir / CANONICAL_DESIGN_RECORD_PATH).exists()
     assert not (run_dir / CANONICALIZATION_REPORT_PATH).exists()
     assert (run_dir / RAW_MODEL_RESPONSE_PATH).read_bytes() == raw_response.encode(
@@ -185,15 +200,47 @@ def test_provenance_failure_preserves_raw_response_and_trace(
     ) == raw_response
     trace = read_json(run_dir / CANONICALIZATION_TRACE_PATH)
     assert trace["retrieved_evidence_ids"] == ["block_design"]
-    assert load_manifest(run_dir).phase_status["canonicalization"] == (
+    assert load_manifest(run_dir).phases["canonicalization"].status == (
         PhaseStatus.FAILED
     )
+
+
+def test_canonicalization_request_failure_is_structured_and_redacted(
+    tmp_path: Path,
+) -> None:
+    run_dir = make_run(tmp_path)
+
+    with pytest.raises(RuntimeError, match="request failed"):
+        canonicalize_run(
+            run_dir,
+            settings=make_settings(),
+            client=RequestFailingClient(),
+        )
+
+    manifest = load_manifest(run_dir)
+    phase = manifest.phases["canonicalization"]
+    assert phase.status == PhaseStatus.FAILED
+    assert phase.failure_reference is not None
+    failure = read_json(run_dir / phase.failure_reference)
+    assert failure["substage"] == "initial tool loop request"
+    assert "test-key" not in json.dumps(failure)
+    assert "[redacted]" in failure["message"]
 
 
 class FakeClient:
     def __init__(self, response_text: str) -> None:
         self.completions = FakeCompletions(response_text)
         self.chat = SimpleNamespace(completions=self.completions)
+
+
+class RequestFailingClient:
+    def __init__(self) -> None:
+        self.chat = SimpleNamespace(
+            completions=SimpleNamespace(create=self._create)
+        )
+
+    def _create(self, **_kwargs) -> None:
+        raise RuntimeError("request failed api_key=test-key")
 
 
 class FakeCompletions:
@@ -230,7 +277,7 @@ def make_run(tmp_path: Path) -> Path:
         run_id="run_test",
         input_file="input/test.pdf",
         pipeline_version="0.1.0",
-        phase_status={
+        phases={
             "run_infrastructure": PhaseStatus.COMPLETED,
             "nuextract_raw_extraction": PhaseStatus.COMPLETED,
             "evidence_indexing": PhaseStatus.COMPLETED,

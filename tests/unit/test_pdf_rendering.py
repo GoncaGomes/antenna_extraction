@@ -107,5 +107,5 @@ def _manifest(input_file: str) -> RunManifest:
         run_id="run_1",
         input_file=input_file,
         pipeline_version="0.1.0",
-        phase_status={"run_infrastructure": "completed"},
+        phases={"run_infrastructure": "completed"},
     )

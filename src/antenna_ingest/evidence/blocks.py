@@ -7,14 +7,14 @@ from pathlib import Path
 
 from pydantic import Field
 
-from antenna_ingest.orchestration.runs import sha256_file
+from antenna_ingest.orchestration.phases import complete_phase, fail_phase, start_phase
+from antenna_ingest.orchestration.runs import load_run_manifest, sha256_file
 from antenna_ingest.orchestration.schemas import (
     ArtifactReference,
-    PhaseStatus,
     RunManifest,
     StrictModel,
 )
-from antenna_ingest.utils.json_io import read_json, write_json
+from antenna_ingest.utils.json_io import write_json
 
 
 EVIDENCE_BLOCKS_PHASE = "evidence_blocks"
@@ -47,10 +47,10 @@ def build_evidence_blocks_from_run(
 ) -> EvidenceBlocksReport:
     run_dir = Path(run_dir).resolve()
     manifest_path = run_dir / "manifest.json"
-    manifest = RunManifest.model_validate(read_json(manifest_path))
+    manifest = load_run_manifest(manifest_path)
     refuse_existing_evidence_block_outputs(run_dir, force)
 
-    manifest.phase_status[EVIDENCE_BLOCKS_PHASE] = PhaseStatus.RUNNING
+    start_phase(manifest, EVIDENCE_BLOCKS_PHASE)
     write_json(manifest_path, manifest.model_dump(mode="json"))
 
     try:
@@ -89,14 +89,14 @@ def build_evidence_blocks_from_run(
             report.model_dump(mode="json"),
         )
 
-        manifest = RunManifest.model_validate(read_json(manifest_path))
-        manifest.phase_status[EVIDENCE_BLOCKS_PHASE] = PhaseStatus.COMPLETED
+        manifest = load_run_manifest(manifest_path)
+        complete_phase(manifest, EVIDENCE_BLOCKS_PHASE)
         replace_evidence_block_artifacts(manifest, run_dir)
         write_json(manifest_path, manifest.model_dump(mode="json"))
         return report
     except Exception:
-        failed_manifest = RunManifest.model_validate(read_json(manifest_path))
-        failed_manifest.phase_status[EVIDENCE_BLOCKS_PHASE] = PhaseStatus.FAILED
+        failed_manifest = load_run_manifest(manifest_path)
+        fail_phase(failed_manifest, EVIDENCE_BLOCKS_PHASE, None)
         write_json(manifest_path, failed_manifest.model_dump(mode="json"))
         raise
 

@@ -56,7 +56,7 @@ def test_build_evidence_blocks_writes_blocks_report_and_manifest(tmp_path) -> No
     }
 
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
-    assert manifest.phase_status["evidence_blocks"] == PhaseStatus.COMPLETED
+    assert manifest.phases["evidence_blocks"].status == PhaseStatus.COMPLETED
     artifact_names = {artifact.name for artifact in manifest.artifacts}
     assert {"evidence_blocks", "evidence_blocks_report"} <= artifact_names
     assert all(artifact.checksum for artifact in manifest.artifacts)
@@ -92,7 +92,7 @@ def write_fake_manifest(run_dir: Path) -> None:
         run_id="run_test",
         input_file="input/test.pdf",
         pipeline_version="0.1.0",
-        phase_status={
+        phases={
             "run_infrastructure": PhaseStatus.COMPLETED,
             "page_rendering": PhaseStatus.COMPLETED,
             "nuextract_markdown": PhaseStatus.COMPLETED,

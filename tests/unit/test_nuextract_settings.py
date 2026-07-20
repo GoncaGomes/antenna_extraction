@@ -30,6 +30,7 @@ def test_legacy_base_url_and_model_names_are_supported(monkeypatch) -> None:
     monkeypatch.setenv("OPENAI_BASE_URL", "https://legacy.invalid/openai")
     monkeypatch.setenv("OLLAMA_MODEL", "legacy-nuextract")
     monkeypatch.setenv("SKYNET_API_KEY", "secret-key")
+    monkeypatch.setenv("CANONICALIZER_MODEL", "canonicalizer")
 
     settings = NuExtractSettings()
 
@@ -42,8 +43,8 @@ def test_role_and_timeout_defaults(monkeypatch) -> None:
 
     settings = NuExtractSettings(_env_file=None)
 
-    assert settings.canonicalizer_model == "gemma-4-31b-it"
-    assert settings.verifier_model == "gemma-4-31b-it"
+    assert settings.canonicalizer_model == "canonicalizer"
+    assert settings.verifier_model is None
     assert settings.nuextract_timeout_seconds == 180
     assert settings.canonicalizer_timeout_seconds == 600
 
@@ -98,7 +99,16 @@ def test_secret_value_is_not_exposed_by_model_dump(monkeypatch) -> None:
     assert "secret-key" not in str(dumped)
 
 
+def test_canonicalizer_model_is_required(monkeypatch) -> None:
+    _set_valid_environment(monkeypatch)
+    monkeypatch.delenv("CANONICALIZER_MODEL")
+
+    with pytest.raises(ValidationError):
+        NuExtractSettings(_env_file=None)
+
+
 def _set_valid_environment(monkeypatch) -> None:
     monkeypatch.setenv("SKYNET_BASE_URL", "https://skynet.av.it.pt/openai")
     monkeypatch.setenv("NUEXTRACT_MODEL", "nuextract3")
+    monkeypatch.setenv("CANONICALIZER_MODEL", "canonicalizer")
     monkeypatch.setenv("SKYNET_API_KEY", "secret-key")

@@ -45,7 +45,7 @@ def test_extract_tables_writes_document_report_and_manifest(tmp_path) -> None:
     assert table["caption"] == "TABLE I OPTIMIZED DIMENSIONS OF THE PROPOSED ANTENNA"
 
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
-    assert manifest.phase_status["table_extraction"] == PhaseStatus.COMPLETED
+    assert manifest.phases["table_extraction"].status == PhaseStatus.COMPLETED
     artifact_names = {artifact.name for artifact in manifest.artifacts}
     assert {"tables", "tables_report"} <= artifact_names
     assert all(artifact.checksum for artifact in manifest.artifacts)
@@ -122,7 +122,7 @@ def write_fake_manifest(run_dir: Path) -> None:
         run_id="run_test",
         input_file="input/test.pdf",
         pipeline_version="0.1.0",
-        phase_status={
+        phases={
             "run_infrastructure": PhaseStatus.COMPLETED,
             "page_rendering": PhaseStatus.COMPLETED,
             "nuextract_markdown": PhaseStatus.COMPLETED,

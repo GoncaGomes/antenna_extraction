@@ -45,7 +45,7 @@ def test_convert_run_pages_to_markdown_writes_outputs_and_manifest(tmp_path) -> 
     assert len(report.pages) == 2
 
     manifest = RunManifest.model_validate(read_json(context.run_dir / "manifest.json"))
-    assert manifest.phase_status["nuextract_markdown"] == "completed"
+    assert manifest.phases["nuextract_markdown"].status == "completed"
     artifact_names = {artifact.name for artifact in manifest.artifacts}
     assert "source_pdf" in artifact_names
     assert "rendered_pages" in artifact_names
@@ -99,7 +99,7 @@ def test_convert_run_pages_to_markdown_marks_manifest_failed_on_error(tmp_path) 
         )
 
     manifest = RunManifest.model_validate(read_json(context.run_dir / "manifest.json"))
-    assert manifest.phase_status["nuextract_markdown"] == "failed"
+    assert manifest.phases["nuextract_markdown"].status == "failed"
 
 
 def test_parse_pdf_to_markdown_creates_run_renders_and_writes_markdown(tmp_path) -> None:
@@ -142,6 +142,7 @@ def _settings() -> NuExtractSettings:
     return NuExtractSettings(
         SKYNET_BASE_URL="https://example.invalid/openai",
         NUEXTRACT_MODEL="nuextract3",
+        CANONICALIZER_MODEL="canonicalizer",
         SKYNET_API_KEY=SecretStr("secret"),
     )
 

@@ -26,7 +26,7 @@ def test_render_run_pages_writes_pages_report_and_manifest(tmp_path) -> None:
     assert all(page.width_px > 0 and page.height_px > 0 for page in report.pages)
 
     manifest = RunManifest.model_validate(read_json(context.run_dir / "manifest.json"))
-    assert manifest.phase_status["page_rendering"] == "completed"
+    assert manifest.phases["page_rendering"].status == "completed"
     artifact_names = {artifact.name for artifact in manifest.artifacts}
     assert "source_pdf" in artifact_names
     assert "rendered_pages" in artifact_names
@@ -68,7 +68,7 @@ def test_render_run_pages_marks_manifest_failed_on_error(tmp_path, monkeypatch) 
         render_run_pages(context.run_dir)
 
     manifest = RunManifest.model_validate(read_json(context.run_dir / "manifest.json"))
-    assert manifest.phase_status["page_rendering"] == "failed"
+    assert manifest.phases["page_rendering"].status == "failed"
 
 
 def make_test_pdf(path: Path, page_count: int = 2) -> None:

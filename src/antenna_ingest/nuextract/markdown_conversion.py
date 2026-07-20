@@ -17,10 +17,14 @@ from antenna_ingest.nuextract.settings import (
     NuExtractSettings,
     load_nuextract_settings,
 )
-from antenna_ingest.orchestration.runs import create_run, sha256_file
+from antenna_ingest.orchestration.phases import complete_phase, fail_phase, start_phase
+from antenna_ingest.orchestration.runs import (
+    create_run,
+    load_run_manifest,
+    sha256_file,
+)
 from antenna_ingest.orchestration.schemas import (
     ArtifactReference,
-    PhaseStatus,
     RunContext,
     RunManifest,
     StrictModel,
@@ -72,7 +76,7 @@ def convert_run_pages_to_markdown(
 ) -> NuExtractMarkdownReport:
     run_dir = Path(run_dir).resolve()
     manifest_path = run_dir / "manifest.json"
-    manifest = RunManifest.model_validate(read_json(manifest_path))
+    manifest = load_run_manifest(manifest_path)
     page_render_report = PageRenderReport.model_validate(
         read_json(run_dir / PAGE_RENDER_REPORT_PATH)
     )
@@ -81,7 +85,7 @@ def convert_run_pages_to_markdown(
     settings = settings or load_nuextract_settings()
     client = client or build_nuextract_client(settings)
 
-    manifest.phase_status[MARKDOWN_PHASE] = PhaseStatus.RUNNING
+    start_phase(manifest, MARKDOWN_PHASE)
     write_json(manifest_path, manifest.model_dump(mode="json"))
 
     try:
@@ -122,14 +126,14 @@ def convert_run_pages_to_markdown(
         )
         write_json(run_dir / MARKDOWN_REPORT_PATH, report.model_dump(mode="json"))
 
-        manifest = RunManifest.model_validate(read_json(manifest_path))
-        manifest.phase_status[MARKDOWN_PHASE] = PhaseStatus.COMPLETED
+        manifest = load_run_manifest(manifest_path)
+        complete_phase(manifest, MARKDOWN_PHASE)
         replace_markdown_artifacts(manifest, run_dir)
         write_json(manifest_path, manifest.model_dump(mode="json"))
         return report
     except Exception:
-        failed_manifest = RunManifest.model_validate(read_json(manifest_path))
-        failed_manifest.phase_status[MARKDOWN_PHASE] = PhaseStatus.FAILED
+        failed_manifest = load_run_manifest(manifest_path)
+        fail_phase(failed_manifest, MARKDOWN_PHASE, None)
         write_json(manifest_path, failed_manifest.model_dump(mode="json"))
         raise
 
