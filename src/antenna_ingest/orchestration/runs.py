@@ -7,6 +7,10 @@ from pathlib import Path
 from uuid import uuid4
 
 from antenna_ingest.orchestration.fingerprints import collect_run_fingerprint
+from antenna_ingest.orchestration.pipeline_spec import (
+    GLOBAL_PHASES,
+    PIPELINE_PHASES,
+)
 from antenna_ingest.orchestration.phases import complete_phase, start_phase
 from antenna_ingest.orchestration.schemas import (
     ArtifactReference,
@@ -26,20 +30,12 @@ RUN_SUBDIRECTORIES = (
     "canonicalization",
     "planning",
     "reports",
+    "document",
+    "architecture",
+    "architecture/designs",
+    "model_traces",
+    "cache",
 )
-
-INITIAL_PHASE_STATUS = {
-    "run_infrastructure": PhaseStatus.COMPLETED,
-    "page_rendering": PhaseStatus.PENDING,
-    "nuextract_markdown": PhaseStatus.PENDING,
-    "evidence_blocks": PhaseStatus.PENDING,
-    "table_extraction": PhaseStatus.PENDING,
-    "evidence_indexing": PhaseStatus.PENDING,
-    "evidence_search": PhaseStatus.PENDING,
-    "nuextract_raw_extraction": PhaseStatus.PENDING,
-    "canonicalization": PhaseStatus.PENDING,
-    "cst_integration_intent": PhaseStatus.PENDING,
-}
 
 
 def create_run(
@@ -81,8 +77,12 @@ def create_run(
         paper_id=paper_id,
         fingerprint=collect_run_fingerprint(),
         phases={
-            name: PhaseExecution(status=status)
-            for name, status in INITIAL_PHASE_STATUS.items()
+            name: (
+                [PhaseExecution(status=PhaseStatus.PENDING)]
+                if name in GLOBAL_PHASES
+                else []
+            )
+            for name in PIPELINE_PHASES
         },
     )
     start_phase(manifest, "run_infrastructure")
@@ -126,14 +126,16 @@ def load_run_manifest(path: Path) -> RunManifest:
     if "phases" not in data and isinstance(legacy_statuses, dict):
         data["schema_version"] = data.get("schema_version", "1.0")
         data["phases"] = {
-            phase_name: {
-                "status": status,
-                "attempt": 0 if status == PhaseStatus.PENDING.value else 1,
-                "started_at": None,
-                "completed_at": None,
-                "duration_seconds": None,
-                "failure_reference": None,
-            }
+            phase_name: [
+                {
+                    "status": status,
+                    "attempt": 0 if status == PhaseStatus.PENDING.value else 1,
+                    "started_at": None,
+                    "completed_at": None,
+                    "duration_seconds": None,
+                    "failure_reference": None,
+                }
+            ]
             for phase_name, status in legacy_statuses.items()
         }
 

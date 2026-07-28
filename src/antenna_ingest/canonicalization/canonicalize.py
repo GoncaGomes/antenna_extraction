@@ -161,7 +161,7 @@ def canonicalize_run(
         failure_reference = write_failure_record(
             run_dir,
             phase=CANONICALIZATION_PHASE,
-            attempt=failed_manifest.phases[CANONICALIZATION_PHASE].attempt,
+            attempt=failed_manifest.phases[CANONICALIZATION_PHASE][0].attempt,
             substage=substage,
             error=error,
             response_artifact=response_artifact,

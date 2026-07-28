@@ -48,7 +48,7 @@ def test_build_index_from_blocks_and_tables(tmp_path) -> None:
     assert "mm" in table["units"]
 
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
-    assert manifest.phases["evidence_indexing"].status == PhaseStatus.COMPLETED
+    assert manifest.phases["evidence_indexing"][0].status == PhaseStatus.COMPLETED
     artifact_names = {artifact.name for artifact in manifest.artifacts}
     assert {"evidence_index", "evidence_index_report"} <= artifact_names
 

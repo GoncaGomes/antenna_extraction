@@ -32,12 +32,17 @@ def test_create_run_creates_phase_1_run_structure(tmp_path) -> None:
         "canonicalization",
         "planning",
         "reports",
+        "document",
+        "architecture",
+        "architecture/designs",
+        "model_traces",
+        "cache",
     ):
         assert (run_dir / folder).is_dir()
 
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
 
-    assert manifest.phases["run_infrastructure"].status == "completed"
+    assert manifest.phases["run_infrastructure"][0].status == "completed"
     downstream_phases = {
         phase: execution
         for phase, execution in manifest.phases.items()
@@ -46,7 +51,8 @@ def test_create_run_creates_phase_1_run_structure(tmp_path) -> None:
     assert downstream_phases
     assert all(
         execution.status == "pending"
-        for execution in downstream_phases.values()
+        for executions in downstream_phases.values()
+        for execution in executions
     )
 
     assert len(manifest.artifacts) == 1

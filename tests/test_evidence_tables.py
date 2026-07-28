@@ -45,7 +45,7 @@ def test_extract_tables_writes_document_report_and_manifest(tmp_path) -> None:
     assert table["caption"] == "TABLE I OPTIMIZED DIMENSIONS OF THE PROPOSED ANTENNA"
 
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
-    assert manifest.phases["table_extraction"].status == PhaseStatus.COMPLETED
+    assert manifest.phases["table_extraction"][0].status == PhaseStatus.COMPLETED
     artifact_names = {artifact.name for artifact in manifest.artifacts}
     assert {"tables", "tables_report"} <= artifact_names
     assert all(artifact.checksum for artifact in manifest.artifacts)

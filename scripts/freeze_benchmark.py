@@ -40,7 +40,12 @@ def build_benchmark_manifest(
                 f"run manifest is not readable: {manifest_path}: {error}"
             ) from error
 
-        canonicalization = manifest.phases.get("canonicalization")
+        canonicalization_executions = manifest.phases.get("canonicalization")
+        canonicalization = (
+            canonicalization_executions[0]
+            if canonicalization_executions
+            else None
+        )
         runs.append(
             {
                 "run_id": manifest.run_id,

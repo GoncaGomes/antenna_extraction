@@ -106,7 +106,12 @@ def build_evidence_index_from_run(
     manifest = load_run_manifest(manifest_path)
     refuse_existing_index_outputs(run_dir, force)
 
-    start_phase(manifest, EVIDENCE_INDEX_PHASE)
+    start_phase(
+        manifest,
+        EVIDENCE_INDEX_PHASE,
+        validate_prerequisites=False,
+        allow_completed_restart=True,
+    )
     write_json(manifest_path, manifest.model_dump(mode="json"))
 
     try:

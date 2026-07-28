@@ -74,7 +74,7 @@ def test_successful_canonicalization_run_persists_outputs(tmp_path: Path) -> Non
     )
 
     manifest = load_manifest(run_dir)
-    assert manifest.phases["canonicalization"].status == PhaseStatus.COMPLETED
+    assert manifest.phases["canonicalization"][0].status == PhaseStatus.COMPLETED
     artifacts = {
         artifact.name: artifact
         for artifact in manifest.artifacts
@@ -164,8 +164,8 @@ def test_failed_canonicalization_marks_phase_failed(tmp_path: Path) -> None:
         )
 
     manifest = load_manifest(run_dir)
-    assert manifest.phases["canonicalization"].status == PhaseStatus.FAILED
-    failure_reference = manifest.phases["canonicalization"].failure_reference
+    assert manifest.phases["canonicalization"][0].status == PhaseStatus.FAILED
+    failure_reference = manifest.phases["canonicalization"][0].failure_reference
     assert failure_reference is not None
     failure = read_json(run_dir / failure_reference)
     assert failure["phase"] == "canonicalization"
@@ -200,7 +200,7 @@ def test_provenance_failure_preserves_raw_response_and_trace(
     ) == raw_response
     trace = read_json(run_dir / CANONICALIZATION_TRACE_PATH)
     assert trace["retrieved_evidence_ids"] == ["block_design"]
-    assert load_manifest(run_dir).phases["canonicalization"].status == (
+    assert load_manifest(run_dir).phases["canonicalization"][0].status == (
         PhaseStatus.FAILED
     )
 
@@ -218,7 +218,7 @@ def test_canonicalization_request_failure_is_structured_and_redacted(
         )
 
     manifest = load_manifest(run_dir)
-    phase = manifest.phases["canonicalization"]
+    phase = manifest.phases["canonicalization"][0]
     assert phase.status == PhaseStatus.FAILED
     assert phase.failure_reference is not None
     failure = read_json(run_dir / phase.failure_reference)

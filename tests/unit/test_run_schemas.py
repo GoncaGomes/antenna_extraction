@@ -23,6 +23,7 @@ def test_phase_status_accepts_valid_values() -> None:
     assert PhaseStatus("running") == PhaseStatus.RUNNING
     assert PhaseStatus("completed") == PhaseStatus.COMPLETED
     assert PhaseStatus("failed") == PhaseStatus.FAILED
+    assert PhaseStatus("blocked") == PhaseStatus.BLOCKED
     assert PhaseStatus("skipped") == PhaseStatus.SKIPPED
 
 
@@ -105,8 +106,8 @@ def test_run_manifest_validates_and_serializes_json() -> None:
 
     dumped = manifest.model_dump(mode="json")
 
-    assert dumped["phases"]["run_infrastructure"]["status"] == "completed"
-    assert dumped["schema_version"] == "1.1"
+    assert dumped["phases"]["run_infrastructure"][0]["status"] == "completed"
+    assert dumped["schema_version"] == "2.0"
     assert isinstance(dumped["created_at"], str)
 
 
@@ -139,12 +140,12 @@ def test_old_run_manifest_without_paper_id_still_loads(tmp_path) -> None:
 
     assert manifest.paper_id is None
     assert manifest.schema_version == "1.0"
-    assert manifest.phases["run_infrastructure"].status == "completed"
-    assert manifest.phases["run_infrastructure"].attempt == 1
-    assert manifest.phases["pending_phase"].attempt == 0
-    assert manifest.phases["failed_phase"].attempt == 1
-    assert manifest.phases["running_phase"].attempt == 1
-    assert manifest.phases["skipped_phase"].attempt == 1
+    assert manifest.phases["run_infrastructure"][0].status == "completed"
+    assert manifest.phases["run_infrastructure"][0].attempt == 1
+    assert manifest.phases["pending_phase"][0].attempt == 0
+    assert manifest.phases["failed_phase"][0].attempt == 1
+    assert manifest.phases["running_phase"][0].attempt == 1
+    assert manifest.phases["skipped_phase"][0].attempt == 1
     assert manifest.input_sha256 == "b" * 64
     assert manifest.document_id == f"document_{'b' * 12}"
     assert manifest.fingerprint is None
@@ -168,13 +169,36 @@ def test_run_manifest_add_artifact_adds_an_artifact() -> None:
     assert manifest.artifacts == [artifact]
 
 
+def test_phase_execution_serializes_trace_and_artifact_metadata() -> None:
+    execution = PhaseExecution(
+        status=PhaseStatus.PENDING,
+        scope_design_id="design_a",
+        prompt_hash="prompt_hash",
+        schema_hash="schema_hash",
+        model_role="visual_analyst",
+        invocation_ids=["invocation_1"],
+        input_artifact_names=["visual_task_plan"],
+        output_artifact_names=["visual_observations"],
+    )
+
+    dumped = execution.model_dump(mode="json")
+
+    assert dumped["scope_design_id"] == "design_a"
+    assert dumped["prompt_hash"] == "prompt_hash"
+    assert dumped["schema_hash"] == "schema_hash"
+    assert dumped["model_role"] == "visual_analyst"
+    assert dumped["invocation_ids"] == ["invocation_1"]
+    assert dumped["input_artifact_names"] == ["visual_task_plan"]
+    assert dumped["output_artifact_names"] == ["visual_observations"]
+
+
 def test_phase_start_increments_attempt_and_clears_failure() -> None:
     manifest = _manifest()
-    manifest.phases["phase"].failure_reference = "reports/failure.json"
+    manifest.phases["phase"][0].failure_reference = "reports/failure.json"
 
     start_phase(manifest, "phase")
 
-    phase = manifest.phases["phase"]
+    phase = manifest.phases["phase"][0]
     assert phase.status == PhaseStatus.RUNNING
     assert phase.attempt == 1
     assert phase.started_at is not None
@@ -187,7 +211,7 @@ def test_phase_completion_records_timing() -> None:
 
     complete_phase(manifest, "phase")
 
-    phase = manifest.phases["phase"]
+    phase = manifest.phases["phase"][0]
     assert phase.status == PhaseStatus.COMPLETED
     assert phase.completed_at is not None
     assert phase.duration_seconds is not None
@@ -200,7 +224,7 @@ def test_phase_failure_records_reference() -> None:
 
     fail_phase(manifest, "phase", "reports/failures/phase_attempt_001.json")
 
-    phase = manifest.phases["phase"]
+    phase = manifest.phases["phase"][0]
     assert phase.status == PhaseStatus.FAILED
     assert phase.failure_reference == "reports/failures/phase_attempt_001.json"
     assert phase.completed_at is not None
@@ -221,5 +245,5 @@ def _manifest() -> RunManifest:
         run_id="run_1",
         input_file="input/source.pdf",
         pipeline_version="0.1.0",
-        phases={"phase": PhaseExecution(status=PhaseStatus.PENDING)},
+        phases={"phase": [PhaseExecution(status=PhaseStatus.PENDING)]},
     )

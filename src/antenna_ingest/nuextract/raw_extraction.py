@@ -205,7 +205,7 @@ def extract_antenna_candidate_from_run(
         failure_reference = write_failure_record(
             run_dir,
             phase=RAW_EXTRACTION_PHASE,
-            attempt=failed_manifest.phases[RAW_EXTRACTION_PHASE].attempt,
+            attempt=failed_manifest.phases[RAW_EXTRACTION_PHASE][0].attempt,
             substage=substage,
             error=error,
             response_artifact=response_artifact,

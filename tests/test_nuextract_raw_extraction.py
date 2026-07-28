@@ -104,7 +104,7 @@ def test_extraction_sends_all_pages_once_and_writes_outputs(tmp_path) -> None:
     assert "base64" not in json.dumps(metadata)
 
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
-    assert manifest.phases["nuextract_raw_extraction"].status == "completed"
+    assert manifest.phases["nuextract_raw_extraction"][0].status == "completed"
     artifact_names = {artifact.name for artifact in manifest.artifacts}
     assert "nuextract3_antenna_candidate" in artifact_names
     assert "nuextract3_extraction_report" in artifact_names
@@ -201,8 +201,8 @@ def test_client_error_marks_extraction_failed(tmp_path) -> None:
         )
 
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
-    assert manifest.phases["nuextract_raw_extraction"].status == "failed"
-    phase = manifest.phases["nuextract_raw_extraction"]
+    assert manifest.phases["nuextract_raw_extraction"][0].status == "failed"
+    phase = manifest.phases["nuextract_raw_extraction"][0]
     assert phase.failure_reference is not None
     failure = read_json(run_dir / phase.failure_reference)
     assert failure["substage"] == "request"
@@ -238,8 +238,8 @@ def test_invalid_json_response_writes_parse_traces(tmp_path) -> None:
     assert "char_position" in parse_error
     assert "context:" in parse_error
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
-    assert manifest.phases["nuextract_raw_extraction"].status == "failed"
-    phase = manifest.phases["nuextract_raw_extraction"]
+    assert manifest.phases["nuextract_raw_extraction"][0].status == "failed"
+    phase = manifest.phases["nuextract_raw_extraction"][0]
     assert phase.failure_reference is not None
     failure = read_json(run_dir / phase.failure_reference)
     assert failure["substage"] == "response_parsing"

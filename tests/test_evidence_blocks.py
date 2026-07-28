@@ -56,7 +56,7 @@ def test_build_evidence_blocks_writes_blocks_report_and_manifest(tmp_path) -> No
     }
 
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
-    assert manifest.phases["evidence_blocks"].status == PhaseStatus.COMPLETED
+    assert manifest.phases["evidence_blocks"][0].status == PhaseStatus.COMPLETED
     artifact_names = {artifact.name for artifact in manifest.artifacts}
     assert {"evidence_blocks", "evidence_blocks_report"} <= artifact_names
     assert all(artifact.checksum for artifact in manifest.artifacts)
