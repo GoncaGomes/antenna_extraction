@@ -1,2 +1,5 @@
-# Example pipeline configuration.
-
+pipeline:
+  extraction_mode: full_document
+  parallelism: 1
+  repair_enabled: false
+  max_repair_attempts: 1
