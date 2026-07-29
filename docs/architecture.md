@@ -1,146 +1,129 @@
-# Pipeline v2 Architecture
+# Planned NewPipeline Architecture
 
-Pipeline v2 converts one scientific antenna paper into an evidence-grounded,
-solver-neutral `antenna_design.json`. This document specifies the intended v2
-architecture; the existing v1 pipeline remains unchanged until an explicit
-cutover.
+> **Status:** This document describes the planned architecture. The current
+> branch still contains the legacy implementation. Implementation begins with
+> the controlled cleanup commit after this documentation commit.
 
-## Sequential flow
+## Target flow
 
 ```text
-PDF
-  -> mechanically render every page in source order
-  -> one NuExtract3 full-document multimodal extraction
-  -> structurally validate document_extraction.json
-  -> deterministically build an evidence packet
-  -> one Gemma4 design-selection and geometry-compilation call
-  -> keep source-grounded construction separate from proposed completions
-  -> deterministically compose without information loss
-  -> validate structure and evidence coverage
-  -> derive a preview from the ACIR
-  -> antenna_design.json
+Scientific PDF
+  |
+  v
+Create run and render every page in source order
+  |
+  v
+NuExtract3 full-document extraction
+  |
+  v
+Validate paper_extraction.json
+  |
+  +-------------------------------+
+  |                               |
+  v                               v
+Publish antenna_results.json      Prepare architecture-author input
+without another model call        from the validated extraction and pages
+                                  |
+                                  v
+                         Selected architecture author
+                                  |
+                                  v
+                         antenna_architecture.json
+                                  |
+                                  v
+                         Objective structural validation
 ```
 
-The normal single-paper path is synchronous and sequential:
+`paper_extraction.json` is an internal, auditable artifact. The only
+consumer-facing outputs are:
 
-- `parallelism=1`;
-- one NuExtract3 call;
-- one Gemma4 call;
-- no RAG, embedding retrieval, vector store, agent tool loop, or parallel
-  processing.
+```text
+outputs/antenna_results.json
+outputs/antenna_architecture.json
+```
 
-Sequential batching is permitted only after a real endpoint image, payload, or
-context limit is verified. Batches follow source order and transport limits.
-They must not perform semantic page selection.
+Normal execution is synchronous and sequential. It uses one NuExtract3 call
+and one call to a benchmark-selected architecture author. Results publication
+requires no model call.
 
 ## Responsibility boundaries
 
-### Deterministic code
+### Deterministic code may
 
-Before NuExtract3, deterministic code only renders all pages and records their
-order and metadata. It does not classify antenna families or detect and select
-figures, tables, captions, equations, or important pages.
-
-After extraction, deterministic code may:
-
+- create runs;
+- copy and fingerprint inputs;
+- render every page in source order;
+- persist raw and validated artifacts;
 - validate schemas and references;
-- collect pages referenced by NuExtract3;
-- deduplicate and order evidence;
-- record why each evidence page was included;
-- compose validated contracts without semantic reinterpretation;
-- check identifiers, expressions, units, dependencies, and evidence links;
-- generate a preview from the same ACIR used in the final output.
+- follow exact evidence and page references;
+- publish results losslessly from validated extraction;
+- calculate objective integrity statuses.
 
-It must not choose geometric blocks, infer missing geometry, apply
-antenna-family construction recipes, or convert engineering assumptions into
-paper-grounded facts.
+### Deterministic code must not
+
+- select the scientifically correct antenna design;
+- infer missing geometry;
+- choose antenna blocks or topology;
+- apply antenna-family recipes;
+- convert unsupported assumptions into reported facts;
+- rewrite the architecture output into a more plausible construction.
 
 ### NuExtract3
 
-NuExtract3 receives the complete ordered page set and extracts what the paper
-contains and reports into `document_extraction.json`. Its contract preserves
-designs, variants, observations, values, units, results, conflicts, missing
-information, evidence references, and geometry-relevant page references. It
-does not emit solver commands or silently complete missing information.
+NuExtract3 is the full-document extractor. It records designs, variants,
+materials, parameters, geometry observations, simulation and measurement
+setups, results, evidence, reproducible derivations, conflicts, ambiguity, and
+missing information.
 
-### Gemma4
+Its internal planned output is `paper_extraction.json`. NuExtract3 does not
+write either consumer-facing document.
 
-Gemma4 receives the validated document extraction and deterministic evidence
-packet. It selects the relevant design and compiles the evidence into an
-Antenna Construction Intermediate Representation (ACIR): a solver-neutral,
-block-oriented description of geometry, placement, materials, relationships,
-feeds, and excitations.
+### Architecture author
 
-Gemma4 must preserve ambiguity and distinguish source-grounded construction
-from `proposed_completions`. It must not emit CST commands.
+The architecture author:
 
-## Evidence packet
+- selects the primary final or fabricated design using evidence;
+- maps source information to generic blocks and relationships;
+- writes `antenna_architecture.json` directly;
+- preserves ambiguity and unresolved information;
+- keeps unsupported proposals explicit and unapplied.
 
-`geometry_relevant_pages` is one input to evidence-packet construction, not the
-only page-selection mechanism. The packet also follows evidence and page
-references already present in NuExtract3 observations, design records,
-parameters, results, conflicts, and unresolved information.
+The author model will be selected later through the controlled benchmark in
+the implementation plan. No model has been selected permanently.
 
-Python resolves those references, collects the referenced pages, deduplicates
-them, restores source order, and records an inclusion reason for every page. It
-does not introduce new semantic page classifications.
+### Results output
 
-## Construction and proposed completions
+`antenna_results.json` is a deterministic, lossless projection of the
+validated extraction. It bypasses the architecture author and requires no
+additional model call.
 
-Source-grounded construction contains explicit observations and reproducible
-derivations supported by evidence. Every derivation records its expression,
-inputs, and evidence.
+Architecture generation or validation failure must not invalidate or delete a
+valid results output.
 
-`proposed_completions` contains unsupported engineering hypotheses that could
-make an incomplete design constructible. Each completion must:
+## Validation boundary
 
-- be separate from extracted facts;
-- identify the missing information it addresses;
-- record its rationale and affected ACIR elements;
-- require explicit confirmation;
-- never be applied automatically.
+Objective validation may check schemas, identifiers, references, expressions,
+dependencies, source-backed values, and declared completeness. It must not
+claim that the selected topology is scientifically correct or that the antenna
+will simulate, fabricate, or perform as reported.
 
-## Composition and validation
-
-Composition copies and links the validated extraction and geometry compilation
-without dropping variants, results, conflicts, evidence, derivations, or
-unresolved information. It performs no scientific reinterpretation.
-
-Validation reports three independent states:
-
-- `structural_status`: `valid | invalid`;
-- `reconstruction_status`:
-  `complete | requires_confirmed_completions | incomplete`;
-- `scientific_review_status`: `not_reviewed | passed | failed`.
-
-Structural validity means only that the declared schema, references, and
-objective invariants are satisfied. It does not establish scientific,
-geometric, electromagnetic, or fabrication correctness.
-
-## Intended run artifacts
-
-```text
-runs/<run_id>/
-  input/<source>.pdf
-  parsed/pages/page_0001.png
-  parsed/page_render_report.json
-  extraction/document_extraction.json
-  extraction/nuextract3_raw_response.txt
-  extraction/nuextract3_request_metadata.json
-  evidence/evidence_packet.json
-  compilation/geometry_compilation.json
-  compilation/gemma4_raw_response.txt
-  compilation/gemma4_request_metadata.json
-  outputs/antenna_design.json
-  reports/validation_report.json
-  reports/previews/
-```
-
-These names document the intended v2 contracts; this documentation change does
-not create runtime support for them.
+Structural validity, reconstruction completeness, and scientific review remain
+separate states.
 
 ## Scope boundary
 
-The ACIR is solver-neutral. CST commands, a CST agent, model repair, retrieval
-infrastructure, parallel execution, and pipeline-v1 removal are outside this
-documentation change.
+The initial architecture excludes:
+
+- CST and solver-specific planning;
+- optimisation and automatic simulation;
+- RAG and retrieval;
+- agent loops;
+- automatic retries;
+- fallback models;
+- parallel processing;
+- automatic repair;
+- general preview generation.
+
+Pydantic models introduced in later commits will be the executable contract
+source of truth. This document intentionally does not reproduce complete
+schemas.
