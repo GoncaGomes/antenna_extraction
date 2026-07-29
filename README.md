@@ -5,13 +5,13 @@ PDF papers and is being rebuilt around a small, sequential, VLM-first pipeline.
 
 ## Current implementation status
 
-The current branch still contains the legacy implementation. Its active paths
-include page-to-Markdown conversion, deterministic evidence and table parsing,
-lexical retrieval, candidate extraction, tool-using canonicalization, and the
-existing multi-phase orchestration.
+The current branch contains the cleaned minimal foundation: run creation,
+source fingerprinting, ordered page rendering, atomic JSON persistence, failure
+records, and generic OpenAI-compatible endpoint configuration.
 
-Those modules describe current repository behavior, not the planned
-NewPipeline. The planned two-output pipeline is not implemented yet.
+The legacy Markdown, evidence parsing, retrieval, candidate extraction, and
+canonicalization paths have been removed. The planned two-output NewPipeline
+is not implemented yet.
 
 ## Planned NewPipeline
 
@@ -45,10 +45,8 @@ automatic retry, repair call, or agent tool loop.
 
 ## Implementation status and next step
 
-The two-output pipeline is planned but not yet implemented. The next
-implementation commit is a controlled cleanup of incompatible legacy code
-while retaining the reusable run, rendering, persistence, client, and failure
-handling foundation.
+The cleanup foundation is complete. The next planned work is Commit 3, which
+defines the extraction and results contracts without implementing model calls.
 
 See [the implementation plan](docs/implementation_plan.md) for the planned
 contracts, commit boundaries, acceptance gates, and deferred work.

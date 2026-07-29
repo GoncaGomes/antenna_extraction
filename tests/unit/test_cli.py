@@ -2,127 +2,57 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from antenna_ingest.cli import build_parser
+import pytest
+
+from antenna_ingest.cli import build_parser, main
 
 
-def test_evidence_blocks_command_parses() -> None:
-    args = build_parser().parse_args(
-        ["nuextract", "evidence-blocks", "run", "--force"]
-    )
-
-    assert args.nuextract_command == "evidence-blocks"
-    assert args.run_dir == Path("run")
-    assert args.force is True
-
-
-def test_extract_tables_command_parses() -> None:
-    args = build_parser().parse_args(
-        ["nuextract", "extract-tables", "run", "--force"]
-    )
-
-    assert args.nuextract_command == "extract-tables"
-    assert args.run_dir == Path("run")
-    assert args.force is True
-
-
-def test_extract_candidate_command_parses() -> None:
-    args = build_parser().parse_args(
-        ["nuextract", "extract-candidate", "run", "--force"]
-    )
-
-    assert args.nuextract_command == "extract-candidate"
-    assert args.run_dir == Path("run")
-    assert args.force is True
-    assert args.temperature == 0.0
-    assert args.enable_thinking is True
-
-
-def test_extract_candidate_command_can_disable_thinking() -> None:
-    args = build_parser().parse_args(
-        ["nuextract", "extract-candidate", "run", "--disable-thinking"]
-    )
-
-    assert args.nuextract_command == "extract-candidate"
-    assert args.enable_thinking is False
-
-
-def test_parse_candidate_command_parses() -> None:
+def test_init_run_command_parses() -> None:
     args = build_parser().parse_args(
         [
-            "nuextract",
-            "parse-candidate",
+            "init-run",
             "paper.pdf",
             "--runs-root",
-            "runs",
+            "run-root",
             "--paper-id",
-            "example",
-            "--temperature",
-            "0.2",
-            "--max-tokens",
-            "2048",
-            "--disable-thinking",
+            "paper-1",
             "--force",
         ]
     )
 
-    assert args.nuextract_command == "parse-candidate"
+    assert args.command == "init-run"
     assert args.input_pdf == Path("paper.pdf")
-    assert args.runs_root == Path("runs")
-    assert args.paper_id == "example"
-    assert args.temperature == 0.2
-    assert args.max_tokens == 2048
-    assert args.enable_thinking is False
+    assert args.runs_root == Path("run-root")
+    assert args.paper_id == "paper-1"
     assert args.force is True
 
 
-def test_parse_candidate_command_defaults_to_thinking_enabled() -> None:
+def test_render_pages_is_a_direct_command() -> None:
     args = build_parser().parse_args(
-        ["nuextract", "parse-candidate", "paper.pdf"]
+        ["render-pages", "runs/example", "--dpi", "200", "--force"]
     )
 
-    assert args.nuextract_command == "parse-candidate"
-    assert args.temperature == 0.0
-    assert args.enable_thinking is True
-
-
-def test_parse_all_command_parses() -> None:
-    args = build_parser().parse_args(
-        [
-            "nuextract",
-            "parse-all",
-            "paper.pdf",
-            "--runs-root",
-            "runs",
-            "--pipeline-version",
-            "0.2.0",
-            "--paper-id",
-            "example",
-            "--dpi",
-            "200",
-            "--temperature",
-            "0.2",
-            "--max-tokens",
-            "2048",
-            "--disable-thinking",
-            "--force",
-        ]
-    )
-
-    assert args.nuextract_command == "parse-all"
-    assert args.input_pdf == Path("paper.pdf")
-    assert args.runs_root == Path("runs")
-    assert args.pipeline_version == "0.2.0"
-    assert args.paper_id == "example"
+    assert args.command == "render-pages"
+    assert args.run_dir == Path("runs/example")
     assert args.dpi == 200
-    assert args.temperature == 0.2
-    assert args.max_tokens == 2048
-    assert args.enable_thinking is False
     assert args.force is True
 
 
-def test_parse_all_command_defaults_to_thinking_enabled() -> None:
-    args = build_parser().parse_args(["nuextract", "parse-all", "paper.pdf"])
+def test_doctor_requires_explicit_model_role() -> None:
+    args = build_parser().parse_args(["doctor", "document_extractor"])
 
-    assert args.nuextract_command == "parse-all"
-    assert args.temperature == 0.0
-    assert args.enable_thinking is True
+    assert args.command == "doctor"
+    assert args.model_role == "document_extractor"
+
+
+def test_cli_help_does_not_load_endpoint_settings(capsys) -> None:
+    with pytest.raises(SystemExit, match="0"):
+        main(["--help"])
+
+    help_text = capsys.readouterr().out
+    assert "init-run" in help_text
+    assert "render-pages" in help_text
+    assert "doctor" in help_text
+    assert "nuextract" not in help_text
+    assert "retrieval" not in help_text
+    assert "canonicalization" not in help_text

@@ -6,7 +6,11 @@ from pathlib import Path
 import fitz
 from pydantic import Field
 
-from antenna_ingest.orchestration.phases import complete_phase, fail_phase, start_phase
+from antenna_ingest.orchestration.phases import (
+    complete_phase,
+    fail_phase,
+    start_phase,
+)
 from antenna_ingest.orchestration.runs import load_run_manifest, sha256_file
 from antenna_ingest.orchestration.schemas import (
     ArtifactReference,
@@ -17,8 +21,8 @@ from antenna_ingest.utils.json_io import write_json
 
 
 RENDERER_NAME = "pymupdf"
-PAGES_DIR = "parsed/pages"
-PAGE_RENDER_REPORT_PATH = "parsed/page_render_report.json"
+PAGES_DIR = "pages"
+PAGE_RENDER_REPORT_PATH = "pages/render_report.json"
 PAGE_RENDERING_PHASE = "page_rendering"
 
 
@@ -50,10 +54,14 @@ def render_run_pages(
     source_document = input_pdf.relative_to(run_dir).as_posix()
 
     refuse_existing_render_outputs(run_dir, force)
-    pages_dir = run_dir / PAGES_DIR
-    pages_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / PAGES_DIR).mkdir(parents=True, exist_ok=True)
 
-    start_phase(manifest, PAGE_RENDERING_PHASE)
+    start_phase(
+        manifest,
+        PAGE_RENDERING_PHASE,
+        allow_completed_restart=force,
+        input_artifact_names=["source_pdf"],
+    )
     write_json(manifest_path, manifest.model_dump(mode="json"))
 
     try:
@@ -69,8 +77,12 @@ def render_run_pages(
         write_json(run_dir / PAGE_RENDER_REPORT_PATH, report.model_dump(mode="json"))
 
         manifest = load_run_manifest(manifest_path)
-        complete_phase(manifest, PAGE_RENDERING_PHASE)
         replace_page_rendering_artifacts(manifest, run_dir)
+        complete_phase(
+            manifest,
+            PAGE_RENDERING_PHASE,
+            output_artifact_names=["rendered_pages", "render_report"],
+        )
         write_json(manifest_path, manifest.model_dump(mode="json"))
         return report
     except Exception:
@@ -96,25 +108,20 @@ def find_input_pdf(run_dir: Path, manifest: RunManifest) -> Path:
 
 def refuse_existing_render_outputs(run_dir: Path, force: bool) -> None:
     pages_dir = Path(run_dir) / PAGES_DIR
-    report_path = Path(run_dir) / PAGE_RENDER_REPORT_PATH
     if not force:
-        if pages_dir.exists():
+        if pages_dir.exists() and any(pages_dir.iterdir()):
             raise FileExistsError(f"rendered pages already exist: {pages_dir}")
-        if report_path.exists():
-            raise FileExistsError(f"page render report already exists: {report_path}")
         return
 
     if pages_dir.exists():
         shutil.rmtree(pages_dir)
-    if report_path.exists():
-        report_path.unlink()
 
 
 def replace_page_rendering_artifacts(
     manifest: RunManifest,
     run_dir: Path,
 ) -> None:
-    artifact_names = {"rendered_pages", "page_render_report"}
+    artifact_names = {"rendered_pages", "render_report"}
     manifest.artifacts = [
         artifact
         for artifact in manifest.artifacts
@@ -130,7 +137,7 @@ def replace_page_rendering_artifacts(
     )
     manifest.add_artifact(
         ArtifactReference(
-            name="page_render_report",
+            name="render_report",
             relative_path=PAGE_RENDER_REPORT_PATH,
             producing_phase=PAGE_RENDERING_PHASE,
             checksum=sha256_file(Path(run_dir) / PAGE_RENDER_REPORT_PATH),
@@ -147,9 +154,8 @@ def _render_pdf_pages(input_pdf: Path, run_dir: Path, dpi: int) -> list[Rendered
         for index in range(document.page_count):
             page = document.load_page(index)
             pixmap = page.get_pixmap(matrix=matrix, alpha=False)
-            relative_path = f"{PAGES_DIR}/page_{index + 1:03d}.png"
+            relative_path = f"{PAGES_DIR}/page_{index + 1:04d}.png"
             output_path = Path(run_dir) / relative_path
-            output_path.parent.mkdir(parents=True, exist_ok=True)
             pixmap.save(output_path)
             rendered_pages.append(
                 RenderedPage(

@@ -1,3 +1,0 @@
-models:
-  document_extractor: nuextract3
-  geometry_compiler: gemma4:26b

@@ -1,8 +1,9 @@
 # Planned NewPipeline Architecture
 
-> **Status:** This document describes the planned architecture. The current
-> branch still contains the legacy implementation. Implementation begins with
-> the controlled cleanup commit after this documentation commit.
+> **Status:** This document describes the planned architecture. The legacy
+> active paths have been removed, and the repository currently contains only
+> the retained run, rendering, persistence, failure, and endpoint foundation.
+> No extraction or final-output contract has been implemented yet.
 
 ## Target flow
 

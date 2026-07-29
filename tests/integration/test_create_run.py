@@ -6,53 +6,57 @@ from pathlib import Path
 import pytest
 
 from antenna_ingest.orchestration.runs import create_run, sha256_file
-from antenna_ingest.orchestration.schemas import RunManifest
+from antenna_ingest.orchestration.schemas import (
+    MANIFEST_SCHEMA_VERSION,
+    RUN_PHASES,
+    RunManifest,
+)
 from antenna_ingest.utils.json_io import read_json
 
 
-def test_create_run_creates_phase_1_run_structure(tmp_path) -> None:
+def test_create_run_creates_minimal_foundation(tmp_path) -> None:
     article_pdf = tmp_path / "article.pdf"
     article_pdf.write_bytes(b"%PDF-1.4\n%fake test pdf\n")
-    runs_root = tmp_path / "runs"
 
-    context = create_run(article_pdf, runs_root=runs_root)
+    context = create_run(article_pdf, runs_root=tmp_path / "runs")
     run_dir = context.run_dir
     copied_pdf = run_dir / "input" / article_pdf.name
 
-    assert run_dir.exists()
-    assert copied_pdf.exists()
-    assert (run_dir / "manifest.json").exists()
     assert copied_pdf.read_bytes() == article_pdf.read_bytes()
-
+    assert (run_dir / "manifest.json").is_file()
     for folder in (
         "input",
-        "parsed",
+        "pages",
         "extraction",
+        "architecture",
+        "outputs",
+        "reports",
+        "reports/failures",
+    ):
+        assert (run_dir / folder).is_dir()
+    for legacy_folder in (
+        "parsed",
         "retrieval",
         "canonicalization",
         "planning",
-        "reports",
         "document",
-        "architecture",
-        "architecture/designs",
         "model_traces",
         "cache",
     ):
-        assert (run_dir / folder).is_dir()
+        assert not (run_dir / legacy_folder).exists()
 
     manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
-
-    assert manifest.phases["run_infrastructure"][0].status == "completed"
-    downstream_phases = {
-        phase: execution
-        for phase, execution in manifest.phases.items()
-        if phase != "run_infrastructure"
-    }
-    assert downstream_phases
+    assert manifest.schema_version == MANIFEST_SCHEMA_VERSION
+    assert tuple(manifest.phases) == RUN_PHASES
+    assert manifest.phases["run_initialization"].status == "completed"
+    assert manifest.phases["run_initialization"].attempt == 1
+    assert manifest.phases["run_initialization"].output_artifact_names == [
+        "source_pdf"
+    ]
     assert all(
-        execution.status == "pending"
-        for executions in downstream_phases.values()
-        for execution in executions
+        manifest.phases[name].status == "pending"
+        for name in RUN_PHASES
+        if name != "run_initialization"
     )
 
     assert len(manifest.artifacts) == 1
@@ -60,13 +64,12 @@ def test_create_run_creates_phase_1_run_structure(tmp_path) -> None:
     assert source_pdf.name == "source_pdf"
     assert manifest.input_file == f"input/{article_pdf.name}"
     assert source_pdf.relative_path == f"input/{article_pdf.name}"
-    assert source_pdf.producing_phase == "run_infrastructure"
+    assert source_pdf.producing_phase == "run_initialization"
     assert source_pdf.checksum == sha256_file(copied_pdf)
     assert manifest.input_sha256 == source_pdf.checksum
     assert manifest.document_id == f"document_{source_pdf.checksum[:12]}"
     assert context.input_sha256 == manifest.input_sha256
     assert context.document_id == manifest.document_id
-    assert manifest.fingerprint is not None
     assert manifest.fingerprint.python_version == platform.python_version()
     assert manifest.fingerprint.platform == platform.platform()
     assert manifest.fingerprint.pyproject_sha256 == sha256_file(
@@ -74,18 +77,9 @@ def test_create_run_creates_phase_1_run_structure(tmp_path) -> None:
     )
     assert manifest.fingerprint.lockfile_sha256 == sha256_file(Path("uv.lock"))
 
-    for downstream_file in (
-        "parsed/document.nuextract.md",
-        "parsed/page_render_report.json",
-        "extraction/nuextract_raw.json",
-        "extraction/nuextract_raw_report.json",
-        "retrieval/evidence_index.jsonl",
-        "retrieval/evidence_index_report.json",
-        "retrieval/query_trace.json",
-        "canonicalization/canonical_antenna_record.json",
-        "planning/cst_integration_intent.json",
-    ):
-        assert not (run_dir / downstream_file).exists()
+    assert list((run_dir / "extraction").iterdir()) == []
+    assert list((run_dir / "architecture").iterdir()) == []
+    assert list((run_dir / "outputs").iterdir()) == []
 
 
 def test_create_run_raises_for_missing_input_file(tmp_path) -> None:
@@ -107,31 +101,22 @@ def test_create_run_persists_paper_id(tmp_path) -> None:
     assert manifest.paper_id == "example_paper"
 
 
-def test_same_pdf_bytes_have_stable_document_id_across_filenames(tmp_path) -> None:
+def test_document_identity_depends_on_pdf_bytes(tmp_path) -> None:
     first = tmp_path / "first.pdf"
-    second = tmp_path / "renamed.pdf"
-    content = b"%PDF-1.4\n%same content\n"
-    first.write_bytes(content)
-    second.write_bytes(content)
+    renamed = tmp_path / "renamed.pdf"
+    modified = tmp_path / "modified.pdf"
+    first.write_bytes(b"%PDF-1.4\n%same content\n")
+    renamed.write_bytes(first.read_bytes())
+    modified.write_bytes(b"%PDF-1.4\n%different content\n")
 
     first_run = create_run(first, runs_root=tmp_path / "runs_a")
-    second_run = create_run(second, runs_root=tmp_path / "runs_b")
+    renamed_run = create_run(renamed, runs_root=tmp_path / "runs_b")
+    modified_run = create_run(modified, runs_root=tmp_path / "runs_c")
 
-    assert first_run.document_id == second_run.document_id
-    assert first_run.input_sha256 == second_run.input_sha256
-
-
-def test_modified_pdf_bytes_have_different_document_ids(tmp_path) -> None:
-    first = tmp_path / "first.pdf"
-    second = tmp_path / "second.pdf"
-    first.write_bytes(b"%PDF-1.4\n%first\n")
-    second.write_bytes(b"%PDF-1.4\n%second\n")
-
-    first_run = create_run(first, runs_root=tmp_path / "runs_a")
-    second_run = create_run(second, runs_root=tmp_path / "runs_b")
-
-    assert first_run.document_id != second_run.document_id
-    assert first_run.input_sha256 != second_run.input_sha256
+    assert first_run.document_id == renamed_run.document_id
+    assert first_run.input_sha256 == renamed_run.input_sha256
+    assert first_run.document_id != modified_run.document_id
+    assert first_run.input_sha256 != modified_run.input_sha256
 
 
 def test_git_metadata_failure_does_not_prevent_run_creation(
@@ -152,6 +137,5 @@ def test_git_metadata_failure_does_not_prevent_run_creation(
     context = create_run(article_pdf, runs_root=tmp_path / "runs")
     manifest = RunManifest.model_validate(read_json(context.run_dir / "manifest.json"))
 
-    assert manifest.fingerprint is not None
     assert manifest.fingerprint.git_commit is None
     assert manifest.fingerprint.git_dirty is None

@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from antenna_ingest.orchestration.phases import complete_phase, fail_phase, start_phase
-from antenna_ingest.orchestration.runs import load_run_manifest
 from antenna_ingest.orchestration.schemas import (
+    MANIFEST_SCHEMA_VERSION,
+    RUN_PHASES,
     ArtifactReference,
     PhaseExecution,
     PhaseStatus,
@@ -15,56 +15,34 @@ from antenna_ingest.orchestration.schemas import (
     RunFingerprint,
     RunManifest,
 )
-from antenna_ingest.utils.json_io import write_json
 
 
-def test_phase_status_accepts_valid_values() -> None:
-    assert PhaseStatus("pending") == PhaseStatus.PENDING
-    assert PhaseStatus("running") == PhaseStatus.RUNNING
-    assert PhaseStatus("completed") == PhaseStatus.COMPLETED
-    assert PhaseStatus("failed") == PhaseStatus.FAILED
-    assert PhaseStatus("blocked") == PhaseStatus.BLOCKED
-    assert PhaseStatus("skipped") == PhaseStatus.SKIPPED
-
-
-def test_phase_status_rejects_invalid_values_through_pydantic() -> None:
+def test_phase_status_values_are_exact() -> None:
+    assert [status.value for status in PhaseStatus] == [
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "skipped",
+    ]
     with pytest.raises(ValidationError):
-        RunManifest(
-            run_id="run_1",
-            input_file="input/source.pdf",
-            pipeline_version="0.1.0",
-            phases={"run_infrastructure": "invalid"},
-        )
+        PhaseExecution(status="invalid")
 
 
-def test_artifact_reference_rejects_empty_name() -> None:
+@pytest.mark.parametrize("field", ["name", "relative_path", "producing_phase"])
+def test_artifact_reference_rejects_empty_required_strings(field) -> None:
+    values = {
+        "name": "source_pdf",
+        "relative_path": "input/source.pdf",
+        "producing_phase": "run_initialization",
+    }
+    values[field] = " "
+
     with pytest.raises(ValidationError):
-        ArtifactReference(
-            name=" ",
-            relative_path="input/source.pdf",
-            producing_phase="run_infrastructure",
-        )
+        ArtifactReference(**values)
 
 
-def test_artifact_reference_rejects_empty_relative_path() -> None:
-    with pytest.raises(ValidationError):
-        ArtifactReference(
-            name="source_pdf",
-            relative_path=" ",
-            producing_phase="run_infrastructure",
-        )
-
-
-def test_artifact_reference_rejects_empty_producing_phase() -> None:
-    with pytest.raises(ValidationError):
-        ArtifactReference(
-            name="source_pdf",
-            relative_path="input/source.pdf",
-            producing_phase=" ",
-        )
-
-
-def test_run_context_validates_and_serializes_json() -> None:
+def test_run_context_serializes_paths() -> None:
     context = RunContext(
         run_id="run_1",
         document_id="document_123456789abc",
@@ -82,168 +60,107 @@ def test_run_context_validates_and_serializes_json() -> None:
     assert dumped["paper_id"] == "paper-1"
 
 
-def test_run_context_rejects_empty_run_id() -> None:
-    with pytest.raises(ValidationError):
-        RunContext(
-            run_id=" ",
-            input_path=Path("article.pdf"),
-            run_dir=Path("runs/run_1"),
-            pipeline_version="0.1.0",
-        )
-
-
-def test_run_manifest_validates_and_serializes_json() -> None:
-    manifest = RunManifest(
-        run_id="run_1",
-        input_file="input/source.pdf",
-        pipeline_version="0.1.0",
-        phases={"run_infrastructure": PhaseStatus.COMPLETED},
-        fingerprint=RunFingerprint(
-            python_version="3.12.0",
-            platform="test-platform",
-        ),
-    )
-
+def test_run_manifest_has_one_record_per_ordered_phase() -> None:
+    manifest = _manifest()
     dumped = manifest.model_dump(mode="json")
 
-    assert dumped["phases"]["run_infrastructure"][0]["status"] == "completed"
-    assert dumped["schema_version"] == "2.0"
+    assert dumped["schema_version"] == MANIFEST_SCHEMA_VERSION
+    assert tuple(dumped["phases"]) == RUN_PHASES
+    assert dumped["phases"]["run_initialization"]["status"] == "completed"
     assert isinstance(dumped["created_at"], str)
 
 
-def test_old_run_manifest_without_paper_id_still_loads(tmp_path) -> None:
-    path = tmp_path / "manifest.json"
-    write_json(
-        path,
-        {
-            "run_id": "run_1",
-            "input_file": "input/source.pdf",
-            "pipeline_version": "0.1.0",
-            "phase_status": {
-                "run_infrastructure": "completed",
-                "pending_phase": "pending",
-                "failed_phase": "failed",
-                "running_phase": "running",
-                "skipped_phase": "skipped",
-            },
-            "artifacts": [
-                {
-                    "name": "source_pdf",
-                    "relative_path": "input/source.pdf",
-                    "producing_phase": "run_infrastructure",
-                    "checksum": "b" * 64,
-                }
-            ],
-        },
-    )
-    manifest = load_run_manifest(path)
+def test_run_manifest_rejects_wrong_phase_set() -> None:
+    values = _manifest().model_dump()
+    values["phases"].pop("output_validation")
 
-    assert manifest.paper_id is None
-    assert manifest.schema_version == "1.0"
-    assert manifest.phases["run_infrastructure"][0].status == "completed"
-    assert manifest.phases["run_infrastructure"][0].attempt == 1
-    assert manifest.phases["pending_phase"][0].attempt == 0
-    assert manifest.phases["failed_phase"][0].attempt == 1
-    assert manifest.phases["running_phase"][0].attempt == 1
-    assert manifest.phases["skipped_phase"][0].attempt == 1
-    assert manifest.input_sha256 == "b" * 64
-    assert manifest.document_id == f"document_{'b' * 12}"
-    assert manifest.fingerprint is None
+    with pytest.raises(ValidationError, match="ordered pipeline phase set"):
+        RunManifest.model_validate(values)
 
 
-def test_run_manifest_add_artifact_adds_an_artifact() -> None:
-    manifest = RunManifest(
-        run_id="run_1",
-        input_file="input/source.pdf",
-        pipeline_version="0.1.0",
-        phases={"run_infrastructure": PhaseStatus.COMPLETED},
-    )
-    artifact = ArtifactReference(
-        name="source_pdf",
-        relative_path="input/source.pdf",
-        producing_phase="run_infrastructure",
-    )
+def test_run_manifest_rejects_other_schema_versions() -> None:
+    values = _manifest().model_dump()
+    values["schema_version"] = "2.0"
 
-    manifest.add_artifact(artifact)
-
-    assert manifest.artifacts == [artifact]
+    with pytest.raises(ValidationError):
+        RunManifest.model_validate(values)
 
 
-def test_phase_execution_serializes_trace_and_artifact_metadata() -> None:
+def test_run_manifest_rejects_multiple_running_phases() -> None:
+    phases = _phases()
+    phases["page_rendering"].status = PhaseStatus.RUNNING
+    phases["paper_extraction"].status = PhaseStatus.RUNNING
+
+    with pytest.raises(ValidationError, match="only one phase"):
+        _manifest(phases=phases)
+
+
+def test_phase_execution_preserves_minimal_metadata() -> None:
     execution = PhaseExecution(
         status=PhaseStatus.PENDING,
-        scope_design_id="design_a",
         prompt_hash="prompt_hash",
         schema_hash="schema_hash",
-        model_role="visual_analyst",
-        invocation_ids=["invocation_1"],
-        input_artifact_names=["visual_task_plan"],
-        output_artifact_names=["visual_observations"],
+        model_role="document_extractor",
+        input_artifact_names=["rendered_pages"],
+        output_artifact_names=["paper_extraction"],
     )
 
     dumped = execution.model_dump(mode="json")
 
-    assert dumped["scope_design_id"] == "design_a"
-    assert dumped["prompt_hash"] == "prompt_hash"
-    assert dumped["schema_hash"] == "schema_hash"
-    assert dumped["model_role"] == "visual_analyst"
-    assert dumped["invocation_ids"] == ["invocation_1"]
-    assert dumped["input_artifact_names"] == ["visual_task_plan"]
-    assert dumped["output_artifact_names"] == ["visual_observations"]
+    assert dumped["model_role"] == "document_extractor"
+    assert dumped["input_artifact_names"] == ["rendered_pages"]
+    assert dumped["output_artifact_names"] == ["paper_extraction"]
+    assert set(dumped) == {
+        "status",
+        "attempt",
+        "started_at",
+        "completed_at",
+        "duration_seconds",
+        "model_role",
+        "input_artifact_names",
+        "output_artifact_names",
+        "failure_reference",
+        "prompt_hash",
+        "schema_hash",
+    }
 
 
-def test_phase_start_increments_attempt_and_clears_failure() -> None:
-    manifest = _manifest()
-    manifest.phases["phase"][0].failure_reference = "reports/failure.json"
-
-    start_phase(manifest, "phase")
-
-    phase = manifest.phases["phase"][0]
-    assert phase.status == PhaseStatus.RUNNING
-    assert phase.attempt == 1
-    assert phase.started_at is not None
-    assert phase.failure_reference is None
-
-
-def test_phase_completion_records_timing() -> None:
-    manifest = _manifest()
-    start_phase(manifest, "phase")
-
-    complete_phase(manifest, "phase")
-
-    phase = manifest.phases["phase"][0]
-    assert phase.status == PhaseStatus.COMPLETED
-    assert phase.completed_at is not None
-    assert phase.duration_seconds is not None
-    assert phase.duration_seconds >= 0
-
-
-def test_phase_failure_records_reference() -> None:
-    manifest = _manifest()
-    start_phase(manifest, "phase")
-
-    fail_phase(manifest, "phase", "reports/failures/phase_attempt_001.json")
-
-    phase = manifest.phases["phase"][0]
-    assert phase.status == PhaseStatus.FAILED
-    assert phase.failure_reference == "reports/failures/phase_attempt_001.json"
-    assert phase.completed_at is not None
-
-
-def test_extra_fields_are_forbidden() -> None:
+def test_strict_models_forbid_extra_fields() -> None:
     with pytest.raises(ValidationError):
         ArtifactReference(
             name="source_pdf",
             relative_path="input/source.pdf",
-            producing_phase="run_infrastructure",
+            producing_phase="run_initialization",
             extra_field=True,
         )
 
 
-def _manifest() -> RunManifest:
+def _phases() -> dict[str, PhaseExecution]:
+    return {
+        name: PhaseExecution(
+            status=(
+                PhaseStatus.COMPLETED
+                if name == "run_initialization"
+                else PhaseStatus.PENDING
+            )
+        )
+        for name in RUN_PHASES
+    }
+
+
+def _manifest(
+    *,
+    phases: dict[str, PhaseExecution] | None = None,
+) -> RunManifest:
     return RunManifest(
         run_id="run_1",
         input_file="input/source.pdf",
+        document_id="document_123456789abc",
+        input_sha256="a" * 64,
         pipeline_version="0.1.0",
-        phases={"phase": [PhaseExecution(status=PhaseStatus.PENDING)]},
+        fingerprint=RunFingerprint(
+            python_version="3.12.0",
+            platform="test-platform",
+        ),
+        phases=phases or _phases(),
     )

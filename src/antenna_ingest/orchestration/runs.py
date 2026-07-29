@@ -7,12 +7,13 @@ from pathlib import Path
 from uuid import uuid4
 
 from antenna_ingest.orchestration.fingerprints import collect_run_fingerprint
-from antenna_ingest.orchestration.pipeline_spec import (
-    GLOBAL_PHASES,
-    PIPELINE_PHASES,
+from antenna_ingest.orchestration.phases import (
+    complete_phase,
+    fail_phase,
+    start_phase,
 )
-from antenna_ingest.orchestration.phases import complete_phase, start_phase
 from antenna_ingest.orchestration.schemas import (
+    RUN_PHASES,
     ArtifactReference,
     PhaseExecution,
     PhaseStatus,
@@ -24,17 +25,11 @@ from antenna_ingest.utils.json_io import read_json, write_json
 
 RUN_SUBDIRECTORIES = (
     "input",
-    "parsed",
+    "pages",
     "extraction",
-    "retrieval",
-    "canonicalization",
-    "planning",
-    "reports",
-    "document",
     "architecture",
-    "architecture/designs",
-    "model_traces",
-    "cache",
+    "outputs",
+    "reports/failures",
 )
 
 
@@ -60,13 +55,11 @@ def create_run(
 
     input_sha256 = sha256_file(input_pdf)
     document_id = document_id_from_sha256(input_sha256)
+    input_relative_path = Path("input") / input_pdf.name
+    manifest_path = run_dir / "manifest.json"
 
     for subdirectory in RUN_SUBDIRECTORIES:
         (run_dir / subdirectory).mkdir(parents=True, exist_ok=force)
-
-    input_relative_path = Path("input") / input_pdf.name
-    source_pdf = run_dir / input_relative_path
-    shutil.copy2(input_pdf, source_pdf)
 
     manifest = RunManifest(
         run_id=run_id,
@@ -77,25 +70,34 @@ def create_run(
         paper_id=paper_id,
         fingerprint=collect_run_fingerprint(),
         phases={
-            name: (
-                [PhaseExecution(status=PhaseStatus.PENDING)]
-                if name in GLOBAL_PHASES
-                else []
-            )
-            for name in PIPELINE_PHASES
+            phase_name: PhaseExecution(status=PhaseStatus.PENDING)
+            for phase_name in RUN_PHASES
         },
     )
-    start_phase(manifest, "run_infrastructure")
-    manifest.add_artifact(
-        ArtifactReference(
-            name="source_pdf",
-            relative_path=input_relative_path.as_posix(),
-            producing_phase="run_infrastructure",
-            checksum=input_sha256,
+    start_phase(manifest, "run_initialization")
+    write_json(manifest_path, manifest.model_dump(mode="json"))
+
+    try:
+        source_pdf = run_dir / input_relative_path
+        shutil.copy2(input_pdf, source_pdf)
+        manifest.add_artifact(
+            ArtifactReference(
+                name="source_pdf",
+                relative_path=input_relative_path.as_posix(),
+                producing_phase="run_initialization",
+                checksum=input_sha256,
+            )
         )
-    )
-    complete_phase(manifest, "run_infrastructure")
-    write_json(run_dir / "manifest.json", manifest.model_dump(mode="json"))
+        complete_phase(
+            manifest,
+            "run_initialization",
+            output_artifact_names=["source_pdf"],
+        )
+        write_json(manifest_path, manifest.model_dump(mode="json"))
+    except Exception:
+        fail_phase(manifest, "run_initialization", None)
+        write_json(manifest_path, manifest.model_dump(mode="json"))
+        raise
 
     return RunContext(
         run_id=run_id,
@@ -121,39 +123,7 @@ def document_id_from_sha256(checksum: str) -> str:
 
 
 def load_run_manifest(path: Path) -> RunManifest:
-    data = read_json(path)
-    legacy_statuses = data.pop("phase_status", None)
-    if "phases" not in data and isinstance(legacy_statuses, dict):
-        data["schema_version"] = data.get("schema_version", "1.0")
-        data["phases"] = {
-            phase_name: [
-                {
-                    "status": status,
-                    "attempt": 0 if status == PhaseStatus.PENDING.value else 1,
-                    "started_at": None,
-                    "completed_at": None,
-                    "duration_seconds": None,
-                    "failure_reference": None,
-                }
-            ]
-            for phase_name, status in legacy_statuses.items()
-        }
-
-    if not data.get("input_sha256"):
-        artifacts = data.get("artifacts", [])
-        source_artifact = next(
-            (
-                artifact
-                for artifact in artifacts
-                if artifact.get("name") == "source_pdf" and artifact.get("checksum")
-            ),
-            None,
-        )
-        if source_artifact is not None:
-            data["input_sha256"] = source_artifact["checksum"]
-    if not data.get("document_id") and data.get("input_sha256"):
-        data["document_id"] = document_id_from_sha256(data["input_sha256"])
-    return RunManifest.model_validate(data)
+    return RunManifest.model_validate(read_json(path))
 
 
 def _generate_run_id() -> str:
