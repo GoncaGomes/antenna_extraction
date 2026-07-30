@@ -19,20 +19,29 @@ class FakeResponse:
 
 
 class FakeCompletions:
-    def __init__(self, should_raise: bool = False):
+    def __init__(
+        self,
+        should_raise: bool = False,
+        error_message: str = "connection failed",
+    ):
         self.should_raise = should_raise
+        self.error_message = error_message
         self.calls = []
 
     def create(self, **kwargs):
         self.calls.append(kwargs)
         if self.should_raise:
-            raise RuntimeError("connection failed")
+            raise RuntimeError(self.error_message)
         return FakeResponse()
 
 
 class FakeClient:
-    def __init__(self, should_raise: bool = False):
-        self.completions = FakeCompletions(should_raise)
+    def __init__(
+        self,
+        should_raise: bool = False,
+        error_message: str = "connection failed",
+    ):
+        self.completions = FakeCompletions(should_raise, error_message)
         self.chat = type("FakeChat", (), {"completions": self.completions})()
 
 
@@ -67,6 +76,30 @@ def test_doctor_returns_failure_for_endpoint_error() -> None:
     assert result.ok is False
     assert result.model == "extractor"
     assert result.error == "connection failed"
+
+
+def test_doctor_redacts_credentials_from_endpoint_error() -> None:
+    secrets = (
+        "api-secret-value",
+        "bearer-secret-value",
+        "endpoint-user:endpoint-password",
+    )
+    error_message = (
+        f"api_key={secrets[0]} "
+        f"Bearer {secrets[1]} "
+        f"https://{secrets[2]}@example.invalid/v1"
+    )
+
+    result = run_endpoint_doctor(
+        ModelRole.DOCUMENT_EXTRACTOR,
+        settings=_settings(),
+        client=FakeClient(should_raise=True, error_message=error_message),
+    )
+
+    assert result.ok is False
+    assert result.error is not None
+    assert all(secret not in result.error for secret in secrets)
+    assert result.error.count("[redacted]") == 3
 
 
 def _settings() -> AntennaIngestSettings:

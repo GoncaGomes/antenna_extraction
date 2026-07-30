@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from antenna_ingest.models.client import build_model_client
+from antenna_ingest.orchestration.failures import sanitize_failure_message
 from antenna_ingest.orchestration.schemas import StrictModel
 from antenna_ingest.settings import (
     AntennaIngestSettings,
@@ -46,5 +47,5 @@ def run_endpoint_doctor(
             base_url=settings.skynet_base_url,
             model_role=model_role,
             model=model,
-            error=str(exc),
+            error=sanitize_failure_message(str(exc)),
         )
