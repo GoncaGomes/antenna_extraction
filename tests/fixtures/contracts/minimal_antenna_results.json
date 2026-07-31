@@ -1,0 +1,167 @@
+{
+  "schema_name": "antenna_results",
+  "schema_version": "1.0.0",
+  "document": {
+    "document_id": "doc_synthetic",
+    "page_count": 2,
+    "source_filename": "synthetic.pdf",
+    "title": "Synthetic antenna paper",
+    "doi": null,
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "design_registry": [
+    {
+      "design_id": "design_baseline",
+      "name": "Baseline design",
+      "role": "candidate",
+      "description": null,
+      "parent_design_id": null,
+      "predecessor_design_id": null,
+      "evidence_ids": ["ev_design"]
+    },
+    {
+      "design_id": "design_final",
+      "name": "Final variant",
+      "role": "variant",
+      "description": "The measured final variant.",
+      "parent_design_id": "design_baseline",
+      "predecessor_design_id": null,
+      "evidence_ids": ["ev_design"]
+    }
+  ],
+  "setups": [
+    {
+      "setup_id": "setup_sim",
+      "description": "Reported simulation setup.",
+      "evidence_ids": ["ev_simulated"],
+      "legibility": "clear",
+      "uncertainty_note": null,
+      "kind": "simulation",
+      "software": "Synthetic EM",
+      "solver_or_method": "frequency domain",
+      "model": null,
+      "conditions": []
+    },
+    {
+      "setup_id": "setup_measurement",
+      "description": "Reported measurement setup.",
+      "evidence_ids": ["ev_measured"],
+      "legibility": "clear",
+      "uncertainty_note": null,
+      "kind": "measurement",
+      "equipment": ["vector network analyzer"],
+      "calibration": null,
+      "fixture": null,
+      "environment": "laboratory"
+    }
+  ],
+  "results": [
+    {
+      "result_id": "result_simulated",
+      "design_id": "design_final",
+      "setup_id": "setup_sim",
+      "origin": "simulated",
+      "metric": "input resistance",
+      "conditions": [],
+      "representation": {
+        "kind": "scalar",
+        "value": {"value": "47.98", "unit": "ohm", "qualifier": null, "legibility": "clear"}
+      },
+      "evidence_ids": ["ev_simulated"],
+      "legibility": "clear",
+      "uncertainty_note": null,
+      "extraction_completeness": "complete"
+    },
+    {
+      "result_id": "result_measured",
+      "design_id": "design_final",
+      "setup_id": "setup_measurement",
+      "origin": "measured",
+      "metric": "return loss",
+      "conditions": [],
+      "representation": {
+        "kind": "sampled_series",
+        "x_axis": {"name": "frequency", "unit": "GHz"},
+        "y_axis": {"name": "S11", "unit": "dB"},
+        "trace_label": "measured",
+        "points": [
+          {
+            "x": {"value": "2.450", "unit": "GHz", "qualifier": null, "legibility": "clear"},
+            "y": {"value": "-10", "unit": "dB", "qualifier": "<", "legibility": "clear"}
+          }
+        ]
+      },
+      "evidence_ids": ["ev_measured"],
+      "legibility": "uncertain",
+      "uncertainty_note": "Only the explicitly annotated point is numeric.",
+      "extraction_completeness": "partial_numeric"
+    }
+  ],
+  "evidence_catalog": [
+    {
+      "evidence_id": "ev_design",
+      "page_number": 1,
+      "source_kind": "figure",
+      "excerpt_or_description": "Figure 1 identifies the baseline and final variants.",
+      "source_label": "Figure 1",
+      "bounding_region": null,
+      "legibility_note": null
+    },
+    {
+      "evidence_id": "ev_simulated",
+      "page_number": 1,
+      "source_kind": "table",
+      "excerpt_or_description": "The simulated impedance is reported as 47.98 ohm.",
+      "source_label": "Table I",
+      "bounding_region": null,
+      "legibility_note": null
+    },
+    {
+      "evidence_id": "ev_measured",
+      "page_number": 2,
+      "source_kind": "graph",
+      "excerpt_or_description": "Measured return-loss points for the final variant.",
+      "source_label": "Figure 2",
+      "bounding_region": null,
+      "legibility_note": null
+    },
+    {
+      "evidence_id": "ev_geometry",
+      "page_number": 2,
+      "source_kind": "caption",
+      "excerpt_or_description": "Figure 3 shows a rectangular aperture in the ground plane.",
+      "source_label": "Figure 3",
+      "bounding_region": null,
+      "legibility_note": null
+    }
+  ],
+  "conflicts": [
+    {
+      "conflict_id": "conflict_1",
+      "description": "Two source passages report incompatible labels.",
+      "related_refs": [
+        {"kind": "result", "id": "result_simulated"},
+        {"kind": "result", "id": "result_measured"}
+      ],
+      "evidence_ids": ["ev_simulated", "ev_measured"]
+    }
+  ],
+  "missing_information": [
+    {
+      "missing_information_id": "missing_1",
+      "description": "The conductor thickness is not reported.",
+      "related_refs": [{"kind": "design", "id": "design_final"}],
+      "evidence_ids": ["ev_geometry"]
+    }
+  ],
+  "provenance": {
+    "source_extraction_schema_version": "1.0.0",
+    "source_extraction_checksum": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "generated_at": "2026-07-31T12:00:00Z"
+  },
+  "status": {
+    "structural_status": "valid",
+    "publication_status": "complete_from_extraction",
+    "scientific_review_status": "not_reviewed"
+  }
+}

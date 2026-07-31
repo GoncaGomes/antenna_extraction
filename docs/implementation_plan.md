@@ -529,7 +529,8 @@ Each factual observation includes:
 - a stable ID;
 - its design association when applicable;
 - source-faithful value, symbol, unit, or description;
-- an optional normalised representation that never replaces the original;
+- no normalised representation in schema v1; normalisation is deferred until a
+  separate, verifiable policy exists;
 - evidence IDs;
 - uncertainty or legibility state;
 - conflict membership when applicable.
@@ -580,7 +581,7 @@ Each result includes:
 - frequency and other conditions;
 - representation type;
 - exact reported values and units;
-- optional normalised values;
+- no normalised values in schema v1;
 - evidence IDs;
 - uncertainty, extraction limitation, or trace identity.
 
@@ -663,7 +664,7 @@ A parameter records:
 - stable ID;
 - source symbol when reported;
 - exact reported value and unit;
-- optional normalised value and unit;
+- no normalised value or unit in schema v1; normalisation remains deferred;
 - optional expression;
 - origin;
 - evidence IDs;
@@ -1190,7 +1191,7 @@ Required changes:
 - generate JSON Schema from those models;
 - implement cross-reference validation for designs, evidence, setups, and
   results;
-- represent exact source values separately from optional normalised values;
+- preserve exact source values and units without normalised fields in schema v1;
 - support all result representation types in Section 8.2;
 - distinguish simulated, measured, and analytical origins;
 - define deterministic result-projection invariants;
@@ -1221,7 +1222,6 @@ Completion gate:
 Open decisions for the commit chat:
 
 - the smallest useful exact-value representation;
-- whether normalised values are included in v1 or deferred;
 - the exact setup model shared by simulation, measurement, and analytical
   results;
 - whether explicit graph points use one general point-series type or a

@@ -1,0 +1,1951 @@
+{
+  "$defs": {
+    "AnalyticalSetup": {
+      "additionalProperties": false,
+      "properties": {
+        "assumptions": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Assumptions",
+          "type": "array"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "analytical",
+          "title": "Kind",
+          "type": "string"
+        },
+        "legibility": {
+          "default": "clear",
+          "enum": [
+            "clear",
+            "uncertain",
+            "illegible",
+            "missing"
+          ],
+          "title": "Legibility",
+          "type": "string"
+        },
+        "method": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Method"
+        },
+        "setup_id": {
+          "minLength": 1,
+          "title": "Setup Id",
+          "type": "string"
+        },
+        "uncertainty_note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uncertainty Note"
+        }
+      },
+      "required": [
+        "setup_id",
+        "description",
+        "kind"
+      ],
+      "title": "AnalyticalSetup",
+      "type": "object"
+    },
+    "AngularPatternRepresentation": {
+      "additionalProperties": false,
+      "properties": {
+        "angular_coordinate": {
+          "minLength": 1,
+          "title": "Angular Coordinate",
+          "type": "string"
+        },
+        "angular_unit": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Angular Unit"
+        },
+        "component_or_polarization": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Or Polarization"
+        },
+        "fixed_angle": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "const": "angular_pattern",
+          "title": "Kind",
+          "type": "string"
+        },
+        "plane_or_cut": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Plane Or Cut"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/AngularPoint"
+          },
+          "minItems": 1,
+          "title": "Points",
+          "type": "array"
+        },
+        "radial_quantity": {
+          "minLength": 1,
+          "title": "Radial Quantity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "angular_coordinate",
+        "radial_quantity",
+        "points"
+      ],
+      "title": "AngularPatternRepresentation",
+      "type": "object"
+    },
+    "AngularPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "angle": {
+          "$ref": "#/$defs/SourceValue"
+        },
+        "value": {
+          "$ref": "#/$defs/SourceValue"
+        }
+      },
+      "required": [
+        "angle",
+        "value"
+      ],
+      "title": "AngularPoint",
+      "type": "object"
+    },
+    "AxisDescriptor": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "AxisDescriptor",
+      "type": "object"
+    },
+    "BoundingRegion": {
+      "additionalProperties": false,
+      "properties": {
+        "x0": {
+          "title": "X0",
+          "type": "number"
+        },
+        "x1": {
+          "title": "X1",
+          "type": "number"
+        },
+        "y0": {
+          "title": "Y0",
+          "type": "number"
+        },
+        "y1": {
+          "title": "Y1",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x0",
+        "y0",
+        "x1",
+        "y1"
+      ],
+      "title": "BoundingRegion",
+      "type": "object"
+    },
+    "ConflictRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "conflict_id": {
+          "minLength": 1,
+          "title": "Conflict Id",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "related_refs": {
+          "items": {
+            "$ref": "#/$defs/EntityReference"
+          },
+          "minItems": 2,
+          "title": "Related Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "conflict_id",
+        "description",
+        "related_refs"
+      ],
+      "title": "ConflictRecord",
+      "type": "object"
+    },
+    "DesignRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "design_id": {
+          "minLength": 1,
+          "title": "Design Id",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "parent_design_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Design Id"
+        },
+        "predecessor_design_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Predecessor Design Id"
+        },
+        "role": {
+          "enum": [
+            "candidate",
+            "final",
+            "fabricated",
+            "measured_prototype",
+            "variant",
+            "other"
+          ],
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "design_id",
+        "name",
+        "role"
+      ],
+      "title": "DesignRecord",
+      "type": "object"
+    },
+    "DocumentReference": {
+      "additionalProperties": false,
+      "properties": {
+        "document_id": {
+          "minLength": 1,
+          "title": "Document Id",
+          "type": "string"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doi"
+        },
+        "page_count": {
+          "minimum": 1,
+          "title": "Page Count",
+          "type": "integer"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "source_filename": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Filename"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "required": [
+        "document_id",
+        "page_count"
+      ],
+      "title": "DocumentReference",
+      "type": "object"
+    },
+    "EntityReference": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "design",
+            "setup",
+            "result",
+            "evidence",
+            "material_observation",
+            "parameter_observation",
+            "geometry_observation",
+            "feed_port_excitation_observation",
+            "derivation",
+            "conflict",
+            "missing_information"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "EntityReference",
+      "type": "object"
+    },
+    "EvidenceRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "bounding_region": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BoundingRegion"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "evidence_id": {
+          "minLength": 1,
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "excerpt_or_description": {
+          "minLength": 1,
+          "title": "Excerpt Or Description",
+          "type": "string"
+        },
+        "legibility_note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Legibility Note"
+        },
+        "page_number": {
+          "minimum": 1,
+          "title": "Page Number",
+          "type": "integer"
+        },
+        "source_kind": {
+          "enum": [
+            "text",
+            "caption",
+            "figure",
+            "table",
+            "equation",
+            "graph",
+            "other"
+          ],
+          "title": "Source Kind",
+          "type": "string"
+        },
+        "source_label": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Label"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "page_number",
+        "source_kind",
+        "excerpt_or_description"
+      ],
+      "title": "EvidenceRecord",
+      "type": "object"
+    },
+    "FeedPortExcitationObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "design_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Design Id"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "legibility": {
+          "default": "clear",
+          "enum": [
+            "clear",
+            "uncertain",
+            "illegible",
+            "missing"
+          ],
+          "title": "Legibility",
+          "type": "string"
+        },
+        "observation_id": {
+          "minLength": 1,
+          "title": "Observation Id",
+          "type": "string"
+        },
+        "observation_kind": {
+          "enum": [
+            "feed",
+            "port",
+            "excitation"
+          ],
+          "title": "Observation Kind",
+          "type": "string"
+        },
+        "reported_impedance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "uncertainty_note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uncertainty Note"
+        }
+      },
+      "required": [
+        "observation_id",
+        "description",
+        "evidence_ids",
+        "observation_kind"
+      ],
+      "title": "FeedPortExcitationObservation",
+      "type": "object"
+    },
+    "FieldMapRepresentation": {
+      "additionalProperties": false,
+      "properties": {
+        "coordinate_description": {
+          "minLength": 1,
+          "title": "Coordinate Description",
+          "type": "string"
+        },
+        "field_or_current": {
+          "enum": [
+            "field",
+            "current"
+          ],
+          "title": "Field Or Current",
+          "type": "string"
+        },
+        "kind": {
+          "const": "field_map",
+          "title": "Kind",
+          "type": "string"
+        },
+        "quantity": {
+          "minLength": 1,
+          "title": "Quantity",
+          "type": "string"
+        },
+        "samples": {
+          "items": {
+            "$ref": "#/$defs/ReportedPoint"
+          },
+          "minItems": 1,
+          "title": "Samples",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "field_or_current",
+        "quantity",
+        "coordinate_description",
+        "samples"
+      ],
+      "title": "FieldMapRepresentation",
+      "type": "object"
+    },
+    "GeometryObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "design_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Design Id"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "legibility": {
+          "default": "clear",
+          "enum": [
+            "clear",
+            "uncertain",
+            "illegible",
+            "missing"
+          ],
+          "title": "Legibility",
+          "type": "string"
+        },
+        "observation_id": {
+          "minLength": 1,
+          "title": "Observation Id",
+          "type": "string"
+        },
+        "source_feature_label": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Feature Label"
+        },
+        "uncertainty_note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uncertainty Note"
+        }
+      },
+      "required": [
+        "observation_id",
+        "description",
+        "evidence_ids"
+      ],
+      "title": "GeometryObservation",
+      "type": "object"
+    },
+    "ImageOnlyGraphRepresentation": {
+      "additionalProperties": false,
+      "properties": {
+        "annotated_points": {
+          "items": {
+            "$ref": "#/$defs/ReportedPoint"
+          },
+          "title": "Annotated Points",
+          "type": "array"
+        },
+        "axes": {
+          "items": {
+            "$ref": "#/$defs/AxisDescriptor"
+          },
+          "title": "Axes",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "image_only",
+          "title": "Kind",
+          "type": "string"
+        },
+        "trace_labels": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Trace Labels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "evidence_ids"
+      ],
+      "title": "ImageOnlyGraphRepresentation",
+      "type": "object"
+    },
+    "IntervalRepresentation": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "interval",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lower": {
+          "$ref": "#/$defs/SourceValue"
+        },
+        "upper": {
+          "$ref": "#/$defs/SourceValue"
+        }
+      },
+      "required": [
+        "kind",
+        "lower",
+        "upper"
+      ],
+      "title": "IntervalRepresentation",
+      "type": "object"
+    },
+    "MaterialObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "design_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Design Id"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "legibility": {
+          "default": "clear",
+          "enum": [
+            "clear",
+            "uncertain",
+            "illegible",
+            "missing"
+          ],
+          "title": "Legibility",
+          "type": "string"
+        },
+        "material_name": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Material Name"
+        },
+        "observation_id": {
+          "minLength": 1,
+          "title": "Observation Id",
+          "type": "string"
+        },
+        "reported_properties": {
+          "items": {
+            "$ref": "#/$defs/ReportedCondition"
+          },
+          "title": "Reported Properties",
+          "type": "array"
+        },
+        "uncertainty_note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uncertainty Note"
+        }
+      },
+      "required": [
+        "observation_id",
+        "description",
+        "evidence_ids"
+      ],
+      "title": "MaterialObservation",
+      "type": "object"
+    },
+    "MatrixRepresentation": {
+      "additionalProperties": false,
+      "properties": {
+        "column_labels": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Column Labels",
+          "type": "array"
+        },
+        "kind": {
+          "const": "matrix",
+          "title": "Kind",
+          "type": "string"
+        },
+        "row_labels": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Row Labels",
+          "type": "array"
+        },
+        "rows": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/SourceValue"
+            },
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "rows"
+      ],
+      "title": "MatrixRepresentation",
+      "type": "object"
+    },
+    "MeasurementSetup": {
+      "additionalProperties": false,
+      "properties": {
+        "calibration": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Calibration"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "environment": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Environment"
+        },
+        "equipment": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Equipment",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "fixture": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fixture"
+        },
+        "kind": {
+          "const": "measurement",
+          "title": "Kind",
+          "type": "string"
+        },
+        "legibility": {
+          "default": "clear",
+          "enum": [
+            "clear",
+            "uncertain",
+            "illegible",
+            "missing"
+          ],
+          "title": "Legibility",
+          "type": "string"
+        },
+        "setup_id": {
+          "minLength": 1,
+          "title": "Setup Id",
+          "type": "string"
+        },
+        "uncertainty_note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uncertainty Note"
+        }
+      },
+      "required": [
+        "setup_id",
+        "description",
+        "kind"
+      ],
+      "title": "MeasurementSetup",
+      "type": "object"
+    },
+    "MissingInformationRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "missing_information_id": {
+          "minLength": 1,
+          "title": "Missing Information Id",
+          "type": "string"
+        },
+        "related_refs": {
+          "items": {
+            "$ref": "#/$defs/EntityReference"
+          },
+          "title": "Related Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "missing_information_id",
+        "description"
+      ],
+      "title": "MissingInformationRecord",
+      "type": "object"
+    },
+    "NamedValue": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/SourceValue"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "title": "NamedValue",
+      "type": "object"
+    },
+    "PageRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "page_number": {
+          "minimum": 1,
+          "title": "Page Number",
+          "type": "integer"
+        },
+        "visible_label": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Visible Label"
+        }
+      },
+      "required": [
+        "page_number"
+      ],
+      "title": "PageRecord",
+      "type": "object"
+    },
+    "ParameterObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "design_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Design Id"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "legibility": {
+          "default": "clear",
+          "enum": [
+            "clear",
+            "uncertain",
+            "illegible",
+            "missing"
+          ],
+          "title": "Legibility",
+          "type": "string"
+        },
+        "observation_id": {
+          "minLength": 1,
+          "title": "Observation Id",
+          "type": "string"
+        },
+        "reported_value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "symbol": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Symbol"
+        },
+        "uncertainty_note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uncertainty Note"
+        }
+      },
+      "required": [
+        "observation_id",
+        "description",
+        "evidence_ids"
+      ],
+      "title": "ParameterObservation",
+      "type": "object"
+    },
+    "PointCollectionRepresentation": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "point_collection",
+          "title": "Kind",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/ReportedPoint"
+          },
+          "minItems": 1,
+          "title": "Points",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "points"
+      ],
+      "title": "PointCollectionRepresentation",
+      "type": "object"
+    },
+    "QualitativeRepresentation": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "qualitative",
+          "title": "Kind",
+          "type": "string"
+        },
+        "observation": {
+          "minLength": 1,
+          "title": "Observation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "observation"
+      ],
+      "title": "QualitativeRepresentation",
+      "type": "object"
+    },
+    "ReportedCondition": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ReportedCondition",
+      "type": "object"
+    },
+    "ReportedDerivation": {
+      "additionalProperties": false,
+      "properties": {
+        "derivation_id": {
+          "minLength": 1,
+          "title": "Derivation Id",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "expression_text": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expression Text"
+        },
+        "symbols": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Symbols",
+          "type": "array"
+        }
+      },
+      "required": [
+        "derivation_id",
+        "description",
+        "evidence_ids"
+      ],
+      "title": "ReportedDerivation",
+      "type": "object"
+    },
+    "ReportedPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "values": {
+          "items": {
+            "$ref": "#/$defs/NamedValue"
+          },
+          "minItems": 1,
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "values"
+      ],
+      "title": "ReportedPoint",
+      "type": "object"
+    },
+    "ResultRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "conditions": {
+          "items": {
+            "$ref": "#/$defs/ReportedCondition"
+          },
+          "title": "Conditions",
+          "type": "array"
+        },
+        "design_id": {
+          "minLength": 1,
+          "title": "Design Id",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "extraction_completeness": {
+          "default": "complete",
+          "enum": [
+            "complete",
+            "partial_numeric",
+            "illegible",
+            "missing"
+          ],
+          "title": "Extraction Completeness",
+          "type": "string"
+        },
+        "legibility": {
+          "default": "clear",
+          "enum": [
+            "clear",
+            "uncertain",
+            "illegible",
+            "missing"
+          ],
+          "title": "Legibility",
+          "type": "string"
+        },
+        "metric": {
+          "minLength": 1,
+          "title": "Metric",
+          "type": "string"
+        },
+        "origin": {
+          "enum": [
+            "simulated",
+            "measured",
+            "analytical"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "representation": {
+          "discriminator": {
+            "mapping": {
+              "angular_pattern": "#/$defs/AngularPatternRepresentation",
+              "field_map": "#/$defs/FieldMapRepresentation",
+              "image_only": "#/$defs/ImageOnlyGraphRepresentation",
+              "interval": "#/$defs/IntervalRepresentation",
+              "matrix": "#/$defs/MatrixRepresentation",
+              "point_collection": "#/$defs/PointCollectionRepresentation",
+              "qualitative": "#/$defs/QualitativeRepresentation",
+              "sampled_series": "#/$defs/SampledSeriesRepresentation",
+              "scalar": "#/$defs/ScalarRepresentation"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ScalarRepresentation"
+            },
+            {
+              "$ref": "#/$defs/IntervalRepresentation"
+            },
+            {
+              "$ref": "#/$defs/PointCollectionRepresentation"
+            },
+            {
+              "$ref": "#/$defs/SampledSeriesRepresentation"
+            },
+            {
+              "$ref": "#/$defs/MatrixRepresentation"
+            },
+            {
+              "$ref": "#/$defs/AngularPatternRepresentation"
+            },
+            {
+              "$ref": "#/$defs/FieldMapRepresentation"
+            },
+            {
+              "$ref": "#/$defs/ImageOnlyGraphRepresentation"
+            },
+            {
+              "$ref": "#/$defs/QualitativeRepresentation"
+            }
+          ],
+          "title": "Representation"
+        },
+        "result_id": {
+          "minLength": 1,
+          "title": "Result Id",
+          "type": "string"
+        },
+        "setup_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Setup Id"
+        },
+        "uncertainty_note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uncertainty Note"
+        }
+      },
+      "required": [
+        "result_id",
+        "design_id",
+        "origin",
+        "metric",
+        "representation",
+        "evidence_ids"
+      ],
+      "title": "ResultRecord",
+      "type": "object"
+    },
+    "SampledSeriesRepresentation": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "sampled_series",
+          "title": "Kind",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/SeriesPoint"
+          },
+          "minItems": 1,
+          "title": "Points",
+          "type": "array"
+        },
+        "trace_label": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trace Label"
+        },
+        "x_axis": {
+          "$ref": "#/$defs/AxisDescriptor"
+        },
+        "y_axis": {
+          "$ref": "#/$defs/AxisDescriptor"
+        }
+      },
+      "required": [
+        "kind",
+        "x_axis",
+        "y_axis",
+        "points"
+      ],
+      "title": "SampledSeriesRepresentation",
+      "type": "object"
+    },
+    "ScalarRepresentation": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "scalar",
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/SourceValue"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "ScalarRepresentation",
+      "type": "object"
+    },
+    "SeriesPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "$ref": "#/$defs/SourceValue"
+        },
+        "y": {
+          "$ref": "#/$defs/SourceValue"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "SeriesPoint",
+      "type": "object"
+    },
+    "SimulationSetup": {
+      "additionalProperties": false,
+      "properties": {
+        "conditions": {
+          "items": {
+            "$ref": "#/$defs/ReportedCondition"
+          },
+          "title": "Conditions",
+          "type": "array"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "simulation",
+          "title": "Kind",
+          "type": "string"
+        },
+        "legibility": {
+          "default": "clear",
+          "enum": [
+            "clear",
+            "uncertain",
+            "illegible",
+            "missing"
+          ],
+          "title": "Legibility",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "setup_id": {
+          "minLength": 1,
+          "title": "Setup Id",
+          "type": "string"
+        },
+        "software": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Software"
+        },
+        "solver_or_method": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Solver Or Method"
+        },
+        "uncertainty_note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uncertainty Note"
+        }
+      },
+      "required": [
+        "setup_id",
+        "description",
+        "kind"
+      ],
+      "title": "SimulationSetup",
+      "type": "object"
+    },
+    "SourceValue": {
+      "additionalProperties": false,
+      "properties": {
+        "legibility": {
+          "default": "clear",
+          "enum": [
+            "clear",
+            "uncertain",
+            "illegible",
+            "missing"
+          ],
+          "title": "Legibility",
+          "type": "string"
+        },
+        "qualifier": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Qualifier"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "SourceValue",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "architecture_page_refs": {
+      "items": {
+        "type": "integer"
+      },
+      "title": "Architecture Page Refs",
+      "type": "array"
+    },
+    "conflicts": {
+      "items": {
+        "$ref": "#/$defs/ConflictRecord"
+      },
+      "title": "Conflicts",
+      "type": "array"
+    },
+    "derivations": {
+      "items": {
+        "$ref": "#/$defs/ReportedDerivation"
+      },
+      "title": "Derivations",
+      "type": "array"
+    },
+    "designs": {
+      "items": {
+        "$ref": "#/$defs/DesignRecord"
+      },
+      "title": "Designs",
+      "type": "array"
+    },
+    "document": {
+      "$ref": "#/$defs/DocumentReference"
+    },
+    "evidence_catalog": {
+      "items": {
+        "$ref": "#/$defs/EvidenceRecord"
+      },
+      "title": "Evidence Catalog",
+      "type": "array"
+    },
+    "feed_port_excitation_observations": {
+      "items": {
+        "$ref": "#/$defs/FeedPortExcitationObservation"
+      },
+      "title": "Feed Port Excitation Observations",
+      "type": "array"
+    },
+    "geometry_observations": {
+      "items": {
+        "$ref": "#/$defs/GeometryObservation"
+      },
+      "title": "Geometry Observations",
+      "type": "array"
+    },
+    "material_observations": {
+      "items": {
+        "$ref": "#/$defs/MaterialObservation"
+      },
+      "title": "Material Observations",
+      "type": "array"
+    },
+    "missing_information": {
+      "items": {
+        "$ref": "#/$defs/MissingInformationRecord"
+      },
+      "title": "Missing Information",
+      "type": "array"
+    },
+    "pages": {
+      "items": {
+        "$ref": "#/$defs/PageRecord"
+      },
+      "minItems": 1,
+      "title": "Pages",
+      "type": "array"
+    },
+    "parameter_observations": {
+      "items": {
+        "$ref": "#/$defs/ParameterObservation"
+      },
+      "title": "Parameter Observations",
+      "type": "array"
+    },
+    "results": {
+      "items": {
+        "$ref": "#/$defs/ResultRecord"
+      },
+      "title": "Results",
+      "type": "array"
+    },
+    "schema_name": {
+      "const": "paper_extraction",
+      "title": "Schema Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "setups": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "analytical": "#/$defs/AnalyticalSetup",
+            "measurement": "#/$defs/MeasurementSetup",
+            "simulation": "#/$defs/SimulationSetup"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/SimulationSetup"
+          },
+          {
+            "$ref": "#/$defs/MeasurementSetup"
+          },
+          {
+            "$ref": "#/$defs/AnalyticalSetup"
+          }
+        ]
+      },
+      "title": "Setups",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_name",
+    "schema_version",
+    "document",
+    "pages",
+    "evidence_catalog",
+    "designs",
+    "material_observations",
+    "parameter_observations",
+    "geometry_observations",
+    "feed_port_excitation_observations",
+    "setups",
+    "results",
+    "derivations",
+    "conflicts",
+    "missing_information",
+    "architecture_page_refs"
+  ],
+  "title": "PaperExtraction",
+  "type": "object"
+}
