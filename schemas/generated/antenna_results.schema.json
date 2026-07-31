@@ -546,10 +546,23 @@
     "FieldMapRepresentation": {
       "additionalProperties": false,
       "properties": {
-        "coordinate_description": {
-          "minLength": 1,
-          "title": "Coordinate Description",
-          "type": "string"
+        "content": {
+          "discriminator": {
+            "mapping": {
+              "image_only": "#/$defs/ImageOnlyFieldMapContent",
+              "sampled": "#/$defs/SampledFieldMapContent"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/SampledFieldMapContent"
+            },
+            {
+              "$ref": "#/$defs/ImageOnlyFieldMapContent"
+            }
+          ],
+          "title": "Content"
         },
         "field_or_current": {
           "enum": [
@@ -568,24 +581,86 @@
           "minLength": 1,
           "title": "Quantity",
           "type": "string"
-        },
-        "samples": {
-          "items": {
-            "$ref": "#/$defs/ReportedPoint"
-          },
-          "minItems": 1,
-          "title": "Samples",
-          "type": "array"
         }
       },
       "required": [
         "kind",
         "field_or_current",
         "quantity",
-        "coordinate_description",
-        "samples"
+        "content"
       ],
       "title": "FieldMapRepresentation",
+      "type": "object"
+    },
+    "ImageOnlyFieldMapContent": {
+      "additionalProperties": false,
+      "properties": {
+        "annotated_points": {
+          "items": {
+            "$ref": "#/$defs/ReportedPoint"
+          },
+          "title": "Annotated Points",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "image_only",
+          "title": "Kind",
+          "type": "string"
+        },
+        "legend_or_scale_label": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Legend Or Scale Label"
+        },
+        "map_type_or_component": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Map Type Or Component"
+        },
+        "plane_or_cut": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Plane Or Cut"
+        }
+      },
+      "required": [
+        "kind",
+        "evidence_ids"
+      ],
+      "title": "ImageOnlyFieldMapContent",
       "type": "object"
     },
     "ImageOnlyGraphRepresentation": {
@@ -1188,6 +1263,36 @@
         "scientific_review_status"
       ],
       "title": "ResultsStatus",
+      "type": "object"
+    },
+    "SampledFieldMapContent": {
+      "additionalProperties": false,
+      "properties": {
+        "coordinate_description": {
+          "minLength": 1,
+          "title": "Coordinate Description",
+          "type": "string"
+        },
+        "kind": {
+          "const": "sampled",
+          "title": "Kind",
+          "type": "string"
+        },
+        "samples": {
+          "items": {
+            "$ref": "#/$defs/ReportedPoint"
+          },
+          "minItems": 1,
+          "title": "Samples",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "coordinate_description",
+        "samples"
+      ],
+      "title": "SampledFieldMapContent",
       "type": "object"
     },
     "SampledSeriesRepresentation": {

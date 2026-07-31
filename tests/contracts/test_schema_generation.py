@@ -73,3 +73,16 @@ def test_setup_discriminator_has_exact_approved_kinds() -> None:
     }
 
     assert setup_kinds == {"simulation", "measurement", "analytical"}
+
+
+def test_field_map_content_schema_has_explicit_discriminated_variants() -> None:
+    schema = json.loads(render_json_schema(PaperExtraction))
+    content_schema = schema["$defs"]["FieldMapRepresentation"]["properties"][
+        "content"
+    ]
+
+    assert content_schema["discriminator"]["propertyName"] == "kind"
+    assert set(content_schema["discriminator"]["mapping"]) == {
+        "image_only",
+        "sampled",
+    }

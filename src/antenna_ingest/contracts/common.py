@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import datetime
 from typing import Annotated, Literal
 
@@ -242,12 +243,32 @@ class AngularPatternRepresentation(ContractModel):
     points: list[AngularPoint] = Field(min_length=1)
 
 
+class SampledFieldMapContent(ContractModel):
+    kind: Literal["sampled"]
+    coordinate_description: NonEmptyString
+    samples: list[ReportedPoint] = Field(min_length=1)
+
+
+class ImageOnlyFieldMapContent(ContractModel):
+    kind: Literal["image_only"]
+    map_type_or_component: NonEmptyString | None = None
+    plane_or_cut: NonEmptyString | None = None
+    legend_or_scale_label: NonEmptyString | None = None
+    annotated_points: list[ReportedPoint] = Field(default_factory=list)
+    evidence_ids: list[Identifier] = Field(min_length=1)
+
+
+FieldMapContent = Annotated[
+    SampledFieldMapContent | ImageOnlyFieldMapContent,
+    Field(discriminator="kind"),
+]
+
+
 class FieldMapRepresentation(ContractModel):
     kind: Literal["field_map"]
     field_or_current: Literal["field", "current"]
     quantity: NonEmptyString
-    coordinate_description: NonEmptyString
-    samples: list[ReportedPoint] = Field(min_length=1)
+    content: FieldMapContent
 
 
 class ImageOnlyGraphRepresentation(ContractModel):
@@ -310,7 +331,38 @@ class ResultRecord(ContractModel):
                 raise ValueError(
                     "missing and illegible legibility requires matching completeness"
                 )
+
+        source_values = list(_iter_source_values(self.representation))
+        unavailable_states = {"missing", "illegible"}
+        if self.extraction_completeness in {"complete", "partial_numeric"}:
+            if any(value.legibility in unavailable_states for value in source_values):
+                raise ValueError(
+                    "complete and partial_numeric results cannot contain missing "
+                    "or illegible source values"
+                )
+        if self.extraction_completeness in {"missing", "illegible"}:
+            expected_state = self.extraction_completeness
+            if not source_values or any(
+                value.legibility != expected_state for value in source_values
+            ):
+                raise ValueError(
+                    f"a {expected_state} result requires every source value to be "
+                    f"{expected_state}"
+                )
         return self
+
+
+def _iter_source_values(value: object) -> Iterator[SourceValue]:
+    if isinstance(value, SourceValue):
+        yield value
+        return
+    if isinstance(value, ContractModel):
+        for field_name in type(value).model_fields:
+            yield from _iter_source_values(getattr(value, field_name))
+        return
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            yield from _iter_source_values(item)
 
 
 ReferenceKind = Literal[
@@ -447,6 +499,15 @@ def validate_shared_references(
         if isinstance(result.representation, ImageOnlyGraphRepresentation):
             _ensure_known_ids(
                 result.representation.evidence_ids,
+                evidence_ids,
+                "evidence",
+            )
+        if isinstance(result.representation, FieldMapRepresentation) and isinstance(
+            result.representation.content,
+            ImageOnlyFieldMapContent,
+        ):
+            _ensure_known_ids(
+                result.representation.content.evidence_ids,
                 evidence_ids,
                 "evidence",
             )
