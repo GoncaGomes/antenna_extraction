@@ -1,0 +1,2891 @@
+{
+  "$defs": {
+    "AlignedWithRelationship": {
+      "additionalProperties": false,
+      "properties": {
+        "alignments": {
+          "items": {
+            "$ref": "#/$defs/AxisAlignment"
+          },
+          "minItems": 1,
+          "title": "Alignments",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "aligned_with",
+          "title": "Kind",
+          "type": "string"
+        },
+        "reference_block_id": {
+          "minLength": 1,
+          "title": "Reference Block Id",
+          "type": "string"
+        },
+        "relationship_id": {
+          "minLength": 1,
+          "title": "Relationship Id",
+          "type": "string"
+        },
+        "subject_block_id": {
+          "minLength": 1,
+          "title": "Subject Block Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "relationship_id",
+        "kind",
+        "subject_block_id",
+        "reference_block_id",
+        "alignments",
+        "evidence_ids"
+      ],
+      "title": "AlignedWithRelationship",
+      "type": "object"
+    },
+    "AnnulusGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "inner_radius": {
+          "$ref": "#/$defs/ParameterReference"
+        },
+        "kind": {
+          "const": "annulus",
+          "title": "Kind",
+          "type": "string"
+        },
+        "outer_radius": {
+          "$ref": "#/$defs/ParameterReference"
+        }
+      },
+      "required": [
+        "kind",
+        "inner_radius",
+        "outer_radius"
+      ],
+      "title": "AnnulusGeometry",
+      "type": "object"
+    },
+    "ArchitectureElementReference": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "parameter",
+            "material",
+            "block",
+            "relationship",
+            "port_or_excitation",
+            "frame",
+            "derivation",
+            "unresolved_item",
+            "proposed_completion"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "ArchitectureElementReference",
+      "type": "object"
+    },
+    "ArchitectureProvenance": {
+      "additionalProperties": false,
+      "properties": {
+        "generated_at": {
+          "format": "date-time",
+          "title": "Generated At",
+          "type": "string"
+        },
+        "source_extraction_checksum": {
+          "minLength": 1,
+          "title": "Source Extraction Checksum",
+          "type": "string"
+        },
+        "source_extraction_schema_version": {
+          "const": "1.0.0",
+          "title": "Source Extraction Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_extraction_schema_version",
+        "source_extraction_checksum",
+        "generated_at"
+      ],
+      "title": "ArchitectureProvenance",
+      "type": "object"
+    },
+    "ArchitectureStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "reconstruction_status": {
+          "enum": [
+            "complete",
+            "incomplete"
+          ],
+          "title": "Reconstruction Status",
+          "type": "string"
+        },
+        "scientific_review_status": {
+          "enum": [
+            "not_reviewed",
+            "passed",
+            "failed"
+          ],
+          "title": "Scientific Review Status",
+          "type": "string"
+        },
+        "structural_status": {
+          "enum": [
+            "valid",
+            "invalid"
+          ],
+          "title": "Structural Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "structural_status",
+        "reconstruction_status",
+        "scientific_review_status"
+      ],
+      "title": "ArchitectureStatus",
+      "type": "object"
+    },
+    "AxisAlignment": {
+      "additionalProperties": false,
+      "properties": {
+        "axis": {
+          "enum": [
+            "x",
+            "y",
+            "z"
+          ],
+          "title": "Axis",
+          "type": "string"
+        },
+        "reference_anchor": {
+          "enum": [
+            "min",
+            "center",
+            "max"
+          ],
+          "title": "Reference Anchor",
+          "type": "string"
+        },
+        "subject_anchor": {
+          "enum": [
+            "min",
+            "center",
+            "max"
+          ],
+          "title": "Subject Anchor",
+          "type": "string"
+        }
+      },
+      "required": [
+        "axis",
+        "subject_anchor",
+        "reference_anchor"
+      ],
+      "title": "AxisAlignment",
+      "type": "object"
+    },
+    "AxisLine": {
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "enum": [
+            "x",
+            "y",
+            "z"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "point": {
+          "$ref": "#/$defs/Point3D"
+        }
+      },
+      "required": [
+        "point",
+        "direction"
+      ],
+      "title": "AxisLine",
+      "type": "object"
+    },
+    "BlockAnchor": {
+      "additionalProperties": false,
+      "properties": {
+        "block_id": {
+          "minLength": 1,
+          "title": "Block Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "block",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "block_id"
+      ],
+      "title": "BlockAnchor",
+      "type": "object"
+    },
+    "BlockRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "block_id": {
+          "minLength": 1,
+          "title": "Block Id",
+          "type": "string"
+        },
+        "derivation_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Derivation Ids",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "geometry": {
+          "discriminator": {
+            "mapping": {
+              "annulus": "#/$defs/AnnulusGeometry",
+              "box": "#/$defs/BoxGeometry",
+              "circle": "#/$defs/CircleGeometry",
+              "cone": "#/$defs/ConeGeometry",
+              "cylinder": "#/$defs/CylinderGeometry",
+              "ellipse": "#/$defs/EllipseGeometry",
+              "extrusion": "#/$defs/ExtrusionGeometry",
+              "instance": "#/$defs/InstanceGeometry",
+              "mesh": "#/$defs/MeshGeometry",
+              "polygon": "#/$defs/PolygonGeometry",
+              "rectangle": "#/$defs/RectangleGeometry",
+              "relationship_result": "#/$defs/RelationshipResultGeometry",
+              "revolution": "#/$defs/RevolutionGeometry",
+              "segmented_profile": "#/$defs/SegmentedProfileGeometry",
+              "sphere": "#/$defs/SphereGeometry",
+              "surface": "#/$defs/SurfaceGeometry",
+              "sweep": "#/$defs/SweepGeometry",
+              "unresolved": "#/$defs/UnresolvedGeometry",
+              "wire_path": "#/$defs/WirePathGeometry"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RectangleGeometry"
+            },
+            {
+              "$ref": "#/$defs/CircleGeometry"
+            },
+            {
+              "$ref": "#/$defs/EllipseGeometry"
+            },
+            {
+              "$ref": "#/$defs/AnnulusGeometry"
+            },
+            {
+              "$ref": "#/$defs/PolygonGeometry"
+            },
+            {
+              "$ref": "#/$defs/SegmentedProfileGeometry"
+            },
+            {
+              "$ref": "#/$defs/BoxGeometry"
+            },
+            {
+              "$ref": "#/$defs/CylinderGeometry"
+            },
+            {
+              "$ref": "#/$defs/ConeGeometry"
+            },
+            {
+              "$ref": "#/$defs/SphereGeometry"
+            },
+            {
+              "$ref": "#/$defs/ExtrusionGeometry"
+            },
+            {
+              "$ref": "#/$defs/RevolutionGeometry"
+            },
+            {
+              "$ref": "#/$defs/WirePathGeometry"
+            },
+            {
+              "$ref": "#/$defs/SweepGeometry"
+            },
+            {
+              "$ref": "#/$defs/SurfaceGeometry"
+            },
+            {
+              "$ref": "#/$defs/MeshGeometry"
+            },
+            {
+              "$ref": "#/$defs/InstanceGeometry"
+            },
+            {
+              "$ref": "#/$defs/UnresolvedGeometry"
+            },
+            {
+              "$ref": "#/$defs/RelationshipResultGeometry"
+            }
+          ],
+          "title": "Geometry"
+        },
+        "material_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Material Id"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "parameter_dependencies": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Parameter Dependencies",
+          "type": "array"
+        },
+        "placement": {
+          "$ref": "#/$defs/Transform"
+        },
+        "role": {
+          "enum": [
+            "radiator",
+            "ground",
+            "feed",
+            "substrate",
+            "dielectric",
+            "conductor",
+            "slot_tool",
+            "via",
+            "shorting_element",
+            "environmental_layer",
+            "port_region",
+            "array_element",
+            "other"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "physical",
+            "auxiliary",
+            "instance",
+            "unresolved"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "unresolved_item_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Unresolved Item Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "block_id",
+        "name",
+        "role",
+        "state",
+        "geometry",
+        "placement",
+        "evidence_ids"
+      ],
+      "title": "BlockRecord",
+      "type": "object"
+    },
+    "BoxGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "depth": {
+          "$ref": "#/$defs/ParameterReference"
+        },
+        "height": {
+          "$ref": "#/$defs/ParameterReference"
+        },
+        "kind": {
+          "const": "box",
+          "title": "Kind",
+          "type": "string"
+        },
+        "width": {
+          "$ref": "#/$defs/ParameterReference"
+        }
+      },
+      "required": [
+        "kind",
+        "width",
+        "depth",
+        "height"
+      ],
+      "title": "BoxGeometry",
+      "type": "object"
+    },
+    "CircleGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "circle",
+          "title": "Kind",
+          "type": "string"
+        },
+        "radius": {
+          "$ref": "#/$defs/ParameterReference"
+        }
+      },
+      "required": [
+        "kind",
+        "radius"
+      ],
+      "title": "CircleGeometry",
+      "type": "object"
+    },
+    "CircularArc2D": {
+      "additionalProperties": false,
+      "properties": {
+        "center": {
+          "$ref": "#/$defs/Point2D"
+        },
+        "direction": {
+          "enum": [
+            "clockwise",
+            "counterclockwise"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "end": {
+          "$ref": "#/$defs/Point2D"
+        },
+        "kind": {
+          "const": "circular_arc",
+          "title": "Kind",
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/Point2D"
+        }
+      },
+      "required": [
+        "kind",
+        "start",
+        "end",
+        "center",
+        "direction"
+      ],
+      "title": "CircularArc2D",
+      "type": "object"
+    },
+    "CircularArc3D": {
+      "additionalProperties": false,
+      "properties": {
+        "center": {
+          "$ref": "#/$defs/Point3D"
+        },
+        "direction": {
+          "enum": [
+            "clockwise",
+            "counterclockwise"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "end": {
+          "$ref": "#/$defs/Point3D"
+        },
+        "kind": {
+          "const": "circular_arc",
+          "title": "Kind",
+          "type": "string"
+        },
+        "plane_normal": {
+          "enum": [
+            "x",
+            "y",
+            "z"
+          ],
+          "title": "Plane Normal",
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/Point3D"
+        }
+      },
+      "required": [
+        "kind",
+        "start",
+        "end",
+        "center",
+        "plane_normal",
+        "direction"
+      ],
+      "title": "CircularArc3D",
+      "type": "object"
+    },
+    "ConeGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "base_radius": {
+          "$ref": "#/$defs/ParameterReference"
+        },
+        "height": {
+          "$ref": "#/$defs/ParameterReference"
+        },
+        "kind": {
+          "const": "cone",
+          "title": "Kind",
+          "type": "string"
+        },
+        "top_radius": {
+          "$ref": "#/$defs/ParameterReference"
+        }
+      },
+      "required": [
+        "kind",
+        "base_radius",
+        "top_radius",
+        "height"
+      ],
+      "title": "ConeGeometry",
+      "type": "object"
+    },
+    "ContactRelationship": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "contact",
+          "title": "Kind",
+          "type": "string"
+        },
+        "reference_block_id": {
+          "minLength": 1,
+          "title": "Reference Block Id",
+          "type": "string"
+        },
+        "relationship_id": {
+          "minLength": 1,
+          "title": "Relationship Id",
+          "type": "string"
+        },
+        "subject_block_id": {
+          "minLength": 1,
+          "title": "Subject Block Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "relationship_id",
+        "kind",
+        "subject_block_id",
+        "reference_block_id",
+        "evidence_ids"
+      ],
+      "title": "ContactRelationship",
+      "type": "object"
+    },
+    "ContainedInRelationship": {
+      "additionalProperties": false,
+      "properties": {
+        "container_block_id": {
+          "minLength": 1,
+          "title": "Container Block Id",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "inner_block_id": {
+          "minLength": 1,
+          "title": "Inner Block Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "contained_in",
+          "title": "Kind",
+          "type": "string"
+        },
+        "relationship_id": {
+          "minLength": 1,
+          "title": "Relationship Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "relationship_id",
+        "kind",
+        "inner_block_id",
+        "container_block_id",
+        "evidence_ids"
+      ],
+      "title": "ContainedInRelationship",
+      "type": "object"
+    },
+    "CoordinateSystem": {
+      "additionalProperties": false,
+      "properties": {
+        "global_frame_id": {
+          "minLength": 1,
+          "title": "Global Frame Id",
+          "type": "string"
+        },
+        "handedness": {
+          "const": "right_handed",
+          "title": "Handedness",
+          "type": "string"
+        },
+        "kind": {
+          "const": "cartesian",
+          "title": "Kind",
+          "type": "string"
+        },
+        "rotation_composition": {
+          "const": "Rz(z) @ Ry(y) @ Rx(x)",
+          "title": "Rotation Composition",
+          "type": "string"
+        },
+        "rotation_order": {
+          "const": "x_then_y_then_z",
+          "title": "Rotation Order",
+          "type": "string"
+        },
+        "rotation_representation": {
+          "const": "active_euler_xyz",
+          "title": "Rotation Representation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "handedness",
+        "global_frame_id",
+        "rotation_representation",
+        "rotation_order",
+        "rotation_composition"
+      ],
+      "title": "CoordinateSystem",
+      "type": "object"
+    },
+    "CylinderGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "$ref": "#/$defs/ParameterReference"
+        },
+        "kind": {
+          "const": "cylinder",
+          "title": "Kind",
+          "type": "string"
+        },
+        "radius": {
+          "$ref": "#/$defs/ParameterReference"
+        }
+      },
+      "required": [
+        "kind",
+        "radius",
+        "height"
+      ],
+      "title": "CylinderGeometry",
+      "type": "object"
+    },
+    "DerivationRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "bindings": {
+          "items": {
+            "$ref": "#/$defs/ExpressionBinding"
+          },
+          "title": "Bindings",
+          "type": "array"
+        },
+        "derivation_id": {
+          "minLength": 1,
+          "title": "Derivation Id",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "explanation": {
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        },
+        "expression": {
+          "minLength": 1,
+          "title": "Expression",
+          "type": "string"
+        },
+        "target_parameter_id": {
+          "minLength": 1,
+          "title": "Target Parameter Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "derivation_id",
+        "target_parameter_id",
+        "expression",
+        "bindings",
+        "explanation",
+        "evidence_ids"
+      ],
+      "title": "DerivationRecord",
+      "type": "object"
+    },
+    "DerivedParameterDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "derivation_id": {
+          "minLength": 1,
+          "title": "Derivation Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "derived",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "derivation_id"
+      ],
+      "title": "DerivedParameterDefinition",
+      "type": "object"
+    },
+    "DocumentReference": {
+      "additionalProperties": false,
+      "properties": {
+        "document_id": {
+          "minLength": 1,
+          "title": "Document Id",
+          "type": "string"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doi"
+        },
+        "page_count": {
+          "minimum": 1,
+          "title": "Page Count",
+          "type": "integer"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "source_filename": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Filename"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "required": [
+        "document_id",
+        "page_count"
+      ],
+      "title": "DocumentReference",
+      "type": "object"
+    },
+    "EllipseGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "ellipse",
+          "title": "Kind",
+          "type": "string"
+        },
+        "major_radius": {
+          "$ref": "#/$defs/ParameterReference"
+        },
+        "minor_radius": {
+          "$ref": "#/$defs/ParameterReference"
+        }
+      },
+      "required": [
+        "kind",
+        "major_radius",
+        "minor_radius"
+      ],
+      "title": "EllipseGeometry",
+      "type": "object"
+    },
+    "EulerRotation": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "discriminator": {
+            "mapping": {
+              "parameter": "#/$defs/ParameterComponent",
+              "zero": "#/$defs/ZeroComponent"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ZeroComponent"
+            },
+            {
+              "$ref": "#/$defs/ParameterComponent"
+            }
+          ],
+          "title": "X"
+        },
+        "y": {
+          "discriminator": {
+            "mapping": {
+              "parameter": "#/$defs/ParameterComponent",
+              "zero": "#/$defs/ZeroComponent"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ZeroComponent"
+            },
+            {
+              "$ref": "#/$defs/ParameterComponent"
+            }
+          ],
+          "title": "Y"
+        },
+        "z": {
+          "discriminator": {
+            "mapping": {
+              "parameter": "#/$defs/ParameterComponent",
+              "zero": "#/$defs/ZeroComponent"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ZeroComponent"
+            },
+            {
+              "$ref": "#/$defs/ParameterComponent"
+            }
+          ],
+          "title": "Z"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "z"
+      ],
+      "title": "EulerRotation",
+      "type": "object"
+    },
+    "ExpressionBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "parameter_id": {
+          "minLength": 1,
+          "title": "Parameter Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "parameter_id"
+      ],
+      "title": "ExpressionBinding",
+      "type": "object"
+    },
+    "ExternalGeometryAsset": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_ref": {
+          "minLength": 1,
+          "title": "Asset Ref",
+          "type": "string"
+        },
+        "availability": {
+          "enum": [
+            "locally_available",
+            "externally_referenced",
+            "unavailable"
+          ],
+          "title": "Availability",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "format": {
+          "minLength": 1,
+          "title": "Format",
+          "type": "string"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "source_length_unit": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Length Unit"
+        }
+      },
+      "required": [
+        "asset_ref",
+        "format",
+        "availability",
+        "evidence_ids"
+      ],
+      "title": "ExternalGeometryAsset",
+      "type": "object"
+    },
+    "ExtrusionGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "distance": {
+          "$ref": "#/$defs/ParameterReference"
+        },
+        "kind": {
+          "const": "extrusion",
+          "title": "Kind",
+          "type": "string"
+        },
+        "profile_block_id": {
+          "minLength": 1,
+          "title": "Profile Block Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "profile_block_id",
+        "distance"
+      ],
+      "title": "ExtrusionGeometry",
+      "type": "object"
+    },
+    "FrameAnchor": {
+      "additionalProperties": false,
+      "properties": {
+        "frame_id": {
+          "minLength": 1,
+          "title": "Frame Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "frame",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "frame_id"
+      ],
+      "title": "FrameAnchor",
+      "type": "object"
+    },
+    "FrameRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "frame_id": {
+          "minLength": 1,
+          "title": "Frame Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "parent_frame_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Parent Frame Id"
+        },
+        "transform": {
+          "$ref": "#/$defs/Transform"
+        }
+      },
+      "required": [
+        "frame_id",
+        "name",
+        "parent_frame_id",
+        "transform"
+      ],
+      "title": "FrameRecord",
+      "type": "object"
+    },
+    "FramedPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "coordinates": {
+          "$ref": "#/$defs/Point3D"
+        },
+        "frame_id": {
+          "minLength": 1,
+          "title": "Frame Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "frame_id",
+        "coordinates"
+      ],
+      "title": "FramedPoint",
+      "type": "object"
+    },
+    "HelixSegment3D": {
+      "additionalProperties": false,
+      "properties": {
+        "axis_direction": {
+          "enum": [
+            "x",
+            "y",
+            "z"
+          ],
+          "title": "Axis Direction",
+          "type": "string"
+        },
+        "axis_point": {
+          "$ref": "#/$defs/Point3D"
+        },
+        "handedness": {
+          "enum": [
+            "left_handed",
+            "right_handed"
+          ],
+          "title": "Handedness",
+          "type": "string"
+        },
+        "kind": {
+          "const": "helix_segment",
+          "title": "Kind",
+          "type": "string"
+        },
+        "pitch": {
+          "$ref": "#/$defs/ParameterReference"
+        },
+        "radius": {
+          "$ref": "#/$defs/ParameterReference"
+        },
+        "start": {
+          "$ref": "#/$defs/Point3D"
+        },
+        "turn_count": {
+          "$ref": "#/$defs/ParameterReference"
+        }
+      },
+      "required": [
+        "kind",
+        "start",
+        "axis_point",
+        "axis_direction",
+        "radius",
+        "pitch",
+        "turn_count",
+        "handedness"
+      ],
+      "title": "HelixSegment3D",
+      "type": "object"
+    },
+    "InstanceGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "instance",
+          "title": "Kind",
+          "type": "string"
+        },
+        "prototype_block_id": {
+          "minLength": 1,
+          "title": "Prototype Block Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "prototype_block_id"
+      ],
+      "title": "InstanceGeometry",
+      "type": "object"
+    },
+    "IntersectRelationship": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "intersect",
+          "title": "Kind",
+          "type": "string"
+        },
+        "operand_block_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 2,
+          "title": "Operand Block Ids",
+          "type": "array"
+        },
+        "relationship_id": {
+          "minLength": 1,
+          "title": "Relationship Id",
+          "type": "string"
+        },
+        "result_block_id": {
+          "minLength": 1,
+          "title": "Result Block Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "relationship_id",
+        "kind",
+        "operand_block_ids",
+        "result_block_id",
+        "evidence_ids"
+      ],
+      "title": "IntersectRelationship",
+      "type": "object"
+    },
+    "LineSegment2D": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/Point2D"
+        },
+        "kind": {
+          "const": "line_segment",
+          "title": "Kind",
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/Point2D"
+        }
+      },
+      "required": [
+        "kind",
+        "start",
+        "end"
+      ],
+      "title": "LineSegment2D",
+      "type": "object"
+    },
+    "LineSegment3D": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/Point3D"
+        },
+        "kind": {
+          "const": "line_segment",
+          "title": "Kind",
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/Point3D"
+        }
+      },
+      "required": [
+        "kind",
+        "start",
+        "end"
+      ],
+      "title": "LineSegment3D",
+      "type": "object"
+    },
+    "MaterialPropertyClaim": {
+      "additionalProperties": false,
+      "properties": {
+        "conditions": {
+          "items": {
+            "$ref": "#/$defs/ReportedCondition"
+          },
+          "title": "Conditions",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "origin": {
+          "enum": [
+            "reported_text",
+            "reported_table",
+            "reported_equation",
+            "reported_visual"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "property_claim_id": {
+          "minLength": 1,
+          "title": "Property Claim Id",
+          "type": "string"
+        },
+        "property_name": {
+          "minLength": 1,
+          "title": "Property Name",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/SourceValue"
+        }
+      },
+      "required": [
+        "property_claim_id",
+        "property_name",
+        "value",
+        "evidence_ids",
+        "origin"
+      ],
+      "title": "MaterialPropertyClaim",
+      "type": "object"
+    },
+    "MaterialRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "material_id": {
+          "minLength": 1,
+          "title": "Material Id",
+          "type": "string"
+        },
+        "property_claims": {
+          "items": {
+            "$ref": "#/$defs/MaterialPropertyClaim"
+          },
+          "title": "Property Claims",
+          "type": "array"
+        },
+        "reported_identity": {
+          "minLength": 1,
+          "title": "Reported Identity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "material_id",
+        "reported_identity",
+        "evidence_ids"
+      ],
+      "title": "MaterialRecord",
+      "type": "object"
+    },
+    "MeshGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "asset": {
+          "$ref": "#/$defs/ExternalGeometryAsset"
+        },
+        "kind": {
+          "const": "mesh",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "asset"
+      ],
+      "title": "MeshGeometry",
+      "type": "object"
+    },
+    "Orientation": {
+      "additionalProperties": false,
+      "properties": {
+        "frame_id": {
+          "minLength": 1,
+          "title": "Frame Id",
+          "type": "string"
+        },
+        "rotation": {
+          "$ref": "#/$defs/EulerRotation"
+        }
+      },
+      "required": [
+        "frame_id",
+        "rotation"
+      ],
+      "title": "Orientation",
+      "type": "object"
+    },
+    "ParameterComponent": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "parameter",
+          "title": "Kind",
+          "type": "string"
+        },
+        "parameter_id": {
+          "minLength": 1,
+          "title": "Parameter Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "parameter_id"
+      ],
+      "title": "ParameterComponent",
+      "type": "object"
+    },
+    "ParameterRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "affected_refs": {
+          "items": {
+            "$ref": "#/$defs/ArchitectureElementReference"
+          },
+          "minItems": 1,
+          "title": "Affected Refs",
+          "type": "array"
+        },
+        "definition": {
+          "discriminator": {
+            "mapping": {
+              "derived": "#/$defs/DerivedParameterDefinition",
+              "reported": "#/$defs/ReportedParameterDefinition",
+              "unresolved": "#/$defs/UnresolvedParameterDefinition"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ReportedParameterDefinition"
+            },
+            {
+              "$ref": "#/$defs/DerivedParameterDefinition"
+            },
+            {
+              "$ref": "#/$defs/UnresolvedParameterDefinition"
+            }
+          ],
+          "title": "Definition"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "parameter_id": {
+          "minLength": 1,
+          "title": "Parameter Id",
+          "type": "string"
+        },
+        "quantity_kind": {
+          "enum": [
+            "length",
+            "angle",
+            "frequency",
+            "impedance",
+            "dimensionless"
+          ],
+          "title": "Quantity Kind",
+          "type": "string"
+        },
+        "source_symbol": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Symbol"
+        }
+      },
+      "required": [
+        "parameter_id",
+        "name",
+        "quantity_kind",
+        "definition",
+        "affected_refs"
+      ],
+      "title": "ParameterRecord",
+      "type": "object"
+    },
+    "ParameterReference": {
+      "additionalProperties": false,
+      "properties": {
+        "parameter_id": {
+          "minLength": 1,
+          "title": "Parameter Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "parameter_id"
+      ],
+      "title": "ParameterReference",
+      "type": "object"
+    },
+    "PathAnchor": {
+      "additionalProperties": false,
+      "properties": {
+        "block_id": {
+          "minLength": 1,
+          "title": "Block Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "path",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "block_id"
+      ],
+      "title": "PathAnchor",
+      "type": "object"
+    },
+    "PatternInstanceRelationship": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "instance_block_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Instance Block Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "pattern_instance",
+          "title": "Kind",
+          "type": "string"
+        },
+        "prototype_block_id": {
+          "minLength": 1,
+          "title": "Prototype Block Id",
+          "type": "string"
+        },
+        "relationship_id": {
+          "minLength": 1,
+          "title": "Relationship Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "relationship_id",
+        "kind",
+        "prototype_block_id",
+        "instance_block_ids",
+        "evidence_ids"
+      ],
+      "title": "PatternInstanceRelationship",
+      "type": "object"
+    },
+    "Point2D": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "discriminator": {
+            "mapping": {
+              "parameter": "#/$defs/ParameterComponent",
+              "zero": "#/$defs/ZeroComponent"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ZeroComponent"
+            },
+            {
+              "$ref": "#/$defs/ParameterComponent"
+            }
+          ],
+          "title": "X"
+        },
+        "y": {
+          "discriminator": {
+            "mapping": {
+              "parameter": "#/$defs/ParameterComponent",
+              "zero": "#/$defs/ZeroComponent"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ZeroComponent"
+            },
+            {
+              "$ref": "#/$defs/ParameterComponent"
+            }
+          ],
+          "title": "Y"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "Point2D",
+      "type": "object"
+    },
+    "Point3D": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "discriminator": {
+            "mapping": {
+              "parameter": "#/$defs/ParameterComponent",
+              "zero": "#/$defs/ZeroComponent"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ZeroComponent"
+            },
+            {
+              "$ref": "#/$defs/ParameterComponent"
+            }
+          ],
+          "title": "X"
+        },
+        "y": {
+          "discriminator": {
+            "mapping": {
+              "parameter": "#/$defs/ParameterComponent",
+              "zero": "#/$defs/ZeroComponent"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ZeroComponent"
+            },
+            {
+              "$ref": "#/$defs/ParameterComponent"
+            }
+          ],
+          "title": "Y"
+        },
+        "z": {
+          "discriminator": {
+            "mapping": {
+              "parameter": "#/$defs/ParameterComponent",
+              "zero": "#/$defs/ZeroComponent"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ZeroComponent"
+            },
+            {
+              "$ref": "#/$defs/ParameterComponent"
+            }
+          ],
+          "title": "Z"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "z"
+      ],
+      "title": "Point3D",
+      "type": "object"
+    },
+    "PointAnchor": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "point",
+          "title": "Kind",
+          "type": "string"
+        },
+        "point": {
+          "$ref": "#/$defs/FramedPoint"
+        }
+      },
+      "required": [
+        "kind",
+        "point"
+      ],
+      "title": "PointAnchor",
+      "type": "object"
+    },
+    "PointPairAnchor": {
+      "additionalProperties": false,
+      "properties": {
+        "first": {
+          "$ref": "#/$defs/FramedPoint"
+        },
+        "kind": {
+          "const": "point_pair",
+          "title": "Kind",
+          "type": "string"
+        },
+        "second": {
+          "$ref": "#/$defs/FramedPoint"
+        }
+      },
+      "required": [
+        "kind",
+        "first",
+        "second"
+      ],
+      "title": "PointPairAnchor",
+      "type": "object"
+    },
+    "PolygonGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "polygon",
+          "title": "Kind",
+          "type": "string"
+        },
+        "vertices": {
+          "items": {
+            "$ref": "#/$defs/Point2D"
+          },
+          "minItems": 3,
+          "title": "Vertices",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "vertices"
+      ],
+      "title": "PolygonGeometry",
+      "type": "object"
+    },
+    "PortOrExcitationRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor": {
+          "discriminator": {
+            "mapping": {
+              "block": "#/$defs/BlockAnchor",
+              "frame": "#/$defs/FrameAnchor",
+              "path": "#/$defs/PathAnchor",
+              "point": "#/$defs/PointAnchor",
+              "point_pair": "#/$defs/PointPairAnchor",
+              "surface_block": "#/$defs/SurfaceBlockAnchor"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/PointAnchor"
+            },
+            {
+              "$ref": "#/$defs/PointPairAnchor"
+            },
+            {
+              "$ref": "#/$defs/PathAnchor"
+            },
+            {
+              "$ref": "#/$defs/SurfaceBlockAnchor"
+            },
+            {
+              "$ref": "#/$defs/FrameAnchor"
+            },
+            {
+              "$ref": "#/$defs/BlockAnchor"
+            }
+          ],
+          "title": "Anchor"
+        },
+        "associated_block_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Associated Block Ids",
+          "type": "array"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "impedance_parameter_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Impedance Parameter Id"
+        },
+        "kind": {
+          "enum": [
+            "port",
+            "excitation"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "orientation": {
+          "$ref": "#/$defs/Orientation"
+        },
+        "port_or_excitation_id": {
+          "minLength": 1,
+          "title": "Port Or Excitation Id",
+          "type": "string"
+        },
+        "reported_type": {
+          "minLength": 1,
+          "title": "Reported Type",
+          "type": "string"
+        },
+        "unresolved_item_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Unresolved Item Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "port_or_excitation_id",
+        "kind",
+        "reported_type",
+        "description",
+        "associated_block_ids",
+        "anchor",
+        "orientation",
+        "evidence_ids"
+      ],
+      "title": "PortOrExcitationRecord",
+      "type": "object"
+    },
+    "ProposedCompletion": {
+      "additionalProperties": false,
+      "properties": {
+        "addresses_unresolved_item_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Addresses Unresolved Item Ids",
+          "type": "array"
+        },
+        "affected_refs": {
+          "items": {
+            "$ref": "#/$defs/ArchitectureElementReference"
+          },
+          "minItems": 1,
+          "title": "Affected Refs",
+          "type": "array"
+        },
+        "applied": {
+          "const": false,
+          "title": "Applied",
+          "type": "boolean"
+        },
+        "completion_id": {
+          "minLength": 1,
+          "title": "Completion Id",
+          "type": "string"
+        },
+        "proposal": {
+          "minLength": 1,
+          "title": "Proposal",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "requires_confirmation": {
+          "const": true,
+          "title": "Requires Confirmation",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "completion_id",
+        "addresses_unresolved_item_ids",
+        "proposal",
+        "rationale",
+        "affected_refs",
+        "requires_confirmation",
+        "applied"
+      ],
+      "title": "ProposedCompletion",
+      "type": "object"
+    },
+    "RectangleGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "$ref": "#/$defs/ParameterReference"
+        },
+        "kind": {
+          "const": "rectangle",
+          "title": "Kind",
+          "type": "string"
+        },
+        "width": {
+          "$ref": "#/$defs/ParameterReference"
+        }
+      },
+      "required": [
+        "kind",
+        "width",
+        "height"
+      ],
+      "title": "RectangleGeometry",
+      "type": "object"
+    },
+    "RelationshipResultGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "relationship_result",
+          "title": "Kind",
+          "type": "string"
+        },
+        "relationship_id": {
+          "minLength": 1,
+          "title": "Relationship Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "relationship_id"
+      ],
+      "title": "RelationshipResultGeometry",
+      "type": "object"
+    },
+    "ReportedCondition": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ReportedCondition",
+      "type": "object"
+    },
+    "ReportedParameterDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "reported",
+          "title": "Kind",
+          "type": "string"
+        },
+        "origin": {
+          "enum": [
+            "reported_text",
+            "reported_table",
+            "reported_equation",
+            "reported_visual"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/SourceValue"
+        }
+      },
+      "required": [
+        "kind",
+        "value",
+        "origin",
+        "evidence_ids"
+      ],
+      "title": "ReportedParameterDefinition",
+      "type": "object"
+    },
+    "RevolutionGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "angle": {
+          "$ref": "#/$defs/ParameterReference"
+        },
+        "axis": {
+          "$ref": "#/$defs/AxisLine"
+        },
+        "kind": {
+          "const": "revolution",
+          "title": "Kind",
+          "type": "string"
+        },
+        "profile_block_id": {
+          "minLength": 1,
+          "title": "Profile Block Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "profile_block_id",
+        "axis",
+        "angle"
+      ],
+      "title": "RevolutionGeometry",
+      "type": "object"
+    },
+    "SegmentedProfileGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "segmented_profile",
+          "title": "Kind",
+          "type": "string"
+        },
+        "segments": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "circular_arc": "#/$defs/CircularArc2D",
+                "line_segment": "#/$defs/LineSegment2D"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/LineSegment2D"
+              },
+              {
+                "$ref": "#/$defs/CircularArc2D"
+              }
+            ]
+          },
+          "minItems": 2,
+          "title": "Segments",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "segments"
+      ],
+      "title": "SegmentedProfileGeometry",
+      "type": "object"
+    },
+    "SelectedDesign": {
+      "additionalProperties": false,
+      "properties": {
+        "ambiguity_state": {
+          "enum": [
+            "unambiguous",
+            "ambiguous",
+            "unresolved"
+          ],
+          "title": "Ambiguity State",
+          "type": "string"
+        },
+        "design_id": {
+          "minLength": 1,
+          "title": "Design Id",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "final",
+            "fabricated",
+            "measured_prototype",
+            "selected_candidate"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "selection_evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Selection Evidence Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "design_id",
+        "role",
+        "rationale",
+        "selection_evidence_ids",
+        "ambiguity_state"
+      ],
+      "title": "SelectedDesign",
+      "type": "object"
+    },
+    "SourceValue": {
+      "additionalProperties": false,
+      "properties": {
+        "legibility": {
+          "default": "clear",
+          "enum": [
+            "clear",
+            "uncertain",
+            "illegible",
+            "missing"
+          ],
+          "title": "Legibility",
+          "type": "string"
+        },
+        "qualifier": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Qualifier"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "SourceValue",
+      "type": "object"
+    },
+    "SphereGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "sphere",
+          "title": "Kind",
+          "type": "string"
+        },
+        "radius": {
+          "$ref": "#/$defs/ParameterReference"
+        }
+      },
+      "required": [
+        "kind",
+        "radius"
+      ],
+      "title": "SphereGeometry",
+      "type": "object"
+    },
+    "SubtractRelationship": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "subtract",
+          "title": "Kind",
+          "type": "string"
+        },
+        "relationship_id": {
+          "minLength": 1,
+          "title": "Relationship Id",
+          "type": "string"
+        },
+        "result_block_id": {
+          "minLength": 1,
+          "title": "Result Block Id",
+          "type": "string"
+        },
+        "target_block_id": {
+          "minLength": 1,
+          "title": "Target Block Id",
+          "type": "string"
+        },
+        "tool_block_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Tool Block Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "relationship_id",
+        "kind",
+        "target_block_id",
+        "tool_block_ids",
+        "result_block_id",
+        "evidence_ids"
+      ],
+      "title": "SubtractRelationship",
+      "type": "object"
+    },
+    "SurfaceBlockAnchor": {
+      "additionalProperties": false,
+      "properties": {
+        "block_id": {
+          "minLength": 1,
+          "title": "Block Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "surface_block",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "block_id"
+      ],
+      "title": "SurfaceBlockAnchor",
+      "type": "object"
+    },
+    "SurfaceGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "asset": {
+          "$ref": "#/$defs/ExternalGeometryAsset"
+        },
+        "kind": {
+          "const": "surface",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "asset"
+      ],
+      "title": "SurfaceGeometry",
+      "type": "object"
+    },
+    "SweepGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "sweep",
+          "title": "Kind",
+          "type": "string"
+        },
+        "path_block_id": {
+          "minLength": 1,
+          "title": "Path Block Id",
+          "type": "string"
+        },
+        "profile_block_id": {
+          "minLength": 1,
+          "title": "Profile Block Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "profile_block_id",
+        "path_block_id"
+      ],
+      "title": "SweepGeometry",
+      "type": "object"
+    },
+    "Transform": {
+      "additionalProperties": false,
+      "properties": {
+        "rotation": {
+          "$ref": "#/$defs/EulerRotation"
+        },
+        "translation": {
+          "$ref": "#/$defs/Vector3Components"
+        }
+      },
+      "required": [
+        "translation",
+        "rotation"
+      ],
+      "title": "Transform",
+      "type": "object"
+    },
+    "UniteRelationship": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "unite",
+          "title": "Kind",
+          "type": "string"
+        },
+        "operand_block_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 2,
+          "title": "Operand Block Ids",
+          "type": "array"
+        },
+        "relationship_id": {
+          "minLength": 1,
+          "title": "Relationship Id",
+          "type": "string"
+        },
+        "result_block_id": {
+          "minLength": 1,
+          "title": "Result Block Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "relationship_id",
+        "kind",
+        "operand_block_ids",
+        "result_block_id",
+        "evidence_ids"
+      ],
+      "title": "UniteRelationship",
+      "type": "object"
+    },
+    "UnresolvedGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "unresolved",
+          "title": "Kind",
+          "type": "string"
+        },
+        "unresolved_item_id": {
+          "minLength": 1,
+          "title": "Unresolved Item Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "unresolved_item_id"
+      ],
+      "title": "UnresolvedGeometry",
+      "type": "object"
+    },
+    "UnresolvedItem": {
+      "additionalProperties": false,
+      "properties": {
+        "affected_refs": {
+          "items": {
+            "$ref": "#/$defs/ArchitectureElementReference"
+          },
+          "minItems": 1,
+          "title": "Affected Refs",
+          "type": "array"
+        },
+        "category": {
+          "enum": [
+            "selection",
+            "parameter",
+            "material",
+            "geometry",
+            "placement",
+            "relationship",
+            "port",
+            "other"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "criticality": {
+          "enum": [
+            "reconstruction_critical",
+            "non_critical"
+          ],
+          "title": "Criticality",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "unresolved_item_id": {
+          "minLength": 1,
+          "title": "Unresolved Item Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "unresolved_item_id",
+        "category",
+        "description",
+        "criticality",
+        "affected_refs"
+      ],
+      "title": "UnresolvedItem",
+      "type": "object"
+    },
+    "UnresolvedParameterDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "unresolved",
+          "title": "Kind",
+          "type": "string"
+        },
+        "unresolved_item_id": {
+          "minLength": 1,
+          "title": "Unresolved Item Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "unresolved_item_id"
+      ],
+      "title": "UnresolvedParameterDefinition",
+      "type": "object"
+    },
+    "Vector3Components": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "discriminator": {
+            "mapping": {
+              "parameter": "#/$defs/ParameterComponent",
+              "zero": "#/$defs/ZeroComponent"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ZeroComponent"
+            },
+            {
+              "$ref": "#/$defs/ParameterComponent"
+            }
+          ],
+          "title": "X"
+        },
+        "y": {
+          "discriminator": {
+            "mapping": {
+              "parameter": "#/$defs/ParameterComponent",
+              "zero": "#/$defs/ZeroComponent"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ZeroComponent"
+            },
+            {
+              "$ref": "#/$defs/ParameterComponent"
+            }
+          ],
+          "title": "Y"
+        },
+        "z": {
+          "discriminator": {
+            "mapping": {
+              "parameter": "#/$defs/ParameterComponent",
+              "zero": "#/$defs/ZeroComponent"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ZeroComponent"
+            },
+            {
+              "$ref": "#/$defs/ParameterComponent"
+            }
+          ],
+          "title": "Z"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "z"
+      ],
+      "title": "Vector3Components",
+      "type": "object"
+    },
+    "WirePathGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "wire_path",
+          "title": "Kind",
+          "type": "string"
+        },
+        "segments": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "circular_arc": "#/$defs/CircularArc3D",
+                "helix_segment": "#/$defs/HelixSegment3D",
+                "line_segment": "#/$defs/LineSegment3D"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/LineSegment3D"
+              },
+              {
+                "$ref": "#/$defs/CircularArc3D"
+              },
+              {
+                "$ref": "#/$defs/HelixSegment3D"
+              }
+            ]
+          },
+          "minItems": 1,
+          "title": "Segments",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "segments"
+      ],
+      "title": "WirePathGeometry",
+      "type": "object"
+    },
+    "ZeroComponent": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "zero",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "ZeroComponent",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "blocks": {
+      "items": {
+        "$ref": "#/$defs/BlockRecord"
+      },
+      "title": "Blocks",
+      "type": "array"
+    },
+    "coordinate_system": {
+      "$ref": "#/$defs/CoordinateSystem"
+    },
+    "derivations": {
+      "items": {
+        "$ref": "#/$defs/DerivationRecord"
+      },
+      "title": "Derivations",
+      "type": "array"
+    },
+    "document_ref": {
+      "$ref": "#/$defs/DocumentReference"
+    },
+    "frames": {
+      "items": {
+        "$ref": "#/$defs/FrameRecord"
+      },
+      "minItems": 1,
+      "title": "Frames",
+      "type": "array"
+    },
+    "materials": {
+      "items": {
+        "$ref": "#/$defs/MaterialRecord"
+      },
+      "title": "Materials",
+      "type": "array"
+    },
+    "parameters": {
+      "items": {
+        "$ref": "#/$defs/ParameterRecord"
+      },
+      "title": "Parameters",
+      "type": "array"
+    },
+    "ports_and_excitations": {
+      "items": {
+        "$ref": "#/$defs/PortOrExcitationRecord"
+      },
+      "title": "Ports And Excitations",
+      "type": "array"
+    },
+    "proposed_completions": {
+      "items": {
+        "$ref": "#/$defs/ProposedCompletion"
+      },
+      "title": "Proposed Completions",
+      "type": "array"
+    },
+    "provenance": {
+      "$ref": "#/$defs/ArchitectureProvenance"
+    },
+    "relationships": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "aligned_with": "#/$defs/AlignedWithRelationship",
+            "contact": "#/$defs/ContactRelationship",
+            "contained_in": "#/$defs/ContainedInRelationship",
+            "intersect": "#/$defs/IntersectRelationship",
+            "pattern_instance": "#/$defs/PatternInstanceRelationship",
+            "subtract": "#/$defs/SubtractRelationship",
+            "unite": "#/$defs/UniteRelationship"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/SubtractRelationship"
+          },
+          {
+            "$ref": "#/$defs/UniteRelationship"
+          },
+          {
+            "$ref": "#/$defs/IntersectRelationship"
+          },
+          {
+            "$ref": "#/$defs/ContactRelationship"
+          },
+          {
+            "$ref": "#/$defs/ContainedInRelationship"
+          },
+          {
+            "$ref": "#/$defs/AlignedWithRelationship"
+          },
+          {
+            "$ref": "#/$defs/PatternInstanceRelationship"
+          }
+        ]
+      },
+      "title": "Relationships",
+      "type": "array"
+    },
+    "schema_name": {
+      "const": "antenna_architecture",
+      "title": "Schema Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "selected_design": {
+      "$ref": "#/$defs/SelectedDesign"
+    },
+    "status": {
+      "$ref": "#/$defs/ArchitectureStatus"
+    },
+    "unresolved_items": {
+      "items": {
+        "$ref": "#/$defs/UnresolvedItem"
+      },
+      "title": "Unresolved Items",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_name",
+    "schema_version",
+    "document_ref",
+    "selected_design",
+    "coordinate_system",
+    "frames",
+    "parameters",
+    "materials",
+    "blocks",
+    "relationships",
+    "ports_and_excitations",
+    "derivations",
+    "unresolved_items",
+    "proposed_completions",
+    "provenance",
+    "status"
+  ],
+  "title": "AntennaArchitecture",
+  "type": "object"
+}

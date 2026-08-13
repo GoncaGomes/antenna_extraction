@@ -5,13 +5,14 @@ PDF papers and is being rebuilt around a small, sequential, VLM-first pipeline.
 
 ## Current implementation status
 
-The current branch contains the cleaned minimal foundation: run creation,
-source fingerprinting, ordered page rendering, atomic JSON persistence, failure
-records, and generic OpenAI-compatible endpoint configuration.
+The current branch contains the cleaned minimal foundation plus strict Pydantic
+contracts and generated JSON Schemas for `paper_extraction`, `antenna_results`,
+and the solver-neutral `antenna_architecture` block representation.
 
 The legacy Markdown, evidence parsing, retrieval, candidate extraction, and
-canonicalization paths have been removed. The planned two-output NewPipeline
-is not implemented yet.
+canonicalization paths have been removed. No extraction model call, results
+publisher, architecture-author call, global output-integrity layer, or
+end-to-end runner is implemented yet.
 
 ## Planned NewPipeline
 
@@ -45,8 +46,10 @@ automatic retry, repair call, or agent tool loop.
 
 ## Implementation status and next step
 
-The cleanup foundation is complete. The next planned work is Commit 3, which
-defines the extraction and results contracts without implementing model calls.
+The Commit 3 extraction/results contracts and Commit 4 architecture contract
+are implemented. Their Pydantic models and generated JSON Schemas are the
+executable contract source of truth. The next planned work is Commit 5, which
+defines the evidence-grounded v2 acceptance suite without adding model calls.
 
 See [the implementation plan](docs/implementation_plan.md) for the planned
 contracts, commit boundaries, acceptance gates, and deferred work.

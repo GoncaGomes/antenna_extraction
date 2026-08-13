@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from antenna_ingest.contracts.antenna_architecture import AntennaArchitecture
 from antenna_ingest.contracts.antenna_results import AntennaResults
 from antenna_ingest.contracts.paper_extraction import PaperExtraction
 from antenna_ingest.contracts.schema_generation import (
@@ -13,7 +14,7 @@ from antenna_ingest.contracts.schema_generation import (
 
 
 def test_schema_rendering_is_deterministic() -> None:
-    for model in (PaperExtraction, AntennaResults):
+    for model in (PaperExtraction, AntennaResults, AntennaArchitecture):
         assert render_json_schema(model) == render_json_schema(model)
 
 
@@ -23,6 +24,7 @@ def test_generated_schemas_match_checked_in_files(tmp_path: Path) -> None:
     assert {path.name for path in generated} == {
         "paper_extraction.schema.json",
         "antenna_results.schema.json",
+        "antenna_architecture.schema.json",
     }
     for generated_path in generated:
         checked_in = DEFAULT_SCHEMA_DIRECTORY / generated_path.name
@@ -30,7 +32,7 @@ def test_generated_schemas_match_checked_in_files(tmp_path: Path) -> None:
 
 
 def test_schemas_expose_strict_discriminated_contracts() -> None:
-    for model in (PaperExtraction, AntennaResults):
+    for model in (PaperExtraction, AntennaResults, AntennaArchitecture):
         schema = json.loads(render_json_schema(model))
         serialized = json.dumps(schema, sort_keys=True).lower()
 
@@ -86,3 +88,94 @@ def test_field_map_content_schema_has_explicit_discriminated_variants() -> None:
         "image_only",
         "sampled",
     }
+
+
+def test_architecture_schema_has_exact_geometry_and_relationship_kinds() -> None:
+    schema = json.loads(render_json_schema(AntennaArchitecture))
+
+    geometry_kinds = {
+        schema["$defs"][definition]["properties"]["kind"]["const"]
+        for definition in (
+            "RectangleGeometry",
+            "CircleGeometry",
+            "EllipseGeometry",
+            "AnnulusGeometry",
+            "PolygonGeometry",
+            "SegmentedProfileGeometry",
+            "BoxGeometry",
+            "CylinderGeometry",
+            "ConeGeometry",
+            "SphereGeometry",
+            "ExtrusionGeometry",
+            "RevolutionGeometry",
+            "WirePathGeometry",
+            "SweepGeometry",
+            "SurfaceGeometry",
+            "MeshGeometry",
+            "InstanceGeometry",
+            "UnresolvedGeometry",
+            "RelationshipResultGeometry",
+        )
+    }
+    relationship_kinds = {
+        schema["$defs"][definition]["properties"]["kind"]["const"]
+        for definition in (
+            "SubtractRelationship",
+            "UniteRelationship",
+            "IntersectRelationship",
+            "ContactRelationship",
+            "ContainedInRelationship",
+            "AlignedWithRelationship",
+            "PatternInstanceRelationship",
+        )
+    }
+
+    assert geometry_kinds == {
+        "rectangle",
+        "circle",
+        "ellipse",
+        "annulus",
+        "polygon",
+        "segmented_profile",
+        "box",
+        "cylinder",
+        "cone",
+        "sphere",
+        "extrusion",
+        "revolution",
+        "wire_path",
+        "sweep",
+        "surface",
+        "mesh",
+        "instance",
+        "unresolved",
+        "relationship_result",
+    }
+    assert relationship_kinds == {
+        "subtract",
+        "unite",
+        "intersect",
+        "contact",
+        "contained_in",
+        "aligned_with",
+        "pattern_instance",
+    }
+
+
+def test_architecture_schema_excludes_deferred_and_family_specific_contracts() -> None:
+    schema = json.loads(render_json_schema(AntennaArchitecture))
+    serialized = json.dumps(schema, sort_keys=True).lower()
+
+    for forbidden in (
+        "normalized",
+        "normalised",
+        "patchantenna",
+        "pifa",
+        "hornantenna",
+        "helixantenna",
+        "cst",
+        "solver_commands",
+        "model_client",
+        "endpoint",
+    ):
+        assert forbidden not in serialized

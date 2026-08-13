@@ -1,0 +1,143 @@
+{
+  "schema_name": "antenna_architecture",
+  "schema_version": "1.0.0",
+  "document_ref": {
+    "document_id": "doc_fixture",
+    "page_count": 1,
+    "source_filename": "fixture.pdf",
+    "title": "Synthetic architecture fixture",
+    "doi": null,
+    "sha256": "fixture-document-checksum"
+  },
+  "selected_design": {
+    "design_id": "design_final",
+    "role": "final",
+    "rationale": "The source explicitly labels this as the final design.",
+    "selection_evidence_ids": [
+      "ev_design"
+    ],
+    "ambiguity_state": "unambiguous"
+  },
+  "coordinate_system": {
+    "kind": "cartesian",
+    "handedness": "right_handed",
+    "global_frame_id": "frame_global",
+    "rotation_representation": "active_euler_xyz",
+    "rotation_order": "x_then_y_then_z",
+    "rotation_composition": "Rz(z) @ Ry(y) @ Rx(x)"
+  },
+  "frames": [
+    {
+      "frame_id": "frame_global",
+      "name": "Global frame",
+      "parent_frame_id": null,
+      "transform": {
+        "translation": {
+          "x": {"kind": "zero"},
+          "y": {"kind": "zero"},
+          "z": {"kind": "zero"}
+        },
+        "rotation": {
+          "x": {"kind": "zero"},
+          "y": {"kind": "zero"},
+          "z": {"kind": "zero"}
+        }
+      }
+    }
+  ],
+  "parameters": [
+    {
+      "parameter_id": "width",
+      "name": "Reported width",
+      "source_symbol": "W",
+      "quantity_kind": "length",
+      "definition": {
+        "kind": "reported",
+        "value": {
+          "value": "10.00",
+          "unit": "mm",
+          "qualifier": null,
+          "legibility": "clear"
+        },
+        "origin": "reported_table",
+        "evidence_ids": ["ev_dimensions"]
+      },
+      "affected_refs": [
+        {"kind": "block", "id": "radiator"}
+      ]
+    },
+    {
+      "parameter_id": "height",
+      "name": "Reported height",
+      "source_symbol": "H",
+      "quantity_kind": "length",
+      "definition": {
+        "kind": "reported",
+        "value": {
+          "value": "8.50",
+          "unit": "mm",
+          "qualifier": null,
+          "legibility": "clear"
+        },
+        "origin": "reported_visual",
+        "evidence_ids": ["ev_dimensions"]
+      },
+      "affected_refs": [
+        {"kind": "block", "id": "radiator"}
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "material_id": "material_reported_conductor",
+      "reported_identity": "Reported conductor",
+      "evidence_ids": ["ev_material"],
+      "property_claims": []
+    }
+  ],
+  "blocks": [
+    {
+      "block_id": "radiator",
+      "name": "Reported rectangular conductor",
+      "role": "radiator",
+      "state": "physical",
+      "material_id": "material_reported_conductor",
+      "geometry": {
+        "kind": "rectangle",
+        "width": {"parameter_id": "width"},
+        "height": {"parameter_id": "height"}
+      },
+      "placement": {
+        "translation": {
+          "x": {"kind": "zero"},
+          "y": {"kind": "zero"},
+          "z": {"kind": "zero"}
+        },
+        "rotation": {
+          "x": {"kind": "zero"},
+          "y": {"kind": "zero"},
+          "z": {"kind": "zero"}
+        }
+      },
+      "parameter_dependencies": ["width", "height"],
+      "evidence_ids": ["ev_geometry"],
+      "derivation_ids": [],
+      "unresolved_item_ids": []
+    }
+  ],
+  "relationships": [],
+  "ports_and_excitations": [],
+  "derivations": [],
+  "unresolved_items": [],
+  "proposed_completions": [],
+  "provenance": {
+    "source_extraction_schema_version": "1.0.0",
+    "source_extraction_checksum": "fixture-extraction-checksum",
+    "generated_at": "2026-08-12T00:00:00Z"
+  },
+  "status": {
+    "structural_status": "valid",
+    "reconstruction_status": "complete",
+    "scientific_review_status": "not_reviewed"
+  }
+}

@@ -1,9 +1,10 @@
 # Planned NewPipeline Architecture
 
-> **Status:** This document describes the planned architecture. The legacy
-> active paths have been removed, and the repository currently contains only
-> the retained run, rendering, persistence, failure, and endpoint foundation.
-> No extraction or final-output contract has been implemented yet.
+> **Status:** This document describes the planned runtime architecture. The
+> legacy active paths have been removed. Strict Pydantic contracts and generated
+> JSON Schemas now exist for extraction, results, and the solver-neutral block
+> architecture. Model calls, results publication, architecture generation,
+> global output-integrity reports, and the end-to-end runner remain planned.
 
 ## Target flow
 
@@ -125,6 +126,7 @@ The initial architecture excludes:
 - automatic repair;
 - general preview generation.
 
-Pydantic models introduced in later commits will be the executable contract
-source of truth. This document intentionally does not reproduce complete
-schemas.
+The implemented Pydantic models and their generated JSON Schemas are the
+executable contract source of truth. This document intentionally does not
+reproduce complete schemas. The next planned phase is the Commit 5 scientific
+acceptance suite.

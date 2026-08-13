@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import TypeAlias
 
+from antenna_ingest.contracts.antenna_architecture import AntennaArchitecture
 from antenna_ingest.contracts.antenna_results import AntennaResults
 from antenna_ingest.contracts.base import ContractModel
 from antenna_ingest.contracts.paper_extraction import PaperExtraction
@@ -15,6 +16,7 @@ DEFAULT_SCHEMA_DIRECTORY = REPOSITORY_ROOT / "schemas" / "generated"
 SCHEMA_MODELS: tuple[tuple[str, ContractType], ...] = (
     ("paper_extraction.schema.json", PaperExtraction),
     ("antenna_results.schema.json", AntennaResults),
+    ("antenna_architecture.schema.json", AntennaArchitecture),
 )
 
 

@@ -20,6 +20,11 @@ def antenna_results_data() -> dict:
     return _load_fixture("minimal_antenna_results.json")
 
 
+@pytest.fixture
+def antenna_architecture_data() -> dict:
+    return _load_fixture("minimal_antenna_architecture.json")
+
+
 def _load_fixture(filename: str) -> dict:
     data = json.loads((FIXTURE_DIRECTORY / filename).read_text(encoding="utf-8"))
     provenance = data.get("provenance")

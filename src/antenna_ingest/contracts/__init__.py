@@ -1,3 +1,4 @@
+from antenna_ingest.contracts.antenna_architecture import AntennaArchitecture
 from antenna_ingest.contracts.antenna_results import AntennaResults
 from antenna_ingest.contracts.common import (
     AnalyticalSetup,
@@ -17,6 +18,7 @@ from antenna_ingest.contracts.paper_extraction import PaperExtraction
 __all__ = [
     "AnalyticalSetup",
     "AngularPatternRepresentation",
+    "AntennaArchitecture",
     "AntennaResults",
     "DesignRecord",
     "DocumentReference",
