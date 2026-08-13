@@ -750,7 +750,7 @@ class AntennaArchitecture(ContractModel):
     frames: list[FrameRecord] = Field(min_length=1)
     parameters: list[ParameterRecord]
     materials: list[MaterialRecord]
-    blocks: list[BlockRecord]
+    blocks: list[BlockRecord] = Field(min_length=1)
     relationships: list[Relationship]
     ports_and_excitations: list[PortOrExcitationRecord]
     derivations: list[DerivationRecord]
@@ -961,6 +961,7 @@ class AntennaArchitecture(ContractModel):
         frame_ids = indexes["frame"]
         derivations = indexes["derivation"]
         unresolved = indexes["unresolved_item"]
+        unresolved_items = _index_by(self.unresolved_items, "unresolved_item_id")
         blocks = _index_by(self.blocks, "block_id")
         block_ids = indexes["block"]
         global_frame_id = self.coordinate_system.global_frame_id
@@ -1005,6 +1006,15 @@ class AntennaArchitecture(ContractModel):
 
             geometry = block.geometry
             dependencies: set[str] = set()
+            if (
+                isinstance(geometry, (SurfaceGeometry, MeshGeometry))
+                and geometry.asset.availability == "unavailable"
+            ):
+                _validate_unavailable_asset_unresolved_item(
+                    block,
+                    unresolved_items,
+                    self.status.reconstruction_status,
+                )
             if isinstance(
                 geometry,
                 (
@@ -1303,6 +1313,39 @@ def _require_distinct_ids(identifiers: list[str], label: str) -> None:
 
 def _structurally_distinct_count(items: list[ContractModel]) -> int:
     return len({item.model_dump_json() for item in items})
+
+
+def _validate_unavailable_asset_unresolved_item(
+    block: BlockRecord,
+    unresolved_items: dict[str, ContractModel],
+    reconstruction_status: str,
+) -> None:
+    if reconstruction_status != "incomplete":
+        raise ValueError("unavailable geometry assets require incomplete reconstruction")
+
+    linked_items = [
+        unresolved_items[identifier]
+        for identifier in block.unresolved_item_ids
+        if identifier in unresolved_items
+    ]
+    for item in linked_items:
+        if not isinstance(item, UnresolvedItem):
+            continue
+        references_block = any(
+            reference.kind == "block" and reference.id == block.block_id
+            for reference in item.affected_refs
+        )
+        if (
+            item.category == "asset"
+            and item.criticality == "reconstruction_critical"
+            and references_block
+        ):
+            return
+
+    raise ValueError(
+        "an unavailable geometry asset requires a linked reconstruction-critical "
+        "asset unresolved item that references its block"
+    )
 
 
 def _validate_distinct_known_pair(

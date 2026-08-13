@@ -726,16 +726,69 @@ def test_local_mesh_requires_checksum_and_rejects_embedded_geometry() -> None:
         AntennaArchitecture.model_validate(embedded)
 
 
-def test_unavailable_geometry_asset_blocks_only_complete_reconstruction() -> None:
-    complete = _source_backed_assets()
-    complete["blocks"][1]["geometry"]["asset"]["availability"] = "unavailable"
-    with pytest.raises(ValidationError, match="unavailable geometry assets"):
-        AntennaArchitecture.model_validate(complete)
+def _unavailable_asset_architecture() -> dict:
+    data = _source_backed_assets()
+    data["blocks"][1]["geometry"]["asset"]["availability"] = "unavailable"
+    data["status"]["reconstruction_status"] = "incomplete"
+    return data
 
-    incomplete = deepcopy(complete)
-    incomplete["status"]["reconstruction_status"] = "incomplete"
-    architecture = AntennaArchitecture.model_validate(incomplete)
+
+def _link_asset_unresolved_item(data: dict) -> None:
+    data["unresolved_items"] = [
+        {
+            "unresolved_item_id": "missing_external_mesh",
+            "category": "asset",
+            "description": "The referenced mesh is unavailable.",
+            "criticality": "reconstruction_critical",
+            "affected_refs": [{"kind": "block", "id": "external_mesh"}],
+            "evidence_ids": ["ev_geometry"],
+        }
+    ]
+    data["blocks"][1]["unresolved_item_ids"] = ["missing_external_mesh"]
+
+
+def test_unavailable_asset_requires_linked_unresolved_item() -> None:
+    data = _unavailable_asset_architecture()
+
+    with pytest.raises(ValidationError, match="requires a linked"):
+        AntennaArchitecture.model_validate(data)
+
+
+@pytest.mark.parametrize("invalid_link", ["category", "criticality", "affected_ref"])
+def test_unavailable_asset_rejects_incorrect_unresolved_item(invalid_link: str) -> None:
+    data = _unavailable_asset_architecture()
+    _link_asset_unresolved_item(data)
+    item = data["unresolved_items"][0]
+    if invalid_link == "category":
+        item["category"] = "geometry"
+    elif invalid_link == "criticality":
+        item["criticality"] = "non_critical"
+    else:
+        item["affected_refs"] = [
+            {"kind": "block", "id": "conformal_surface"}
+        ]
+
+    with pytest.raises(ValidationError, match="requires a linked"):
+        AntennaArchitecture.model_validate(data)
+
+
+def test_unavailable_asset_with_correct_unresolved_item_validates_incomplete() -> None:
+    data = _unavailable_asset_architecture()
+    _link_asset_unresolved_item(data)
+
+    architecture = AntennaArchitecture.model_validate(data)
+
     assert architecture.status.reconstruction_status == "incomplete"
+    assert architecture.blocks[1].unresolved_item_ids == ["missing_external_mesh"]
+
+
+def test_unavailable_asset_cannot_coexist_with_complete_reconstruction() -> None:
+    data = _unavailable_asset_architecture()
+    _link_asset_unresolved_item(data)
+    data["status"]["reconstruction_status"] = "complete"
+
+    with pytest.raises(ValidationError, match="require incomplete reconstruction"):
+        AntennaArchitecture.model_validate(data)
 
 
 @pytest.mark.parametrize("kind", ["extrusion", "revolution", "sweep"])

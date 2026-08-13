@@ -2877,6 +2877,7 @@
       "items": {
         "$ref": "#/$defs/BlockRecord"
       },
+      "minItems": 1,
       "title": "Blocks",
       "type": "array"
     },

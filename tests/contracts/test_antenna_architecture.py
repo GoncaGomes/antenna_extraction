@@ -10,6 +10,7 @@ from architecture_helpers import (
     FIXTURE_PATH,
     block_placement,
     component,
+    empty_architecture,
     identity_transform,
     reported_parameter,
 )
@@ -44,6 +45,15 @@ def test_top_level_architecture_contract_is_explicit_and_closed() -> None:
         "provenance",
         "status",
     }
+
+
+@pytest.mark.parametrize("reconstruction_status", ["complete", "incomplete"])
+def test_architecture_requires_at_least_one_block(reconstruction_status) -> None:
+    data = empty_architecture()
+    data["status"]["reconstruction_status"] = reconstruction_status
+
+    with pytest.raises(ValidationError):
+        AntennaArchitecture.model_validate(data)
 
 
 def test_architecture_round_trip_preserves_exact_source_values_and_units(
