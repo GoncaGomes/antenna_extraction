@@ -115,7 +115,7 @@
           "type": "string"
         },
         "source_extraction_checksum": {
-          "minLength": 1,
+          "pattern": "^[0-9a-fA-F]{64}$",
           "title": "Source Extraction Checksum",
           "type": "string"
         },
@@ -221,11 +221,17 @@
           "title": "Direction",
           "type": "string"
         },
+        "frame_id": {
+          "minLength": 1,
+          "title": "Frame Id",
+          "type": "string"
+        },
         "point": {
           "$ref": "#/$defs/Point3D"
         }
       },
       "required": [
+        "frame_id",
         "point",
         "direction"
       ],
@@ -251,6 +257,25 @@
         "block_id"
       ],
       "title": "BlockAnchor",
+      "type": "object"
+    },
+    "BlockPlacement": {
+      "additionalProperties": false,
+      "properties": {
+        "frame_id": {
+          "minLength": 1,
+          "title": "Frame Id",
+          "type": "string"
+        },
+        "transform": {
+          "$ref": "#/$defs/Transform"
+        }
+      },
+      "required": [
+        "frame_id",
+        "transform"
+      ],
+      "title": "BlockPlacement",
       "type": "object"
     },
     "BlockRecord": {
@@ -391,7 +416,7 @@
           "type": "array"
         },
         "placement": {
-          "$ref": "#/$defs/Transform"
+          "$ref": "#/$defs/BlockPlacement"
         },
         "role": {
           "enum": [
@@ -687,6 +712,9 @@
     "CoordinateSystem": {
       "additionalProperties": false,
       "properties": {
+        "geometry_conventions": {
+          "$ref": "#/$defs/GeometryConventions"
+        },
         "global_frame_id": {
           "minLength": 1,
           "title": "Global Frame Id",
@@ -724,7 +752,8 @@
         "global_frame_id",
         "rotation_representation",
         "rotation_order",
-        "rotation_composition"
+        "rotation_composition",
+        "geometry_conventions"
       ],
       "title": "CoordinateSystem",
       "type": "object"
@@ -1078,6 +1107,11 @@
     "ExtrusionGeometry": {
       "additionalProperties": false,
       "properties": {
+        "direction": {
+          "const": "referenced_profile_local_positive_z",
+          "title": "Direction",
+          "type": "string"
+        },
         "distance": {
           "$ref": "#/$defs/ParameterReference"
         },
@@ -1090,12 +1124,19 @@
           "minLength": 1,
           "title": "Profile Block Id",
           "type": "string"
+        },
+        "reference_placement_semantics": {
+          "const": "use_placed_profile_once",
+          "title": "Reference Placement Semantics",
+          "type": "string"
         }
       },
       "required": [
         "kind",
         "profile_block_id",
-        "distance"
+        "distance",
+        "direction",
+        "reference_placement_semantics"
       ],
       "title": "ExtrusionGeometry",
       "type": "object"
@@ -1178,6 +1219,57 @@
       "title": "FramedPoint",
       "type": "object"
     },
+    "GeometryConventions": {
+      "additionalProperties": false,
+      "properties": {
+        "arc_direction_view": {
+          "const": "positive_plane_normal_towards_plane",
+          "title": "Arc Direction View",
+          "type": "string"
+        },
+        "axial_solid_extent": {
+          "const": "base_centered_origin_positive_z",
+          "title": "Axial Solid Extent",
+          "type": "string"
+        },
+        "box_extent": {
+          "const": "centered_xy_z_zero_to_positive_height",
+          "title": "Box Extent",
+          "type": "string"
+        },
+        "centered_2d_primitives": {
+          "const": "centered_on_local_origin",
+          "title": "Centered 2D Primitives",
+          "type": "string"
+        },
+        "path_coordinates": {
+          "const": "containing_block_local_frame",
+          "title": "Path Coordinates",
+          "type": "string"
+        },
+        "profile_coordinates": {
+          "const": "local_xy",
+          "title": "Profile Coordinates",
+          "type": "string"
+        },
+        "sphere_origin": {
+          "const": "centered_on_local_origin",
+          "title": "Sphere Origin",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile_coordinates",
+        "centered_2d_primitives",
+        "box_extent",
+        "axial_solid_extent",
+        "sphere_origin",
+        "path_coordinates",
+        "arc_direction_view"
+      ],
+      "title": "GeometryConventions",
+      "type": "object"
+    },
     "HelixSegment3D": {
       "additionalProperties": false,
       "properties": {
@@ -1244,11 +1336,17 @@
           "minLength": 1,
           "title": "Prototype Block Id",
           "type": "string"
+        },
+        "prototype_copy_semantics": {
+          "const": "copy_local_geometry_and_material_without_placement",
+          "title": "Prototype Copy Semantics",
+          "type": "string"
         }
       },
       "required": [
         "kind",
-        "prototype_block_id"
+        "prototype_block_id",
+        "prototype_copy_semantics"
       ],
       "title": "InstanceGeometry",
       "type": "object"
@@ -2041,6 +2139,11 @@
           "title": "Kind",
           "type": "string"
         },
+        "operand_placement_semantics": {
+          "const": "use_placed_operands_once",
+          "title": "Operand Placement Semantics",
+          "type": "string"
+        },
         "relationship_id": {
           "minLength": 1,
           "title": "Relationship Id",
@@ -2049,7 +2152,8 @@
       },
       "required": [
         "kind",
-        "relationship_id"
+        "relationship_id",
+        "operand_placement_semantics"
       ],
       "title": "RelationshipResultGeometry",
       "type": "object"
@@ -2151,13 +2255,19 @@
           "minLength": 1,
           "title": "Profile Block Id",
           "type": "string"
+        },
+        "reference_placement_semantics": {
+          "const": "use_placed_profile_once",
+          "title": "Reference Placement Semantics",
+          "type": "string"
         }
       },
       "required": [
         "kind",
         "profile_block_id",
         "axis",
-        "angle"
+        "angle",
+        "reference_placement_semantics"
       ],
       "title": "RevolutionGeometry",
       "type": "object"
@@ -2426,6 +2536,11 @@
     "SweepGeometry": {
       "additionalProperties": false,
       "properties": {
+        "initial_profile_orientation": {
+          "const": "placed_profile_local_xy",
+          "title": "Initial Profile Orientation",
+          "type": "string"
+        },
         "kind": {
           "const": "sweep",
           "title": "Kind",
@@ -2440,12 +2555,25 @@
           "minLength": 1,
           "title": "Profile Block Id",
           "type": "string"
+        },
+        "reference_placement_semantics": {
+          "const": "use_placed_profile_and_path_once",
+          "title": "Reference Placement Semantics",
+          "type": "string"
+        },
+        "transport_convention": {
+          "const": "parallel_transport_zero_twist",
+          "title": "Transport Convention",
+          "type": "string"
         }
       },
       "required": [
         "kind",
         "profile_block_id",
-        "path_block_id"
+        "path_block_id",
+        "transport_convention",
+        "initial_profile_orientation",
+        "reference_placement_semantics"
       ],
       "title": "SweepGeometry",
       "type": "object"
@@ -2551,6 +2679,7 @@
             "selection",
             "parameter",
             "material",
+            "asset",
             "geometry",
             "placement",
             "relationship",

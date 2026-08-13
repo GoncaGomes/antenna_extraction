@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from copy import deepcopy
 
 import pytest
 from pydantic import ValidationError
@@ -8,6 +9,7 @@ from pydantic import ValidationError
 from antenna_ingest.contracts.antenna_architecture import AntennaArchitecture
 from architecture_helpers import (
     block,
+    block_placement,
     component,
     empty_architecture,
     identity_transform,
@@ -186,7 +188,7 @@ def _multilayer_structure() -> dict:
         block_id = f"layer_{index}"
         for suffix in ("width", "depth", "height"):
             _add_parameter(data, f"{block_id}_{suffix}", block_id)
-        placement = identity_transform()
+        transform = identity_transform()
         dependencies = [
             f"{block_id}_width",
             f"{block_id}_depth",
@@ -195,7 +197,7 @@ def _multilayer_structure() -> dict:
         if index:
             offset = f"{block_id}_offset"
             _add_parameter(data, offset, block_id)
-            placement["translation"]["z"] = component(offset)
+            transform["translation"]["z"] = component(offset)
             dependencies.append(offset)
         data["blocks"].append(
             block(
@@ -208,7 +210,7 @@ def _multilayer_structure() -> dict:
                 },
                 dependencies,
                 role="dielectric",
-                placement=placement,
+                placement=block_placement(transform=transform),
             )
         )
     return data
@@ -349,8 +351,8 @@ def _explicit_instances() -> dict:
         block_id = f"instance_{index}"
         offset = f"offset_{index}"
         _add_parameter(data, offset, block_id)
-        placement = identity_transform()
-        placement["translation"]["x"] = component(offset)
+        transform = identity_transform()
+        transform["translation"]["x"] = component(offset)
         data["blocks"].append(
             block(
                 block_id,
@@ -358,7 +360,7 @@ def _explicit_instances() -> dict:
                 [offset],
                 role="array_element",
                 state="instance",
-                placement=placement,
+                placement=block_placement(transform=transform),
             )
         )
     data["relationships"] = [
@@ -684,6 +686,30 @@ def test_invalid_polygon_profile_and_path_cardinality_fail() -> None:
         AntennaArchitecture.model_validate(disconnected)
 
 
+def test_polygon_requires_three_structurally_distinct_vertices() -> None:
+    data = _polygon_with_circular_subtraction()
+    data["blocks"][0]["geometry"]["vertices"] = [
+        point2(),
+        point2(),
+        point2("triangle_x"),
+    ]
+
+    with pytest.raises(ValidationError, match="structurally distinct"):
+        AntennaArchitecture.model_validate(data)
+
+
+def test_segmented_profile_rejects_structurally_degenerate_segment() -> None:
+    data = _remaining_geometry_case("segmented_profile")
+    data["blocks"][0]["geometry"]["segments"][1] = {
+        "kind": "line_segment",
+        "start": point2("a"),
+        "end": point2("a"),
+    }
+
+    with pytest.raises(ValidationError, match="endpoints must be distinct"):
+        AntennaArchitecture.model_validate(data)
+
+
 def test_local_mesh_requires_checksum_and_rejects_embedded_geometry() -> None:
     missing_checksum = _source_backed_assets()
     missing_checksum["blocks"][1]["geometry"]["asset"]["availability"] = (
@@ -698,3 +724,93 @@ def test_local_mesh_requires_checksum_and_rejects_embedded_geometry() -> None:
     embedded["blocks"][1]["geometry"]["faces"] = [[0, 0, 0]]
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         AntennaArchitecture.model_validate(embedded)
+
+
+def test_unavailable_geometry_asset_blocks_only_complete_reconstruction() -> None:
+    complete = _source_backed_assets()
+    complete["blocks"][1]["geometry"]["asset"]["availability"] = "unavailable"
+    with pytest.raises(ValidationError, match="unavailable geometry assets"):
+        AntennaArchitecture.model_validate(complete)
+
+    incomplete = deepcopy(complete)
+    incomplete["status"]["reconstruction_status"] = "incomplete"
+    architecture = AntennaArchitecture.model_validate(incomplete)
+    assert architecture.status.reconstruction_status == "incomplete"
+
+
+@pytest.mark.parametrize("kind", ["extrusion", "revolution", "sweep"])
+def test_constructive_results_consume_placed_references_once(kind: str) -> None:
+    data = _remaining_geometry_case(kind)
+    profile = data["blocks"][0]
+    profile["placement"]["transform"]["translation"]["x"] = component("a")
+    if kind == "sweep":
+        path = data["blocks"][1]
+        path["placement"]["transform"]["translation"]["z"] = component("c")
+
+    architecture = AntennaArchitecture.model_validate(data)
+    result = architecture.blocks[-1]
+
+    assert result.placement.frame_id == "frame_global"
+    assert result.geometry.reference_placement_semantics.startswith("use_placed_")
+    if kind == "extrusion":
+        assert result.geometry.direction == "referenced_profile_local_positive_z"
+    if kind == "sweep":
+        assert result.geometry.transport_convention == "parallel_transport_zero_twist"
+        assert result.geometry.initial_profile_orientation == "placed_profile_local_xy"
+
+
+def test_constructive_result_rejects_second_independent_transform() -> None:
+    data = _remaining_geometry_case("extrusion")
+    result = data["blocks"][-1]
+    result["placement"]["transform"]["translation"]["x"] = component("c")
+
+    with pytest.raises(ValidationError, match="global identity"):
+        AntennaArchitecture.model_validate(data)
+
+
+def test_boolean_results_use_placed_operands_without_second_transform() -> None:
+    data = _polygon_with_circular_subtraction()
+    data["blocks"][0]["placement"]["transform"]["translation"]["x"] = component(
+        "triangle_x"
+    )
+    data["blocks"][1]["placement"]["transform"]["translation"]["y"] = component(
+        "slot_radius"
+    )
+
+    architecture = AntennaArchitecture.model_validate(data)
+    result = architecture.blocks[2]
+    assert result.geometry.operand_placement_semantics == "use_placed_operands_once"
+
+    invalid = deepcopy(data)
+    invalid["blocks"][2]["placement"]["transform"]["translation"]["x"] = (
+        component("triangle_x")
+    )
+    invalid["blocks"][2]["parameter_dependencies"] = ["triangle_x"]
+    with pytest.raises(ValidationError, match="global identity"):
+        AntennaArchitecture.model_validate(invalid)
+
+
+def test_instance_copies_local_geometry_and_material_but_not_placement() -> None:
+    data = _explicit_instances()
+    data["materials"] = [material("array_material")]
+    data["blocks"][0]["material_id"] = "array_material"
+    data["blocks"][0]["placement"]["transform"]["translation"]["x"] = component(
+        "element_width"
+    )
+    for instance in data["blocks"][1:]:
+        instance["material_id"] = "array_material"
+
+    architecture = AntennaArchitecture.model_validate(data)
+    prototype = architecture.blocks[0]
+    instance = architecture.blocks[1]
+    assert instance.geometry.prototype_copy_semantics == (
+        "copy_local_geometry_and_material_without_placement"
+    )
+    assert instance.material_id == prototype.material_id
+    assert instance.placement != prototype.placement
+
+    invalid = deepcopy(data)
+    invalid["materials"].append(material("other_material"))
+    invalid["blocks"][1]["material_id"] = "other_material"
+    with pytest.raises(ValidationError, match="copy the prototype material"):
+        AntennaArchitecture.model_validate(invalid)

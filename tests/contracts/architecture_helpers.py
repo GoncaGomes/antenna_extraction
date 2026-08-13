@@ -73,6 +73,16 @@ def identity_transform() -> dict:
     }
 
 
+def block_placement(
+    frame_id: str = "frame_global",
+    transform: dict | None = None,
+) -> dict:
+    return {
+        "frame_id": frame_id,
+        "transform": identity_transform() if transform is None else transform,
+    }
+
+
 def reported_parameter(
     parameter_id: str,
     quantity_kind: str,
@@ -114,14 +124,36 @@ def block(
     placement: dict | None = None,
     unresolved_item_ids: list[str] | None = None,
 ) -> dict:
+    geometry = deepcopy(geometry)
+    kind = geometry.get("kind")
+    if kind == "extrusion":
+        geometry.setdefault("direction", "referenced_profile_local_positive_z")
+        geometry.setdefault("reference_placement_semantics", "use_placed_profile_once")
+    elif kind == "revolution":
+        geometry.setdefault("reference_placement_semantics", "use_placed_profile_once")
+        geometry.get("axis", {}).setdefault("frame_id", "frame_global")
+    elif kind == "sweep":
+        geometry.setdefault("transport_convention", "parallel_transport_zero_twist")
+        geometry.setdefault("initial_profile_orientation", "placed_profile_local_xy")
+        geometry.setdefault(
+            "reference_placement_semantics",
+            "use_placed_profile_and_path_once",
+        )
+    elif kind == "instance":
+        geometry.setdefault(
+            "prototype_copy_semantics",
+            "copy_local_geometry_and_material_without_placement",
+        )
+    elif kind == "relationship_result":
+        geometry.setdefault("operand_placement_semantics", "use_placed_operands_once")
     return {
         "block_id": block_id,
         "name": block_id.replace("_", " "),
         "role": role,
         "state": state,
         "material_id": material_id,
-        "geometry": deepcopy(geometry),
-        "placement": identity_transform() if placement is None else placement,
+        "geometry": geometry,
+        "placement": block_placement() if placement is None else placement,
         "parameter_dependencies": list(dependencies),
         "evidence_ids": ["ev_geometry"],
         "derivation_ids": [],

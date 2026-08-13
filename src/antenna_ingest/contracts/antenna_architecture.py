@@ -66,6 +66,16 @@ class SelectedDesign(ContractModel):
     ambiguity_state: Literal["unambiguous", "ambiguous", "unresolved"]
 
 
+class GeometryConventions(ContractModel):
+    profile_coordinates: Literal["local_xy"]
+    centered_2d_primitives: Literal["centered_on_local_origin"]
+    box_extent: Literal["centered_xy_z_zero_to_positive_height"]
+    axial_solid_extent: Literal["base_centered_origin_positive_z"]
+    sphere_origin: Literal["centered_on_local_origin"]
+    path_coordinates: Literal["containing_block_local_frame"]
+    arc_direction_view: Literal["positive_plane_normal_towards_plane"]
+
+
 class CoordinateSystem(ContractModel):
     kind: Literal["cartesian"]
     handedness: Literal["right_handed"]
@@ -73,6 +83,7 @@ class CoordinateSystem(ContractModel):
     rotation_representation: Literal["active_euler_xyz"]
     rotation_order: Literal["x_then_y_then_z"]
     rotation_composition: Literal["Rz(z) @ Ry(y) @ Rx(x)"]
+    geometry_conventions: GeometryConventions
 
 
 class ZeroComponent(ContractModel):
@@ -105,6 +116,11 @@ class EulerRotation(ContractModel):
 class Transform(ContractModel):
     translation: Vector3Components
     rotation: EulerRotation
+
+
+class BlockPlacement(ContractModel):
+    frame_id: Identifier
+    transform: Transform
 
 
 class FrameRecord(ContractModel):
@@ -197,6 +213,15 @@ class MaterialPropertyClaim(ContractModel):
     conditions: list[ReportedCondition] = Field(default_factory=list)
     evidence_ids: list[Identifier] = Field(min_length=1)
     origin: ReportedOrigin
+
+    @model_validator(mode="after")
+    def require_readable_value(self) -> MaterialPropertyClaim:
+        if self.value.value is None or self.value.legibility in {"missing", "illegible"}:
+            raise ValueError(
+                "a material property claim requires a readable source value; "
+                "missing properties belong in unresolved_items"
+            )
+        return self
 
 
 class MaterialRecord(ContractModel):
@@ -303,6 +328,7 @@ PathSegment = Annotated[
 
 
 class AxisLine(ContractModel):
+    frame_id: Identifier
     point: Point3D
     direction: Literal["x", "y", "z"]
 
@@ -339,6 +365,12 @@ class AnnulusGeometry(ContractModel):
 class PolygonGeometry(ContractModel):
     kind: Literal["polygon"]
     vertices: list[Point2D] = Field(min_length=3)
+
+    @model_validator(mode="after")
+    def require_three_distinct_vertices(self) -> PolygonGeometry:
+        if _structurally_distinct_count(self.vertices) < 3:
+            raise ValueError("polygon requires at least three structurally distinct vertices")
+        return self
 
 
 class SegmentedProfileGeometry(ContractModel):
@@ -386,6 +418,8 @@ class ExtrusionGeometry(ContractModel):
     kind: Literal["extrusion"]
     profile_block_id: Identifier
     distance: ParameterReference
+    direction: Literal["referenced_profile_local_positive_z"]
+    reference_placement_semantics: Literal["use_placed_profile_once"]
 
 
 class RevolutionGeometry(ContractModel):
@@ -393,6 +427,7 @@ class RevolutionGeometry(ContractModel):
     profile_block_id: Identifier
     axis: AxisLine
     angle: ParameterReference
+    reference_placement_semantics: Literal["use_placed_profile_once"]
 
 
 class WirePathGeometry(ContractModel):
@@ -415,6 +450,9 @@ class SweepGeometry(ContractModel):
     kind: Literal["sweep"]
     profile_block_id: Identifier
     path_block_id: Identifier
+    transport_convention: Literal["parallel_transport_zero_twist"]
+    initial_profile_orientation: Literal["placed_profile_local_xy"]
+    reference_placement_semantics: Literal["use_placed_profile_and_path_once"]
 
 
 Checksum = Annotated[
@@ -455,6 +493,9 @@ class MeshGeometry(ContractModel):
 class InstanceGeometry(ContractModel):
     kind: Literal["instance"]
     prototype_block_id: Identifier
+    prototype_copy_semantics: Literal[
+        "copy_local_geometry_and_material_without_placement"
+    ]
 
 
 class UnresolvedGeometry(ContractModel):
@@ -465,6 +506,7 @@ class UnresolvedGeometry(ContractModel):
 class RelationshipResultGeometry(ContractModel):
     kind: Literal["relationship_result"]
     relationship_id: Identifier
+    operand_placement_semantics: Literal["use_placed_operands_once"]
 
 
 Geometry = Annotated[
@@ -515,7 +557,7 @@ class BlockRecord(ContractModel):
     state: Literal["physical", "auxiliary", "instance", "unresolved"]
     material_id: Identifier | None = None
     geometry: Geometry
-    placement: Transform
+    placement: BlockPlacement
     parameter_dependencies: list[Identifier] = Field(default_factory=list)
     evidence_ids: list[Identifier] = Field(min_length=1)
     derivation_ids: list[Identifier] = Field(default_factory=list)
@@ -664,6 +706,7 @@ class UnresolvedItem(ContractModel):
         "selection",
         "parameter",
         "material",
+        "asset",
         "geometry",
         "placement",
         "relationship",
@@ -688,7 +731,7 @@ class ProposedCompletion(ContractModel):
 
 class ArchitectureProvenance(ContractModel):
     source_extraction_schema_version: Literal["1.0.0"]
-    source_extraction_checksum: NonEmptyString
+    source_extraction_checksum: Checksum
     generated_at: datetime
 
 
@@ -915,10 +958,12 @@ class AntennaArchitecture(ContractModel):
     def _validate_blocks(self, indexes: dict[str, set[str]]) -> None:
         parameters = _index_by(self.parameters, "parameter_id")
         materials = indexes["material"]
+        frame_ids = indexes["frame"]
         derivations = indexes["derivation"]
         unresolved = indexes["unresolved_item"]
         blocks = _index_by(self.blocks, "block_id")
         block_ids = indexes["block"]
+        global_frame_id = self.coordinate_system.global_frame_id
         dependency_graph: dict[str, set[str]] = {}
 
         profile_kinds = {
@@ -930,6 +975,7 @@ class AntennaArchitecture(ContractModel):
             "segmented_profile",
         }
         for block in self.blocks:
+            _ensure_known(block.placement.frame_id, frame_ids, "placement frame")
             if block.material_id is not None:
                 _ensure_known(block.material_id, materials, "material")
             _ensure_known_many(block.derivation_ids, derivations, "derivation")
@@ -945,7 +991,11 @@ class AntennaArchitecture(ContractModel):
 
             used_parameters = _geometry_parameter_ids(block.geometry, parameters)
             used_parameters.update(
-                _transform_parameter_ids(block.placement, parameters, block.block_id)
+                _transform_parameter_ids(
+                    block.placement.transform,
+                    parameters,
+                    block.block_id,
+                )
             )
             if set(block.parameter_dependencies) != used_parameters:
                 raise ValueError(
@@ -955,11 +1005,26 @@ class AntennaArchitecture(ContractModel):
 
             geometry = block.geometry
             dependencies: set[str] = set()
+            if isinstance(
+                geometry,
+                (
+                    ExtrusionGeometry,
+                    RevolutionGeometry,
+                    SweepGeometry,
+                    RelationshipResultGeometry,
+                ),
+            ) and not _placement_is_global_identity(block.placement, global_frame_id):
+                raise ValueError(
+                    "operation-result placement must be the global identity because "
+                    "referenced operand placements are consumed exactly once"
+                )
             if isinstance(geometry, (ExtrusionGeometry, RevolutionGeometry)):
                 _ensure_known(geometry.profile_block_id, block_ids, "profile block")
                 profile = blocks[geometry.profile_block_id]
                 if profile.state != "auxiliary" or profile.geometry.kind not in profile_kinds:
                     raise ValueError("extrusion and revolution require an auxiliary profile")
+                if isinstance(geometry, RevolutionGeometry):
+                    _ensure_known(geometry.axis.frame_id, frame_ids, "revolution axis frame")
                 dependencies.add(geometry.profile_block_id)
             elif isinstance(geometry, SweepGeometry):
                 _ensure_known(geometry.profile_block_id, block_ids, "profile block")
@@ -980,6 +1045,10 @@ class AntennaArchitecture(ContractModel):
                     raise ValueError("instance geometry requires instance block state")
                 if prototype.state not in {"physical", "auxiliary"}:
                     raise ValueError("instance prototype must be physical or auxiliary")
+                if block.material_id != prototype.material_id:
+                    raise ValueError(
+                        "an instance must copy the prototype material exactly"
+                    )
                 dependencies.add(geometry.prototype_block_id)
             elif block.state == "instance":
                 raise ValueError("instance block state requires instance geometry")
@@ -1183,6 +1252,14 @@ class AntennaArchitecture(ContractModel):
         ):
             raise ValueError("critical unresolved items block complete reconstruction")
         if any(
+            item.category
+            in {"parameter", "material", "asset", "geometry", "placement"}
+            for item in self.unresolved_items
+        ):
+            raise ValueError(
+                "unresolved construction data blocks complete reconstruction"
+            )
+        if any(
             isinstance(parameter.definition, UnresolvedParameterDefinition)
             for parameter in self.parameters
         ):
@@ -1193,6 +1270,12 @@ class AntennaArchitecture(ContractModel):
             for block in self.blocks
         ):
             raise ValueError("unresolved geometry blocks complete reconstruction")
+        if any(
+            isinstance(block.geometry, (SurfaceGeometry, MeshGeometry))
+            and block.geometry.asset.availability == "unavailable"
+            for block in self.blocks
+        ):
+            raise ValueError("unavailable geometry assets block complete reconstruction")
         if self.proposed_completions:
             raise ValueError("proposed completions block complete reconstruction")
 
@@ -1216,6 +1299,10 @@ def _ensure_known_many(identifiers: list[str], known: set[str], label: str) -> N
 def _require_distinct_ids(identifiers: list[str], label: str) -> None:
     if len(identifiers) != len(set(identifiers)):
         raise ValueError(f"{label} must be distinct")
+
+
+def _structurally_distinct_count(items: list[ContractModel]) -> int:
+    return len({item.model_dump_json() for item in items})
 
 
 def _validate_distinct_known_pair(
@@ -1274,6 +1361,15 @@ def _transform_is_zero(transform: Transform) -> bool:
         transform.rotation.z,
     ]
     return all(isinstance(component, ZeroComponent) for component in components)
+
+
+def _placement_is_global_identity(
+    placement: BlockPlacement,
+    global_frame_id: str,
+) -> bool:
+    return placement.frame_id == global_frame_id and _transform_is_zero(
+        placement.transform
+    )
 
 
 def _require_parameter_kind(

@@ -24,7 +24,16 @@
     "global_frame_id": "frame_global",
     "rotation_representation": "active_euler_xyz",
     "rotation_order": "x_then_y_then_z",
-    "rotation_composition": "Rz(z) @ Ry(y) @ Rx(x)"
+    "rotation_composition": "Rz(z) @ Ry(y) @ Rx(x)",
+    "geometry_conventions": {
+      "profile_coordinates": "local_xy",
+      "centered_2d_primitives": "centered_on_local_origin",
+      "box_extent": "centered_xy_z_zero_to_positive_height",
+      "axial_solid_extent": "base_centered_origin_positive_z",
+      "sphere_origin": "centered_on_local_origin",
+      "path_coordinates": "containing_block_local_frame",
+      "arc_direction_view": "positive_plane_normal_towards_plane"
+    }
   },
   "frames": [
     {
@@ -108,15 +117,18 @@
         "height": {"parameter_id": "height"}
       },
       "placement": {
-        "translation": {
-          "x": {"kind": "zero"},
-          "y": {"kind": "zero"},
-          "z": {"kind": "zero"}
-        },
-        "rotation": {
-          "x": {"kind": "zero"},
-          "y": {"kind": "zero"},
-          "z": {"kind": "zero"}
+        "frame_id": "frame_global",
+        "transform": {
+          "translation": {
+            "x": {"kind": "zero"},
+            "y": {"kind": "zero"},
+            "z": {"kind": "zero"}
+          },
+          "rotation": {
+            "x": {"kind": "zero"},
+            "y": {"kind": "zero"},
+            "z": {"kind": "zero"}
+          }
         }
       },
       "parameter_dependencies": ["width", "height"],
@@ -132,7 +144,7 @@
   "proposed_completions": [],
   "provenance": {
     "source_extraction_schema_version": "1.0.0",
-    "source_extraction_checksum": "fixture-extraction-checksum",
+    "source_extraction_checksum": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     "generated_at": "2026-08-12T00:00:00Z"
   },
   "status": {

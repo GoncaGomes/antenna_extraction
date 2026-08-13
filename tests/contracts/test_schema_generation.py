@@ -162,6 +162,61 @@ def test_architecture_schema_has_exact_geometry_and_relationship_kinds() -> None
     }
 
 
+def test_architecture_schema_encodes_placement_and_geometry_conventions() -> None:
+    schema = json.loads(render_json_schema(AntennaArchitecture))
+    definitions = schema["$defs"]
+
+    assert set(definitions["BlockPlacement"]["required"]) == {
+        "frame_id",
+        "transform",
+    }
+    conventions = definitions["GeometryConventions"]["properties"]
+    assert conventions["profile_coordinates"]["const"] == "local_xy"
+    assert conventions["box_extent"]["const"] == (
+        "centered_xy_z_zero_to_positive_height"
+    )
+    assert conventions["path_coordinates"]["const"] == (
+        "containing_block_local_frame"
+    )
+    assert conventions["arc_direction_view"]["const"] == (
+        "positive_plane_normal_towards_plane"
+    )
+
+    extrusion = definitions["ExtrusionGeometry"]["properties"]
+    assert extrusion["direction"]["const"] == (
+        "referenced_profile_local_positive_z"
+    )
+    sweep = definitions["SweepGeometry"]["properties"]
+    assert sweep["transport_convention"]["const"] == (
+        "parallel_transport_zero_twist"
+    )
+    assert sweep["initial_profile_orientation"]["const"] == (
+        "placed_profile_local_xy"
+    )
+    assert set(definitions["ExtrusionGeometry"]["required"]) >= {
+        "direction",
+        "reference_placement_semantics",
+    }
+    assert set(definitions["RevolutionGeometry"]["required"]) >= {
+        "reference_placement_semantics"
+    }
+    assert set(definitions["SweepGeometry"]["required"]) >= {
+        "transport_convention",
+        "initial_profile_orientation",
+        "reference_placement_semantics",
+    }
+    assert set(definitions["InstanceGeometry"]["required"]) >= {
+        "prototype_copy_semantics"
+    }
+    assert set(definitions["RelationshipResultGeometry"]["required"]) >= {
+        "operand_placement_semantics"
+    }
+    provenance = definitions["ArchitectureProvenance"]["properties"]
+    assert provenance["source_extraction_checksum"]["pattern"] == (
+        "^[0-9a-fA-F]{64}$"
+    )
+
+
 def test_architecture_schema_excludes_deferred_and_family_specific_contracts() -> None:
     schema = json.loads(render_json_schema(AntennaArchitecture))
     serialized = json.dumps(schema, sort_keys=True).lower()

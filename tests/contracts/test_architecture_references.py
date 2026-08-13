@@ -18,6 +18,7 @@ from architecture_helpers import (
 from test_architecture_geometry import (
     _explicit_instances,
     _polygon_with_circular_subtraction,
+    _remaining_geometry_case,
 )
 
 
@@ -80,11 +81,26 @@ def test_instance_references_and_cycles_are_rejected() -> None:
     cycle["blocks"][0]["geometry"] = {
         "kind": "instance",
         "prototype_block_id": "instance_1",
+        "prototype_copy_semantics": (
+            "copy_local_geometry_and_material_without_placement"
+        ),
     }
     cycle["blocks"][0]["parameter_dependencies"] = []
     cycle["blocks"][1]["geometry"]["prototype_block_id"] = "prototype"
     with pytest.raises(ValidationError):
         AntennaArchitecture.model_validate(cycle)
+
+
+def test_placement_and_revolution_axis_frame_references_must_resolve() -> None:
+    placement = architecture_data()
+    placement["blocks"][0]["placement"]["frame_id"] = "missing_frame"
+    with pytest.raises(ValidationError, match="unknown placement frame"):
+        AntennaArchitecture.model_validate(placement)
+
+    revolution = _remaining_geometry_case("revolution")
+    revolution["blocks"][-1]["geometry"]["axis"]["frame_id"] = "missing_frame"
+    with pytest.raises(ValidationError, match="unknown revolution axis frame"):
+        AntennaArchitecture.model_validate(revolution)
 
 
 def test_boolean_references_and_relationship_result_consistency() -> None:
