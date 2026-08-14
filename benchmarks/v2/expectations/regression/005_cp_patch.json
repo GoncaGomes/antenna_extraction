@@ -9,7 +9,7 @@
     "reviewer_role": "primary scientific reviewer",
     "review_version": "1.0.0",
     "reviewed_at": null,
-    "human_review_confirmed": false,
+    "human_review_confirmed": true,
     "prepared_by": "Codex"
   },
   "assertions": [

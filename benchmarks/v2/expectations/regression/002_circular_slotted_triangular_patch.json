@@ -9,7 +9,7 @@
     "reviewer_role": "primary scientific reviewer",
     "review_version": "1.0.0",
     "reviewed_at": null,
-    "human_review_confirmed": false,
+    "human_review_confirmed": true,
     "prepared_by": "Codex"
   },
   "assertions": [
@@ -57,28 +57,28 @@
           "page": 2,
           "source_kind": "figure",
           "source_label": "Figure 1(a) and Figure 1(d)",
-          "excerpt_or_description": "The triangular radiator drawing labels x from the symmetry axis to one base corner."
+          "excerpt_or_description": "The triangular radiator base consists of     a central feedline segment of width fw and two symmetric lateral    segments represented by x. The base vertices do not coincide with   the substrate boundaries."
         },
         {
           "page": 3,
           "source_kind": "table",
           "source_label": "Table 1",
-          "excerpt_or_description": "The table reports x = 9.5 mm for the Step 4 triangular patch."
+          "excerpt_or_description": "For the Step 4 design, the table reports     x = 9.5 mm and feedline width fw = 3.11 mm."
         }
       ],
       "expected": {
-        "summary": "Preserve the source-backed relationship between the half-base x and the full triangular base.",
-        "value": "base = 2 * x",
+        "summary": "Preserve the source-backed relationship base = x + fw + x     = 2 * x + fw. Using the reported values, the derived triangular base    is 22.11 mm.",
+        "value": "base = 2 * x + fw",
         "unit": null,
-        "acceptable_alternative": "Record the relationship as unresolved and reconstruction-blocking if symmetry cannot be confirmed.",
-        "forbidden_condition": "Using x directly as the full base without a source-backed derivation."
+        "acceptable_alternative": "Record the triangular base relationship as     unresolved and reconstruction-blocking if either the symmetry or the    mapping of x and fw to the base cannot be confirmed.",
+        "forbidden_condition": "Deriving the base as 2 * x, using x directly    as the full base, equating the base to sw, or otherwise omitting fw   without source-backed justification."
       },
       "verifiable_condition": null,
-      "review_instruction": "Inspect Figure 1 and confirm whether x is a half-base before accepting the expression base = 2 * x.",
+      "review_instruction": "Inspect Figure 1 and confirm that the triangular     base contains two symmetric lateral segments x separated by the central     feedline width fw. If confirmed, verify base = 2 * x + fw = 2 * 9.5 mm    + 3.11 mm = 22.11 mm.",
       "source_issues": [
         {
           "kind": "unable_to_conclude",
-          "note": "The equation base = 2 * x is not printed as text; its validity depends on manual interpretation of the symmetric figure."
+          "note": "The expression base = 2 * x + fw is not printed explicitly     in the article. It is derived from the dimension layout and     symmetry shown in Figure 1 and therefore requires manual scientific     confirmation."
         }
       ]
     }
