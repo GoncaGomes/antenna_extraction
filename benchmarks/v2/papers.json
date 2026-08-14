@@ -1,0 +1,181 @@
+{
+  "schema_version": "1.0.0",
+  "papers": [
+    {
+      "paper_id": "001",
+      "group": "regression",
+      "title": "Rectangular Microstrip Patch Antenna Using Coaxial Probe Feeding Technique to Operate in S-Band",
+      "doi": "10.14445/22315381/IJETT-V4I4P340",
+      "local_filename": "001_rectangular_patch_coaxial.pdf",
+      "local_path": "tests/fixtures/papers/raw/001_rectangular_patch_coaxial.pdf",
+      "sha256": "c47fa454455737e44110f54f95340a48b511139146746dfc5a4001a2ac755b4f",
+      "page_count": 5,
+      "acquisition_url": "https://ijettjournal.org/archive/ijett-v4i4p340",
+      "license_status": "verified",
+      "license_evidence": {
+        "source": "publisher_policy",
+        "reference": "https://ijettjournal.org/for-authors/openaccess-author",
+        "license_name": "CC BY-NC-ND 4.0",
+        "note": "The publisher states that articles published since 2011 use this licence."
+      },
+      "redistribution_policy": "permitted_noncommercial_no_derivatives",
+      "expectation_paths": [
+        "expectations/regression/001_rectangular_patch_coaxial.json"
+      ]
+    },
+    {
+      "paper_id": "002",
+      "group": "regression",
+      "title": "Circular Slotted Triangular Patch Antenna for 5.8 GHz ISM Band Applications",
+      "doi": "10.3390/engproc2023046010",
+      "local_filename": "002_circular_slotted_triangular_patch.pdf",
+      "local_path": "tests/fixtures/papers/raw/002_circular_slotted_triangular_patch.pdf",
+      "sha256": "647e96ce943f297dfa936fa68f90fc5e2b5048131e78eaf6797013b0a4d1dee6",
+      "page_count": 7,
+      "acquisition_url": "https://doi.org/10.3390/engproc2023046010",
+      "license_status": "verified",
+      "license_evidence": {
+        "source": "pdf",
+        "reference": "page 1",
+        "license_name": "CC BY 4.0",
+        "note": "Licence statement appears on the first PDF page."
+      },
+      "redistribution_policy": "permitted_with_attribution",
+      "expectation_paths": [
+        "expectations/regression/002_circular_slotted_triangular_patch.json"
+      ]
+    },
+    {
+      "paper_id": "003",
+      "group": "regression",
+      "title": "A microstrip patch antenna for 5G mobile communications",
+      "doi": "10.1088/1742-6596/2580/1/012063",
+      "local_filename": "003_5g_microstrip_patch_28ghz.pdf",
+      "local_path": "tests/fixtures/papers/raw/003_5g_microstrip_patch_28ghz.pdf",
+      "sha256": "6a1c4667b0063ec10d1d39dceff33770e0e7babcd1c8f2ec6d701fdcaa959957",
+      "page_count": 11,
+      "acquisition_url": "https://doi.org/10.1088/1742-6596/2580/1/012063",
+      "license_status": "verified",
+      "license_evidence": {
+        "source": "pdf",
+        "reference": "page 1",
+        "license_name": "CC BY 3.0",
+        "note": "The PDF identifies the work as published under the Creative Commons Attribution 3.0 licence."
+      },
+      "redistribution_policy": "permitted_with_attribution",
+      "expectation_paths": [
+        "expectations/regression/003_5g_microstrip_inset.json"
+      ]
+    },
+    {
+      "paper_id": "004",
+      "group": "regression",
+      "title": "Single-Layer Line-Fed Broadband Microstrip Patch Antenna on Thin Substrates",
+      "doi": "10.3390/electronics10010037",
+      "local_filename": "004_microstrip_patch.pdf",
+      "local_path": "tests/fixtures/papers/raw/004_microstrip_patch.pdf",
+      "sha256": "cc9f76d7cad58bb735cdebdb1e9d0cb8ca0c81edf682932e467f3b2fe24cf659",
+      "page_count": 14,
+      "acquisition_url": "https://doi.org/10.3390/electronics10010037",
+      "license_status": "verified",
+      "license_evidence": {
+        "source": "pdf",
+        "reference": "page 1",
+        "license_name": "CC BY 4.0",
+        "note": "Licence statement appears on the first PDF page."
+      },
+      "redistribution_policy": "permitted_with_attribution",
+      "expectation_paths": [
+        "expectations/regression/004_microstrip_patch.json"
+      ]
+    },
+    {
+      "paper_id": "005",
+      "group": "regression",
+      "title": "Inverted L-Shaped CP Patch Antenna with Corner-Truncated Partial Ground Plane Diagonally Adjoined with Square Branch for L-Band Applications",
+      "doi": "10.3390/s21041085",
+      "local_filename": "005_cp_patch.pdf",
+      "local_path": "tests/fixtures/papers/raw/005_cp_patch.pdf",
+      "sha256": "b05cc3da81ffe693ccb7dbf3d51a32568984e47c4391881a0e6715a3d37689df",
+      "page_count": 16,
+      "acquisition_url": "https://doi.org/10.3390/s21041085",
+      "license_status": "verified",
+      "license_evidence": {
+        "source": "pdf",
+        "reference": "page 1",
+        "license_name": "CC BY 4.0",
+        "note": "Licence statement appears on the first PDF page."
+      },
+      "redistribution_policy": "permitted_with_attribution",
+      "expectation_paths": [
+        "expectations/regression/005_cp_patch.json"
+      ]
+    },
+    {
+      "paper_id": "006",
+      "group": "geometry_coverage",
+      "title": "Design of a Deployable Helix Antenna at L-Band for a 1-Unit CubeSat: From Theoretical Analysis to Flight Model Results",
+      "doi": "10.3390/s22103633",
+      "local_filename": "006_deployable_helix_cubesat.pdf",
+      "local_path": "tests/fixtures/papers/raw/006_deployable_helix_cubesat.pdf",
+      "sha256": "b4f2774e9e964729eb2c3dc6346f56d81aac4dc1e192ee0452f56328bcb5658d",
+      "page_count": 19,
+      "acquisition_url": "https://doi.org/10.3390/s22103633",
+      "license_status": "verified",
+      "license_evidence": {
+        "source": "pdf",
+        "reference": "page 1",
+        "license_name": "CC BY 4.0",
+        "note": "Licence statement appears on the first PDF page."
+      },
+      "redistribution_policy": "permitted_with_attribution",
+      "expectation_paths": [
+        "expectations/geometry_coverage/006_deployable_helix_cubesat.json"
+      ]
+    },
+    {
+      "paper_id": "007",
+      "group": "geometry_coverage",
+      "title": "Performance Analysis of X Band Horn Antennas using Additive Manufacturing Method Coated with Different Techniques",
+      "doi": "10.1590/2179-10742019v18i21337",
+      "local_filename": "007_x_band_additive_horn.pdf",
+      "local_path": "tests/fixtures/papers/raw/007_x_band_additive_horn.pdf",
+      "sha256": "73c324a2f6a17a09cad1dd43d211721dee5efb73d20047c480e4223e6573d7d6",
+      "page_count": 7,
+      "acquisition_url": "https://www.scielo.br/j/jmoea/a/9SwjPFzBmpfpXzXrCSyfpVp/?format=html",
+      "license_status": "verified",
+      "license_evidence": {
+        "source": "publisher_policy",
+        "reference": "https://www.scielo.br/journal/jmoea/about/",
+        "license_name": "CC BY 4.0",
+        "note": "The journal policy applies CC BY 4.0 except where otherwise noted; no contrary notice appears on this article."
+      },
+      "redistribution_policy": "permitted_with_attribution",
+      "expectation_paths": [
+        "expectations/geometry_coverage/007_x_band_additive_horn.json"
+      ]
+    },
+    {
+      "paper_id": "008",
+      "group": "geometry_coverage",
+      "title": "Design and implementation of compact dual-band conformal antenna for leadless cardiac pacemaker system",
+      "doi": "10.1038/s41598-022-06904-2",
+      "local_filename": "008_conformal_pacemaker_hilbert.pdf",
+      "local_path": "tests/fixtures/papers/raw/008_conformal_pacemaker_hilbert.pdf",
+      "sha256": "1721eab47a3f653aa0231824128529670d1091049c8430f11f33936ff96a84cb",
+      "page_count": 17,
+      "acquisition_url": "https://doi.org/10.1038/s41598-022-06904-2",
+      "license_status": "verified",
+      "license_evidence": {
+        "source": "pdf",
+        "reference": "page 17",
+        "license_name": "CC BY 4.0",
+        "note": "The Creative Commons licence statement appears on the final PDF page."
+      },
+      "redistribution_policy": "permitted_with_attribution",
+      "expectation_paths": [
+        "expectations/geometry_coverage/008_conformal_pacemaker_hilbert.json"
+      ]
+    }
+  ]
+}

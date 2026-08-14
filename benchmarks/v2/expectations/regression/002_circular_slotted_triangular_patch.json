@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0.0",
+  "expectation_id": "regression-002-v1",
+  "paper_id": "002",
+  "version": "1.0.0",
+  "review": {
+    "status": "needs_review",
+    "reviewer_identity": "Gonçalo Gomes",
+    "reviewer_role": "primary scientific reviewer",
+    "review_version": "1.0.0",
+    "reviewed_at": null,
+    "human_review_confirmed": false,
+    "prepared_by": "Codex"
+  },
+  "assertions": [
+    {
+      "assertion_id": "002-circular-slot-subtraction",
+      "stage": "architecture",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 2,
+          "source_kind": "figure",
+          "source_label": "Figure 1(d)",
+          "excerpt_or_description": "The final radiator drawing shows a circular opening within the triangular patch and labels its radius cr."
+        },
+        {
+          "page": 3,
+          "source_kind": "text",
+          "source_label": "Step 4",
+          "excerpt_or_description": "Step 4 states that a circular slot with radius 3 mm is inserted into the triangle patch."
+        }
+      ],
+      "expected": {
+        "summary": "Represent the circular slot as material removed from the triangular radiator.",
+        "value": "3",
+        "unit": "mm",
+        "acceptable_alternative": "An explicit unresolved, reconstruction-blocking item if subtraction placement cannot be recovered.",
+        "forbidden_condition": "Representing the circular slot as added conductor."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Confirm that the architecture uses a subtraction relationship, or explicitly blocks reconstruction if the slot placement is unresolved.",
+      "source_issues": []
+    },
+    {
+      "assertion_id": "002-triangle-base-derivation",
+      "stage": "architecture",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": "derived_geometry_loss",
+      "evidence": [
+        {
+          "page": 2,
+          "source_kind": "figure",
+          "source_label": "Figure 1(a) and Figure 1(d)",
+          "excerpt_or_description": "The triangular radiator drawing labels x from the symmetry axis to one base corner."
+        },
+        {
+          "page": 3,
+          "source_kind": "table",
+          "source_label": "Table 1",
+          "excerpt_or_description": "The table reports x = 9.5 mm for the Step 4 triangular patch."
+        }
+      ],
+      "expected": {
+        "summary": "Preserve the source-backed relationship between the half-base x and the full triangular base.",
+        "value": "base = 2 * x",
+        "unit": null,
+        "acceptable_alternative": "Record the relationship as unresolved and reconstruction-blocking if symmetry cannot be confirmed.",
+        "forbidden_condition": "Using x directly as the full base without a source-backed derivation."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Inspect Figure 1 and confirm whether x is a half-base before accepting the expression base = 2 * x.",
+      "source_issues": [
+        {
+          "kind": "unable_to_conclude",
+          "note": "The equation base = 2 * x is not printed as text; its validity depends on manual interpretation of the symmetric figure."
+        }
+      ]
+    }
+  ]
+}

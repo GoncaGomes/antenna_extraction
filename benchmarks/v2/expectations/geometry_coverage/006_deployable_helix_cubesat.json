@@ -1,0 +1,187 @@
+{
+  "schema_version": "1.0.0",
+  "expectation_id": "geometry-006-v1",
+  "paper_id": "006",
+  "version": "1.0.0",
+  "review": {
+    "status": "needs_review",
+    "reviewer_identity": "Gonçalo Gomes",
+    "reviewer_role": "primary scientific reviewer",
+    "review_version": "1.0.0",
+    "reviewed_at": null,
+    "human_review_confirmed": false,
+    "prepared_by": "Codex"
+  },
+  "assertions": [
+    {
+      "assertion_id": "006-helix-wire-path",
+      "stage": "architecture",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 4,
+          "source_kind": "figure",
+          "source_label": "Figure 1",
+          "excerpt_or_description": "The theoretical helix geometry labels diameter D, spacing S, turn length L, pitch angle α, and total length A."
+        },
+        {
+          "page": 4,
+          "source_kind": "equation",
+          "source_label": "Equation (1)",
+          "excerpt_or_description": "The axial-mode conditions relate the helix diameter, spacing, turns, and wavelength."
+        }
+      ],
+      "expected": {
+        "summary": "Represent the radiating helix as a source-parameterized helical wire path or sweep.",
+        "value": null,
+        "unit": null,
+        "acceptable_alternative": "Use an explicit reconstruction-blocking unresolved item when the helix path cannot be recovered.",
+        "forbidden_condition": "Replacing the helix with an unrelated cylinder or planar ring."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Confirm that the path topology and parameter references reconstruct the source helix rather than only its envelope.",
+      "source_issues": []
+    },
+    {
+      "assertion_id": "006-model-version-separation",
+      "stage": "extraction",
+      "mode": "manual",
+      "criticality": "major",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 13,
+          "source_kind": "text",
+          "source_label": "Flight Model design",
+          "excerpt_or_description": "The flight model is included in the Nadir Antenna and Deployment Subsystem and follows earlier engineering-model development."
+        },
+        {
+          "page": 15,
+          "source_kind": "text",
+          "source_label": "Radiation pattern discussion",
+          "excerpt_or_description": "The paper explicitly compares NADS flight-model measurements with engineering-model results."
+        }
+      ],
+      "expected": {
+        "summary": "Keep theoretical, prototype/engineering, and NADS flight-model versions separately identified.",
+        "value": null,
+        "unit": null,
+        "acceptable_alternative": null,
+        "forbidden_condition": "Merging geometry, materials, or results from different model versions into one undifferentiated design."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Trace each extracted design and result to the theoretical, engineering, or flight-model source section.",
+      "source_issues": []
+    },
+    {
+      "assertion_id": "006-flight-model-selection",
+      "stage": "architecture",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 14,
+          "source_kind": "figure",
+          "source_label": "Figure 12",
+          "excerpt_or_description": "The extruded NADS view identifies the integrated flight-model assembly."
+        },
+        {
+          "page": 16,
+          "source_kind": "table",
+          "source_label": "Table 14",
+          "excerpt_or_description": "The table is explicitly titled as measurements of the NADS Flight Model."
+        }
+      ],
+      "expected": {
+        "summary": "When the target is the delivered antenna, select the NADS flight model with explicit source evidence.",
+        "value": "NADS Flight Model",
+        "unit": null,
+        "acceptable_alternative": "Keep target selection unresolved if the requested reconstruction target is not specified.",
+        "forbidden_condition": "Calling an earlier theoretical or engineering model the flight model."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Confirm that the selected architecture corresponds to the NADS flight model and that inherited parameters are source-backed.",
+      "source_issues": []
+    },
+    {
+      "assertion_id": "006-simulation-measurement-separation",
+      "stage": "results",
+      "mode": "automatic",
+      "criticality": "major",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 15,
+          "source_kind": "text",
+          "source_label": "Section 6.3",
+          "excerpt_or_description": "The NADS flight-model radiation pattern was measured in the UPC Antenna Lab anechoic chamber."
+        },
+        {
+          "page": 16,
+          "source_kind": "table",
+          "source_label": "Table 14",
+          "excerpt_or_description": "Frequency, directivity, gain, and FBR are identified as flight-model measurements."
+        }
+      ],
+      "expected": {
+        "summary": "Keep simulated results and measured flight-model results as separate origins.",
+        "value": null,
+        "unit": null,
+        "acceptable_alternative": null,
+        "forbidden_condition": "Labelling Table 14 values as simulations."
+      },
+      "verifiable_condition": {
+        "operator": "preserves_association",
+        "target": "antenna_results.json result origin and design reference",
+        "expected_text": "Table 14 values are measured and associated with NADS Flight Model",
+        "forbidden_text": "Table 14 simulated"
+      },
+      "review_instruction": null,
+      "source_issues": []
+    },
+    {
+      "assertion_id": "006-no-invented-dimensions-materials",
+      "stage": "architecture",
+      "mode": "automatic",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 14,
+          "source_kind": "table",
+          "source_label": "Table 13",
+          "excerpt_or_description": "The NADS part materials include Aluminum 7075, brass, FR-4, and the helix antenna material as reported in the table."
+        },
+        {
+          "page": 4,
+          "source_kind": "figure",
+          "source_label": "Figure 1",
+          "excerpt_or_description": "Only the helix dimensions and relationships shown by the source are eligible for geometry parameters."
+        }
+      ],
+      "expected": {
+        "summary": "Use only dimensions and materials explicitly supported by the selected model's source evidence.",
+        "value": null,
+        "unit": null,
+        "acceptable_alternative": "Leave missing properties unresolved.",
+        "forbidden_condition": "Supplying unsupported dimensions or materials to make reconstruction appear complete."
+      },
+      "verifiable_condition": {
+        "operator": "excludes_unsupported_content",
+        "target": "antenna_architecture.json parameters and materials",
+        "expected_text": "all dimensions and materials reference source evidence",
+        "forbidden_text": "unsupported default"
+      },
+      "review_instruction": null,
+      "source_issues": []
+    }
+  ]
+}

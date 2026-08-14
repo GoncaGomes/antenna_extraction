@@ -1,0 +1,155 @@
+{
+  "schema_version": "1.0.0",
+  "expectation_id": "regression-005-v1",
+  "paper_id": "005",
+  "version": "1.0.0",
+  "review": {
+    "status": "needs_review",
+    "reviewer_identity": "Gonçalo Gomes",
+    "reviewer_role": "primary scientific reviewer",
+    "review_version": "1.0.0",
+    "reviewed_at": null,
+    "human_review_confirmed": false,
+    "prepared_by": "Codex"
+  },
+  "assertions": [
+    {
+      "assertion_id": "005-symbol-to-geometry-mapping",
+      "stage": "architecture",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 3,
+          "source_kind": "figure",
+          "source_label": "Figure 1",
+          "excerpt_or_description": "Front and side views place the dimension symbols on the inverted-L patch, square branch, feed, ground truncation, and substrate."
+        },
+        {
+          "page": 3,
+          "source_kind": "table",
+          "source_label": "Table 1",
+          "excerpt_or_description": "Table 1 reports the corresponding dimensions S1, S2, P1, P2, L1, L2, L3, L4, b, t, d, and h in mm."
+        }
+      ],
+      "expected": {
+        "summary": "Map each reported dimension symbol to the geometry element identified in Figure 1.",
+        "value": null,
+        "unit": "mm",
+        "acceptable_alternative": "Mark a symbol mapping unresolved and reconstruction-blocking when the figure is insufficient.",
+        "forbidden_condition": "Attaching a table value to a geometry element solely by guessed semantic meaning."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Cross-check every architecture parameter's affected geometry against Figure 1 and Table 1.",
+      "source_issues": []
+    },
+    {
+      "assertion_id": "005-no-invented-materials",
+      "stage": "extraction",
+      "mode": "automatic",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 2,
+          "source_kind": "text",
+          "source_label": "Antenna Design and Development",
+          "excerpt_or_description": "The source identifies an FR-4 substrate, TLM140 from Thai Laminate Manufacturer."
+        },
+        {
+          "page": 12,
+          "source_kind": "table",
+          "source_label": "Table 3",
+          "excerpt_or_description": "The measured average extracted relative permittivity for FR-4 (TLM140) is 4.308 at 1.5 GHz."
+        }
+      ],
+      "expected": {
+        "summary": "Preserve only source-reported material identities and properties.",
+        "value": "FR-4 (TLM140)",
+        "unit": null,
+        "acceptable_alternative": null,
+        "forbidden_condition": "Adding a conductor alloy, coating, or dielectric trade name not reported by the source."
+      },
+      "verifiable_condition": {
+        "operator": "excludes_unsupported_content",
+        "target": "paper_extraction.json materials",
+        "expected_text": "FR-4 (TLM140)",
+        "forbidden_text": "unsupported material"
+      },
+      "review_instruction": null,
+      "source_issues": []
+    },
+    {
+      "assertion_id": "005-simulation-measurement-separation",
+      "stage": "results",
+      "mode": "automatic",
+      "criticality": "major",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 12,
+          "source_kind": "text",
+          "source_label": "Results discussion",
+          "excerpt_or_description": "The source separately reports simulated RLBW 53.12% and measured RLBW 62.37%, and simulated ARBW 70.88% and measured ARBW 77.87%."
+        },
+        {
+          "page": 13,
+          "source_kind": "figure",
+          "source_label": "Figures 18 and 19",
+          "excerpt_or_description": "Separate simulation and measurement traces are shown for reflection coefficient and axial ratio."
+        }
+      ],
+      "expected": {
+        "summary": "Keep simulated and measured results as separate origins without automatically labelling their differences as conflicts.",
+        "value": null,
+        "unit": null,
+        "acceptable_alternative": null,
+        "forbidden_condition": "Collapsing simulated and measured values into one result or automatically treating their difference as source disagreement."
+      },
+      "verifiable_condition": {
+        "operator": "preserves_association",
+        "target": "antenna_results.json result origin",
+        "expected_text": "simulated and measured records remain separate",
+        "forbidden_text": "automatic conflict"
+      },
+      "review_instruction": null,
+      "source_issues": []
+    },
+    {
+      "assertion_id": "005-detect-false-complete",
+      "stage": "architecture",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": "false_complete_architecture",
+      "evidence": [
+        {
+          "page": 3,
+          "source_kind": "figure",
+          "source_label": "Figure 1",
+          "excerpt_or_description": "The final antenna includes an inverted-L patch, diagonal square branch, feed, and corner-truncated partial ground plane."
+        },
+        {
+          "page": 6,
+          "source_kind": "figure",
+          "source_label": "Figure 7",
+          "excerpt_or_description": "Antenna IV is the evolutionary stage that includes the corner-truncated partial ground plane."
+        }
+      ],
+      "expected": {
+        "summary": "Do not report complete reconstruction unless all critical final-antenna elements and their source-backed relationships are represented.",
+        "value": "incomplete",
+        "unit": null,
+        "acceptable_alternative": "complete only after manual confirmation that every critical element is reconstructable",
+        "forbidden_condition": "reconstruction_status complete while a critical branch, truncation, feed, or dimension mapping is absent or unresolved"
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Attempt reconstruction from the architecture and confirm that no critical geometry or symbol mapping is absent before accepting complete status.",
+      "source_issues": []
+    }
+  ]
+}

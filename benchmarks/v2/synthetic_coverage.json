@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0.0",
+  "coverage": [
+    {
+      "category": "planar_stack",
+      "test_path": "tests/contracts/test_architecture_geometry.py",
+      "case_id": "rectangular_planar_stack"
+    },
+    {
+      "category": "polygon_with_circular_subtraction",
+      "test_path": "tests/contracts/test_architecture_geometry.py",
+      "case_id": "polygonal_radiator_with_circular_subtraction"
+    },
+    {
+      "category": "inset_notch",
+      "test_path": "tests/contracts/test_architecture_geometry.py",
+      "case_id": "explicit_inset_or_notch"
+    },
+    {
+      "category": "multilayer_stacked",
+      "test_path": "tests/contracts/test_architecture_geometry.py",
+      "case_id": "multilayer_structure"
+    },
+    {
+      "category": "via_short",
+      "test_path": "tests/contracts/test_architecture_geometry.py",
+      "case_id": "via_or_shorting_element"
+    },
+    {
+      "category": "wire_meander",
+      "test_path": "tests/contracts/test_architecture_geometry.py",
+      "case_id": "wire_or_meander_path"
+    },
+    {
+      "category": "helix_sweep",
+      "test_path": "tests/contracts/test_architecture_geometry.py",
+      "case_id": "helix_path"
+    },
+    {
+      "category": "array_instances",
+      "test_path": "tests/contracts/test_architecture_geometry.py",
+      "case_id": "explicit_array_instances"
+    },
+    {
+      "category": "horn_tapered_volume",
+      "test_path": "tests/contracts/test_architecture_geometry.py",
+      "case_id": "tapered_volumetric_profile"
+    },
+    {
+      "category": "dielectric_resonator",
+      "test_path": "tests/contracts/test_architecture_geometry.py",
+      "case_id": "dielectric_resonator_volume"
+    },
+    {
+      "category": "conformal_surface_mesh",
+      "test_path": "tests/contracts/test_architecture_geometry.py",
+      "case_id": "source_backed_surface_and_mesh"
+    },
+    {
+      "category": "implantable_surroundings",
+      "test_path": "tests/contracts/test_architecture_geometry.py",
+      "case_id": "implant_with_surrounding_material"
+    },
+    {
+      "category": "incomplete_architecture",
+      "test_path": "tests/contracts/test_architecture_geometry.py",
+      "case_id": "incomplete_geometry"
+    }
+  ]
+}

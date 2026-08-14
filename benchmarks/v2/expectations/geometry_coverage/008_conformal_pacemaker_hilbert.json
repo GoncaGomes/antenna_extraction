@@ -1,0 +1,192 @@
+{
+  "schema_version": "1.0.0",
+  "expectation_id": "geometry-008-v1",
+  "paper_id": "008",
+  "version": "1.0.0",
+  "review": {
+    "status": "needs_review",
+    "reviewer_identity": "Gonçalo Gomes",
+    "reviewer_role": "primary scientific reviewer",
+    "review_version": "1.0.0",
+    "reviewed_at": null,
+    "human_review_confirmed": false,
+    "prepared_by": "Codex"
+  },
+  "assertions": [
+    {
+      "assertion_id": "008-hilbert-loop-geometry",
+      "stage": "architecture",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 7,
+          "source_kind": "figure",
+          "source_label": "Figure 9(a)",
+          "excerpt_or_description": "The front view shows the copper loop geometry."
+        },
+        {
+          "page": 7,
+          "source_kind": "text",
+          "source_label": "Dual-band circularly polarized implantable antenna",
+          "excerpt_or_description": "The antenna follows a Hilbert curve and contains three nested Hilbert loops with optimized interconnections."
+        }
+      ],
+      "expected": {
+        "summary": "Represent the three nested Hilbert-inspired loops and their interconnections as source-backed conductive paths.",
+        "value": "three Hilbert loops",
+        "unit": null,
+        "acceptable_alternative": "Record an explicit reconstruction-blocking unresolved path when Figure 9 cannot define a segment.",
+        "forbidden_condition": "Replacing the Hilbert paths with a plain rectangular loop."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Compare path count, nesting, interconnections, and segment layout against Figure 9(a).",
+      "source_issues": []
+    },
+    {
+      "assertion_id": "008-conformal-capsule-placement",
+      "stage": "architecture",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 7,
+          "source_kind": "figure",
+          "source_label": "Figure 9(b) and Figure 9(c)",
+          "excerpt_or_description": "Side and exploded views show the antenna's conformal relation to the capsule assembly."
+        },
+        {
+          "page": 8,
+          "source_kind": "text",
+          "source_label": "Final shape discussion",
+          "excerpt_or_description": "The final antenna shape is acquired in the presence of the battery and modules inside the ceramic alumina capsule."
+        }
+      ],
+      "expected": {
+        "summary": "Place the antenna conformally around the capsule inner wall using only source-supported curvature and placement.",
+        "value": null,
+        "unit": null,
+        "acceptable_alternative": "Create an explicit reconstruction-critical unresolved item if curvature or placement is not fully recoverable.",
+        "forbidden_condition": "Claiming complete reconstruction with a flat antenna or guessed capsule radius/placement."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Verify the antenna-to-capsule transform and curvature against Figure 9(b,c); require unresolved status for missing placement data.",
+      "source_issues": [
+        {
+          "kind": "unable_to_conclude",
+          "note": "The exact transform from the planar layout to the curved capsule may not be fully dimensioned in the source."
+        }
+      ]
+    },
+    {
+      "assertion_id": "008-source-faithful-materials-dimensions",
+      "stage": "architecture",
+      "mode": "automatic",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 7,
+          "source_kind": "table",
+          "source_label": "Table 3",
+          "excerpt_or_description": "Table 3 supplies the final antenna dimensions; the reported footprint is 6 × 6 × 0.254 mm3."
+        },
+        {
+          "page": 1,
+          "source_kind": "text",
+          "source_label": "Abstract",
+          "excerpt_or_description": "The source identifies Rogers RT/Duroid 6010 LM with εr = 10."
+        }
+      ],
+      "expected": {
+        "summary": "Preserve reported dimensions and materials exactly and do not fill missing properties with assumptions.",
+        "value": "6 × 6 × 0.254",
+        "unit": "mm3",
+        "acceptable_alternative": "Leave unreported conductor or capsule properties unresolved.",
+        "forbidden_condition": "Inventing a substrate, conductor, capsule dimension, or material property."
+      },
+      "verifiable_condition": {
+        "operator": "excludes_unsupported_content",
+        "target": "antenna_architecture.json parameters and materials",
+        "expected_text": "Rogers RT/Duroid 6010 LM; 6 × 6 × 0.254 mm3",
+        "forbidden_text": "unsupported material or dimension"
+      },
+      "review_instruction": null,
+      "source_issues": []
+    },
+    {
+      "assertion_id": "008-environment-setup-separation",
+      "stage": "extraction",
+      "mode": "manual",
+      "criticality": "major",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 3,
+          "source_kind": "text",
+          "source_label": "Simulation setup",
+          "excerpt_or_description": "The simulation setup discusses body propagation and the materials selected for electrodes, capsule components, battery, and modules."
+        },
+        {
+          "page": 11,
+          "source_kind": "figure",
+          "source_label": "Figure 14",
+          "excerpt_or_description": "The TCP capsule location inside the AustinMan heart-muscle model is an environmental setup, not antenna conductor geometry."
+        }
+      ],
+      "expected": {
+        "summary": "Keep capsule, electronics, tissue models, phantoms, and measurement fixtures distinct from antenna geometry while preserving their relationships.",
+        "value": null,
+        "unit": null,
+        "acceptable_alternative": null,
+        "forbidden_condition": "Treating heart tissue or measurement fixtures as part of the radiating antenna geometry."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Check role assignments for antenna blocks, capsule/electronics, biological environment, and measurement setup.",
+      "source_issues": []
+    },
+    {
+      "assertion_id": "008-simulation-measurement-separation",
+      "stage": "results",
+      "mode": "automatic",
+      "criticality": "major",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 13,
+          "source_kind": "figure",
+          "source_label": "Figures 19 and 20",
+          "excerpt_or_description": "The figures explicitly compare simulated and measured reflection coefficient and axial ratio."
+        },
+        {
+          "page": 14,
+          "source_kind": "figure",
+          "source_label": "Figure 21",
+          "excerpt_or_description": "Simulated and measured radiation patterns are shown separately for the integrated antenna in pork."
+        }
+      ],
+      "expected": {
+        "summary": "Keep simulated and measured results separate and preserve their test environment and design association.",
+        "value": null,
+        "unit": null,
+        "acceptable_alternative": null,
+        "forbidden_condition": "Collapsing simulation and measurement traces into one result."
+      },
+      "verifiable_condition": {
+        "operator": "preserves_association",
+        "target": "antenna_results.json result origin, setup, and design reference",
+        "expected_text": "simulated and measured results remain separate",
+        "forbidden_text": "combined result origin"
+      },
+      "review_instruction": null,
+      "source_issues": []
+    }
+  ]
+}

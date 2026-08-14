@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0.0",
+  "expectation_id": "regression-001-v1",
+  "paper_id": "001",
+  "version": "1.0.0",
+  "review": {
+    "status": "needs_review",
+    "reviewer_identity": "Gonçalo Gomes",
+    "reviewer_role": "primary scientific reviewer",
+    "review_version": "1.0.0",
+    "reviewed_at": null,
+    "human_review_confirmed": false,
+    "prepared_by": "Codex"
+  },
+  "assertions": [
+    {
+      "assertion_id": "001-exact-input-impedance",
+      "stage": "results",
+      "mode": "automatic",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": "exact_reported_result_loss",
+      "evidence": [
+        {
+          "page": 3,
+          "source_kind": "text",
+          "source_label": "Input impedance discussion",
+          "excerpt_or_description": "At 2.25 GHz the paper reports input impedance 47.98 Ω, close to the desired 50 Ω."
+        },
+        {
+          "page": 4,
+          "source_kind": "figure",
+          "source_label": "Figure 6",
+          "excerpt_or_description": "The input-impedance plot supports the reported center-frequency result."
+        }
+      ],
+      "expected": {
+        "summary": "Preserve the reported input-impedance result without rounding or unit loss.",
+        "value": "47.98",
+        "unit": "ohm",
+        "acceptable_alternative": null,
+        "forbidden_condition": "Replacing 47.98 with 48, 50, or another inferred value."
+      },
+      "verifiable_condition": {
+        "operator": "contains_exact_text",
+        "target": "antenna_results.json reported result value and unit",
+        "expected_text": "47.98 ohm",
+        "forbidden_text": null
+      },
+      "review_instruction": null,
+      "source_issues": []
+    }
+  ]
+}

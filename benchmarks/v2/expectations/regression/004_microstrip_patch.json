@@ -1,0 +1,124 @@
+{
+  "schema_version": "1.0.0",
+  "expectation_id": "regression-004-v1",
+  "paper_id": "004",
+  "version": "1.0.0",
+  "review": {
+    "status": "needs_review",
+    "reviewer_identity": "Gonçalo Gomes",
+    "reviewer_role": "primary scientific reviewer",
+    "review_version": "1.0.0",
+    "reviewed_at": null,
+    "human_review_confirmed": false,
+    "prepared_by": "Codex"
+  },
+  "assertions": [
+    {
+      "assertion_id": "004-separate-design-variants",
+      "stage": "extraction",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": "variant_association_loss",
+      "evidence": [
+        {
+          "page": 3,
+          "source_kind": "figure",
+          "source_label": "Figure 1",
+          "excerpt_or_description": "Figure 1 separately labels MPA1 as the standard inset-fed patch and MPA2 as the inset-fed patch with symmetric cuts."
+        },
+        {
+          "page": 6,
+          "source_kind": "figure",
+          "source_label": "Figure 8",
+          "excerpt_or_description": "The simulated reflection-coefficient comparison separately names MPA1, MPA2, and MPA3."
+        },
+        {
+          "page": 9,
+          "source_kind": "table",
+          "source_label": "Table 4",
+          "excerpt_or_description": "MPA6 is reported with its own geometrical parameters."
+        }
+      ],
+      "expected": {
+        "summary": "Keep MPA1 through MPA6 as separately identified design variants.",
+        "value": null,
+        "unit": null,
+        "acceptable_alternative": null,
+        "forbidden_condition": "Merging dimensions or topology from multiple MPA variants into one design record."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Verify that every reported MPA variant remains individually identifiable and that no cross-variant geometry is merged.",
+      "source_issues": []
+    },
+    {
+      "assertion_id": "004-results-associated-with-variants",
+      "stage": "results",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 10,
+          "source_kind": "text",
+          "source_label": "Measured bandwidth discussion",
+          "excerpt_or_description": "Measured 10-dB fractional bandwidths are reported as 1.84% for MPA1, 3.71% for MPA2, and 6.12% for MPA3."
+        },
+        {
+          "page": 11,
+          "source_kind": "figure",
+          "source_label": "Figure 16",
+          "excerpt_or_description": "Simulated and measured results are compared in separate subfigures for MPA1, MPA2, and MPA3."
+        }
+      ],
+      "expected": {
+        "summary": "Associate each simulated and measured result only with its named MPA variant.",
+        "value": null,
+        "unit": null,
+        "acceptable_alternative": null,
+        "forbidden_condition": "Assigning one variant's bandwidth or curve to another variant."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Trace each result's design reference back to the labels in the text and Figure 16.",
+      "source_issues": []
+    },
+    {
+      "assertion_id": "004-grounded-final-design-selection",
+      "stage": "architecture",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 12,
+          "source_kind": "table",
+          "source_label": "Table 5",
+          "excerpt_or_description": "The comparison lists this work's MPA1 through MPA6 as distinct designs with different performance."
+        },
+        {
+          "page": 13,
+          "source_kind": "text",
+          "source_label": "Conclusions",
+          "excerpt_or_description": "The conclusions discuss multiple proposed configurations rather than naming one universal final geometry."
+        }
+      ],
+      "expected": {
+        "summary": "Any selected final design must cite source evidence that distinguishes it from the other reported variants.",
+        "value": null,
+        "unit": null,
+        "acceptable_alternative": "Leave final-design selection unresolved and reconstruction-blocking when the source does not identify one final variant.",
+        "forbidden_condition": "Selecting a final variant without source-backed rationale."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Confirm the evidence for the selected final variant; if no unique source designation exists, require an explicit unresolved selection.",
+      "source_issues": [
+        {
+          "kind": "unable_to_conclude",
+          "note": "The paper compares several designs and does not appear to designate one universal final variant for reconstruction."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,187 @@
+{
+  "schema_version": "1.0.0",
+  "expectation_id": "geometry-007-v1",
+  "paper_id": "007",
+  "version": "1.0.0",
+  "review": {
+    "status": "needs_review",
+    "reviewer_identity": "Gonçalo Gomes",
+    "reviewer_role": "primary scientific reviewer",
+    "review_version": "1.0.0",
+    "reviewed_at": null,
+    "human_review_confirmed": false,
+    "prepared_by": "Codex"
+  },
+  "assertions": [
+    {
+      "assertion_id": "007-horn-waveguide-volume",
+      "stage": "architecture",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 2,
+          "source_kind": "figure",
+          "source_label": "Figure 1",
+          "excerpt_or_description": "The dimensioned drawing shows the curved horn volume and its transition to the WR90 waveguide aperture."
+        },
+        {
+          "page": 2,
+          "source_kind": "text",
+          "source_label": "Antenna design",
+          "excerpt_or_description": "The curve horn is exponentially fitted to WR90 dimensions and has external walls 5.5 mm thick."
+        }
+      ],
+      "expected": {
+        "summary": "Represent the horn and WR90 transition as source-backed volumetric geometry with the reported taper.",
+        "value": "5.5",
+        "unit": "mm",
+        "acceptable_alternative": "Mark the exponential profile unresolved and reconstruction-blocking if Figure 1 does not fully define it.",
+        "forbidden_condition": "Replacing the horn with a generic box or unsupported linear taper."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Compare the reconstructed horn, waveguide transition, wall thickness, and taper profile with Figure 1.",
+      "source_issues": []
+    },
+    {
+      "assertion_id": "007-material-coating-variants",
+      "stage": "extraction",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 2,
+          "source_kind": "text",
+          "source_label": "Fabrication description",
+          "excerpt_or_description": "Three ABS horns are coated with silver conductive paint, copper tape, and copper plated metallization; a fourth aluminum horn is the conventional comparison."
+        },
+        {
+          "page": 3,
+          "source_kind": "figure",
+          "source_label": "Figure 2",
+          "excerpt_or_description": "Separate subfigures identify silver paint, copper tape, and copper plated horn variants."
+        }
+      ],
+      "expected": {
+        "summary": "Keep ABS/coating combinations and the aluminum comparison as distinct design variants.",
+        "value": null,
+        "unit": null,
+        "acceptable_alternative": null,
+        "forbidden_condition": "Merging coating or substrate materials across variants."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Verify separate material records and design references for all four fabricated variants.",
+      "source_issues": []
+    },
+    {
+      "assertion_id": "007-results-associated-with-variants",
+      "stage": "results",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 4,
+          "source_kind": "figure",
+          "source_label": "Figure 4",
+          "excerpt_or_description": "Measured S11 curves compare the separately named horn variants."
+        },
+        {
+          "page": 5,
+          "source_kind": "text",
+          "source_label": "Measured gain discussion",
+          "excerpt_or_description": "Copper-plated and aluminum horns are reported between 14.7 dB and 17.7 dB, copper tape between 10.9 dB and 14.7 dB, and silver paint between 8.2 dB and 13.2 dB."
+        }
+      ],
+      "expected": {
+        "summary": "Associate every S11, gain, pattern, and weight result with the correct horn variant.",
+        "value": null,
+        "unit": "dB",
+        "acceptable_alternative": null,
+        "forbidden_condition": "Assigning a copper-plated or aluminum gain range to the silver-painted horn."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Trace each result to its curve, text label, or Table I row and confirm its design reference.",
+      "source_issues": []
+    },
+    {
+      "assertion_id": "007-source-faithful-dimensions-materials",
+      "stage": "architecture",
+      "mode": "automatic",
+      "criticality": "major",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 2,
+          "source_kind": "figure",
+          "source_label": "Figure 1",
+          "excerpt_or_description": "The figure is the source for horn dimensions."
+        },
+        {
+          "page": 3,
+          "source_kind": "text",
+          "source_label": "Coating descriptions",
+          "excerpt_or_description": "The source identifies coating products and reports copper-tape total thickness 0.076 mm."
+        }
+      ],
+      "expected": {
+        "summary": "Preserve reported dimensions, ABS body material, and coating identities without unsupported substitutions.",
+        "value": "0.076",
+        "unit": "mm",
+        "acceptable_alternative": "Leave an unreported property absent.",
+        "forbidden_condition": "Inventing conductivity, thickness, or alloy for a variant when not reported."
+      },
+      "verifiable_condition": {
+        "operator": "excludes_unsupported_content",
+        "target": "antenna_architecture.json parameters and materials",
+        "expected_text": "reported dimensions and materials retain source evidence",
+        "forbidden_text": "unsupported material property"
+      },
+      "review_instruction": null,
+      "source_issues": []
+    },
+    {
+      "assertion_id": "007-measured-results-identified",
+      "stage": "results",
+      "mode": "automatic",
+      "criticality": "major",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 3,
+          "source_kind": "text",
+          "source_label": "Section IV",
+          "excerpt_or_description": "Measurements use an HP X281A coaxial WR90 adapter for all antennas."
+        },
+        {
+          "page": 4,
+          "source_kind": "text",
+          "source_label": "Reflection coefficient measurement",
+          "excerpt_or_description": "S11 is measured with an Anritsu MS4644B vector network analyzer."
+        }
+      ],
+      "expected": {
+        "summary": "Identify the reported S11, gain, and radiation-pattern results as measured where the source does so.",
+        "value": null,
+        "unit": null,
+        "acceptable_alternative": null,
+        "forbidden_condition": "Labelling Figure 4 measurements as simulations."
+      },
+      "verifiable_condition": {
+        "operator": "preserves_association",
+        "target": "antenna_results.json origin",
+        "expected_text": "Figure 4 results are measured",
+        "forbidden_text": "Figure 4 simulated"
+      },
+      "review_instruction": null,
+      "source_issues": []
+    }
+  ]
+}

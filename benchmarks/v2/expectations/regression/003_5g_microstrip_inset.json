@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0.0",
+  "expectation_id": "regression-003-v1",
+  "paper_id": "003",
+  "version": "1.0.0",
+  "review": {
+    "status": "needs_review",
+    "reviewer_identity": "Gonçalo Gomes",
+    "reviewer_role": "primary scientific reviewer",
+    "review_version": "1.0.0",
+    "reviewed_at": null,
+    "human_review_confirmed": false,
+    "prepared_by": "Codex"
+  },
+  "assertions": [
+    {
+      "assertion_id": "003-inset-feed-notch",
+      "stage": "architecture",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": "inset_notch_loss",
+      "evidence": [
+        {
+          "page": 4,
+          "source_kind": "table",
+          "source_label": "Table 1",
+          "excerpt_or_description": "The antenna dimensions include Lslot = 0.15 mm."
+        },
+        {
+          "page": 6,
+          "source_kind": "figure",
+          "source_label": "Figure 2",
+          "excerpt_or_description": "The schematic diagram of inset feeding shows the feed recessed into the patch."
+        },
+        {
+          "page": 6,
+          "source_kind": "text",
+          "source_label": "Inset feeding discussion",
+          "excerpt_or_description": "The paper explains that the feed point is moved toward the center of the patch using an inset feed."
+        }
+      ],
+      "expected": {
+        "summary": "Preserve the inset-feed recess/notch as explicit geometry.",
+        "value": "Lslot = 0.15",
+        "unit": "mm",
+        "acceptable_alternative": "Create an explicit reconstruction-critical unresolved item if the notch dimensions or placement cannot be recovered.",
+        "forbidden_condition": "Claiming complete reconstruction while omitting the inset/notch."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Compare the reconstructed feed geometry with Figure 2 and verify either the inset or an explicit reconstruction-blocking unresolved item.",
+      "source_issues": []
+    }
+  ]
+}
