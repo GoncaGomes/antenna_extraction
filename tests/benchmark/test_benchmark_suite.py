@@ -289,7 +289,9 @@ def test_paper_005_prohibits_invented_architecture_materials() -> None:
         if item.assertion_id == "005-architecture-no-invented-material-properties"
     )
 
-    assert expectation.review.status == "needs_review"
+    assert expectation.review.status == "reviewed"
+    assert expectation.review.human_review_confirmed is True
+    assert expectation.review.reviewed_at == "2026-08-14"
     assert assertion.stage == "architecture"
     assert assertion.mode == "manual"
     assert assertion.expected.forbidden_condition is not None
@@ -351,10 +353,20 @@ def test_unknown_synthetic_case_is_rejected(tmp_path: Path) -> None:
         load_benchmark_suite(REPOSITORY_ROOT, root)
 
 
-def test_codex_prepared_expectations_remain_unreviewed() -> None:
+def test_review_statuses_distinguish_regression_and_geometry_coverage() -> None:
     suite = load_benchmark_suite(REPOSITORY_ROOT)
+    expectations = {
+        expectation.paper_id: expectation for expectation in suite.expectations
+    }
 
-    for expectation in suite.expectations:
+    for paper_id in ("001", "002", "003", "004", "005"):
+        expectation = expectations[paper_id]
+        assert expectation.review.status == "reviewed"
+        assert expectation.review.human_review_confirmed is True
+        assert expectation.review.reviewed_at == "2026-08-14"
+
+    for paper_id in ("006", "007", "008"):
+        expectation = expectations[paper_id]
         assert expectation.review.status == "needs_review"
         assert expectation.review.human_review_confirmed is False
         assert expectation.review.reviewed_at is None

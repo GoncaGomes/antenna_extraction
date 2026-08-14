@@ -1587,7 +1587,7 @@ Minimum author-selection gate:
 
 - no unsupported numeric mutation on the regression set;
 - correct final-design selection for Paper 004;
-- correct circular-slot subtraction and `2 * x` derivation for Paper 002;
+- correct circular-slot subtraction and `2 * x + fw` derivation for Paper 002;
 - correct inset or explicit unresolved inset for Paper 003;
 - Paper 005 maps the required symbols or remains precisely incomplete;
 - no false `complete` on a reconstruction-critical omission;
