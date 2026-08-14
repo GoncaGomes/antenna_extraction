@@ -134,7 +134,7 @@ ground truth:
 - Paper 001 demonstrates that a schema-valid output can lose the reported
   `47.98 ohm` result.
 - Paper 002 demonstrates the need to represent a circular slot as subtraction
-  and preserve the derivation `base = 2 * x`.
+  and preserve the derivation `base = 2 * x + fw`.
 - Paper 003 demonstrates that an inset or notch can disappear while the design
   is still labelled buildable.
 - Paper 004 demonstrates that variants and their results can be lost when the
