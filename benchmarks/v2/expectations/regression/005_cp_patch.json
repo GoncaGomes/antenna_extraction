@@ -120,6 +120,38 @@
       "source_issues": []
     },
     {
+      "assertion_id": "005-architecture-no-invented-material-properties",
+      "stage": "architecture",
+      "mode": "manual",
+      "criticality": "critical",
+      "blocking": true,
+      "known_failure": null,
+      "evidence": [
+        {
+          "page": 2,
+          "source_kind": "text",
+          "source_label": "Antenna Design and Development",
+          "excerpt_or_description": "The source identifies the substrate as FR-4 (TLM140) and reports its design material properties."
+        },
+        {
+          "page": 12,
+          "source_kind": "table",
+          "source_label": "Table 3",
+          "excerpt_or_description": "The measured average extracted relative permittivity for FR-4 (TLM140) is 4.308 at 1.5 GHz."
+        }
+      ],
+      "expected": {
+        "summary": "Every architecture material and material property must be supported by cited source evidence.",
+        "value": "FR-4 (TLM140)",
+        "unit": null,
+        "acceptable_alternative": "Leave any unreported material identity or property unresolved.",
+        "forbidden_condition": "Adding an unsupported conductor material, dielectric trade name, permittivity, loss tangent, thickness, or coating to make the architecture appear complete."
+      },
+      "verifiable_condition": null,
+      "review_instruction": "Inspect every architecture material and property against the cited source evidence; reject invented values and require unresolved status where the source is silent.",
+      "source_issues": []
+    },
+    {
       "assertion_id": "005-detect-false-complete",
       "stage": "architecture",
       "mode": "manual",

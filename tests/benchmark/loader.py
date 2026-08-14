@@ -54,6 +54,7 @@ def load_benchmark_suite(
 
     if {expectation.paper_id for expectation in expectations} - set(known_papers):
         raise ValueError("expectation references an unknown paper ID")
+    _validate_global_expectation_ids(expectations)
     _require_all_expectation_files_referenced(benchmark_root, papers)
 
     synthetic = SyntheticCoverageManifest.model_validate(
@@ -145,6 +146,22 @@ def _require_all_expectation_files_referenced(
     if referenced != discovered:
         unknown = sorted(str(path) for path in referenced ^ discovered)
         raise ValueError(f"unknown or unreferenced expectation files: {unknown}")
+
+
+def _validate_global_expectation_ids(
+    expectations: list[PaperExpectations],
+) -> None:
+    expectation_ids = [expectation.expectation_id for expectation in expectations]
+    if len(expectation_ids) != len(set(expectation_ids)):
+        raise ValueError("duplicate expectation_id values are not permitted")
+
+    assertion_ids = [
+        assertion.assertion_id
+        for expectation in expectations
+        for assertion in expectation.assertions
+    ]
+    if len(assertion_ids) != len(set(assertion_ids)):
+        raise ValueError("duplicate assertion_id values are not permitted")
 
 
 def _validate_evidence_pages(

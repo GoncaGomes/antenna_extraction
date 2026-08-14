@@ -89,6 +89,44 @@ def test_unknown_paper_id_is_rejected(tmp_path: Path) -> None:
         load_benchmark_suite(REPOSITORY_ROOT, root)
 
 
+def test_duplicate_expectation_ids_across_files_are_rejected(
+    tmp_path: Path,
+) -> None:
+    root = _copy_benchmark(tmp_path)
+    first_path = root / "expectations/regression/001_rectangular_patch_coaxial.json"
+    second_path = (
+        root
+        / "expectations/regression/002_circular_slotted_triangular_patch.json"
+    )
+    first = _read_json(first_path)
+    second = _read_json(second_path)
+    second["expectation_id"] = first["expectation_id"]
+    _write_json(second_path, second)
+
+    with pytest.raises(ValueError, match="duplicate expectation_id"):
+        load_benchmark_suite(REPOSITORY_ROOT, root)
+
+
+def test_duplicate_assertion_ids_across_files_are_rejected(
+    tmp_path: Path,
+) -> None:
+    root = _copy_benchmark(tmp_path)
+    first_path = root / "expectations/regression/001_rectangular_patch_coaxial.json"
+    second_path = (
+        root
+        / "expectations/regression/002_circular_slotted_triangular_patch.json"
+    )
+    first = _read_json(first_path)
+    second = _read_json(second_path)
+    second["assertions"][0]["assertion_id"] = first["assertions"][0][
+        "assertion_id"
+    ]
+    _write_json(second_path, second)
+
+    with pytest.raises(ValueError, match="duplicate assertion_id"):
+        load_benchmark_suite(REPOSITORY_ROOT, root)
+
+
 def test_unknown_paper_and_expectation_paths_are_rejected(tmp_path: Path) -> None:
     root = _copy_benchmark(tmp_path)
     papers_path = root / "papers.json"
@@ -238,6 +276,24 @@ def test_all_five_known_failure_classes_are_present() -> None:
     }
 
     assert failures == REQUIRED_FAILURES
+
+
+def test_paper_005_prohibits_invented_architecture_materials() -> None:
+    suite = load_benchmark_suite(REPOSITORY_ROOT)
+    expectation = next(
+        item for item in suite.expectations if item.paper_id == "005"
+    )
+    assertion = next(
+        item
+        for item in expectation.assertions
+        if item.assertion_id == "005-architecture-no-invented-material-properties"
+    )
+
+    assert expectation.review.status == "needs_review"
+    assert assertion.stage == "architecture"
+    assert assertion.mode == "manual"
+    assert assertion.expected.forbidden_condition is not None
+    assert "unsupported" in assertion.expected.forbidden_condition
 
 
 def test_geometry_coverage_contains_required_papers() -> None:
