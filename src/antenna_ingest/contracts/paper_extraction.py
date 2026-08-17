@@ -65,18 +65,79 @@ class PaperExtraction(ContractModel):
     schema_version: Literal["1.0.0"]
     document: DocumentReference
     pages: list[PageRecord] = Field(min_length=1)
-    evidence_catalog: list[EvidenceRecord]
-    designs: list[DesignRecord]
-    material_observations: list[MaterialObservation]
-    parameter_observations: list[ParameterObservation]
-    geometry_observations: list[GeometryObservation]
-    feed_port_excitation_observations: list[FeedPortExcitationObservation]
-    setups: list[Setup]
-    results: list[ResultRecord]
-    derivations: list[ReportedDerivation]
-    conflicts: list[ConflictRecord]
-    missing_information: list[MissingInformationRecord]
-    architecture_page_refs: list[int]
+    evidence_catalog: list[EvidenceRecord] = Field(
+        description=(
+            "Minimal catalog of distinct source items that directly support emitted "
+            "records; exclude unreferenced source material."
+        )
+    )
+    designs: list[DesignRecord] = Field(
+        description=(
+            "Distinct antenna designs studied by this paper, excluding designs "
+            "mentioned only as related work."
+        )
+    )
+    material_observations: list[MaterialObservation] = Field(
+        description=(
+            "Materials and material properties actually used in reported designs, "
+            "fabrication, simulation, or measurement."
+        )
+    )
+    parameter_observations: list[ParameterObservation] = Field(
+        description=(
+            "Specific antenna, simulation, or measurement parameters; exclude "
+            "paper organisation, general prose, and literature-review statements."
+        )
+    )
+    geometry_observations: list[GeometryObservation] = Field(
+        description=(
+            "Physical geometry, topology, dimensions, placement, and structural "
+            "relationships; exclude descriptions of paper organisation."
+        )
+    )
+    feed_port_excitation_observations: list[FeedPortExcitationObservation] = Field(
+        description=(
+            "Reported feeds, feeding arrangements, ports, excitation methods, and "
+            "impedances for extracted designs."
+        )
+    )
+    setups: list[Setup] = Field(
+        description=(
+            "Simulation, measurement, or analytical configurations used by this "
+            "paper; exclude configurations belonging only to cited related work."
+        )
+    )
+    results: list[ResultRecord] = Field(
+        description=(
+            "Source-supported antenna performance values or qualitative findings "
+            "with their reported origin."
+        )
+    )
+    derivations: list[ReportedDerivation] = Field(
+        description=(
+            "Source-reported equations, formulas, or calculation procedures; a "
+            "reported value or dimension alone is not a derivation."
+        )
+    )
+    conflicts: list[ConflictRecord] = Field(
+        description=(
+            "Incompatible scientific values, claims, design descriptions, or "
+            "findings; exclude conflict-of-interest declarations."
+        )
+    )
+    missing_information: list[MissingInformationRecord] = Field(
+        description=(
+            "Technically relevant information that is genuinely absent, unavailable, "
+            "or required to interpret an emitted record; exclude reported conclusions "
+            "and positive findings."
+        )
+    )
+    architecture_page_refs: list[int] = Field(
+        description=(
+            "Globally one-based input page numbers containing evidence relevant to "
+            "later antenna-architecture reconstruction."
+        )
+    )
 
     @model_validator(mode="after")
     def validate_referential_integrity(self) -> PaperExtraction:

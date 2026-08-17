@@ -59,35 +59,70 @@ The ordered page images that follow are all pages of one scientific paper. Treat
 
 Return exactly one JSON object matching the supplied PaperExtraction JSON Schema. Return no commentary, Markdown, or text outside that object.
 
-Extract the paper exhaustively and preserve its scientific meaning:
+Extract distinct scientifically relevant information about antenna designs that the paper itself proposes, analyses, simulates, fabricates, or measures.
 
-- identify every distinct antenna design, intermediate design, variant, final design, fabricated design, and measured prototype reported in the paper
-- preserve relationships between designs, including parent and predecessor relationships when explicitly supported
-- extract all reported materials, parameters, symbols, values, units, geometry and topology observations, feeds, ports, excitations, experimental setups, simulation setups, analytical methods, equations, and reproducible derivations
-- extract every reported result, including values presented in prose, tables, captions, figures, equations, and graphs
-- distinguish simulated, measured, and analytical results
-- associate every observation, setup, and result with the correct design whenever the source supports that association
-- create precise evidence records with the correct page number, source kind, source label, and a faithful excerpt or visual description
-- preserve exact source symbols, numeric lexemes, units, qualifiers, and wording without silently normalising or rewriting them
-- identify likely final or fabricated design candidates, but preserve ambiguity when the paper does not support one unambiguous choice
-- record conflicts, uncertainty, illegible information, and missing information explicitly
-- include the pages containing evidence required for later architecture reconstruction in architecture_page_refs
+Do not extract paper-organisation statements, bibliographic background, conflict-of-interest declarations, or antenna designs mentioned only as related work into the engineering collections.
 
-Choose the representation that matches the source evidence.
+Identify every distinct antenna design, intermediate design, variant, final design, fabricated design, and measured prototype studied by the paper. Preserve parent and predecessor relationships only when explicitly supported by the source.
 
-* Use scalar for one explicitly reported value.
-* Use interval only for two explicitly reported endpoints.
-* Use point_collection, sampled_series, matrix, or angular_pattern only for source-supported numeric data.
-* Use spatial_map for spatially distributed quantities.
-* Use image_only when visual evidence exists but trustworthy numeric samples cannot be preserved.
-* Use qualitative for source-supported non-numeric findings.
-* Use unavailable only when an identified result cannot be represented because its value is not reported, illegible, or ambiguous.
-* Record entirely absent information in missing_information.
-* Never invent, derive, estimate, or digitise values.
+Populate each collection only with information matching its scientific meaning:
+
+- material_observations: materials actually used in a reported antenna design, fabrication, simulation, or measurement, including explicitly reported material properties.
+- parameter_observations: specific antenna, simulation, or measurement parameters, including reported symbols, values, units, or parameter descriptions. Do not use this collection for general prose or literature-review statements.
+- geometry_observations: physical geometry, topology, dimensions, placement, layers, shapes, slots, cuts, connections, or structural relationships. Do not include statements describing the organisation or sections of the paper.
+- feed_port_excitation_observations: feeds, feeding arrangements, ports, excitation methods, or reported impedances.
+- setups: explicitly reported simulation, measurement, or analytical configurations used for the extracted designs or results. Do not include configurations belonging only to cited related work.
+- results: source-supported antenna performance values or qualitative findings. Distinguish simulated, measured, analytical, and unspecified origins.
+- derivations: equations, formulas, or calculation procedures explicitly reported by the source. A reported dimension or value alone is not a derivation.
+- conflicts: incompatible scientific values, claims, design descriptions, or reported findings. Do not record conflict-of-interest declarations.
+- missing_information: technically relevant information that is absent, unavailable, or required to interpret an emitted record. Its description must state what is missing. Do not place reported conclusions or positive findings in this collection.
+- architecture_page_refs: globally one-based page numbers containing source evidence relevant to later reconstruction of the antenna architecture.
+
+Leave a collection empty when the paper contains no information matching that collection.
+
+Associate each observation, setup, and result with the correct design whenever that association is explicitly supported. Preserve ambiguity when the paper does not support an unambiguous association.
+
+Create a minimal but complete evidence catalog containing only source items that directly support records emitted in the extraction.
+
+- Create one evidence record for each distinct source passage, figure, caption, table, equation, or graph used to support an emitted record.
+- Do not catalogue source items that are not referenced by an extracted record.
+- Reuse an evidence record when the same source item directly supports multiple records.
+- Never use one evidence record as generic support for claims taken from different passages or pages.
+- Every evidence ID referenced anywhere in the output must exactly match an evidence_id declared in evidence_catalog.
+- Never reference an evidence ID that is absent from evidence_catalog.
+- For a design record, include only evidence that directly supports the design's identity, name, role, or description. Do not include every evidence item associated with that design.
+- Each observation, setup, result, derivation, conflict, or missing-information record must reference only the declared evidence IDs that directly support that record.
+- If a claim cannot be linked to a declared supporting evidence record, omit the claim.
+- Do not create separate evidence records for individual words, table cells, numeric values, curve samples, or repeated claims from the same source item.
+- Keep text excerpts and visual descriptions concise while preserving the information required for scientific verification.
+- Assign identifiers only to records that are actually emitted. Do not enumerate unused identifiers.
+
+Choose the result representation that matches the source evidence.
+
+- Use scalar for one explicitly reported value, magnitude, width, or span. A reported width or span without explicit endpoints is a scalar, not an interval.
+- Use interval only when the source explicitly reports both lower and upper endpoints.
+- Use point_collection, sampled_series, matrix, or angular_pattern only for source-supported numeric data.
+- Use spatial_map for spatially distributed quantities.
+- Use image_only when visual evidence exists but trustworthy numeric samples cannot be preserved.
+- Use qualitative for source-supported non-numeric findings.
+- Use unavailable only when an identified result cannot be represented because its value is not reported, illegible, or ambiguous.
+- Never invent, derive, estimate, interpolate, or digitise values.
+
+Preserve exact source symbols, numeric lexemes, units, qualifiers, and wording. Do not silently normalise or rewrite source values.
 
 Do not invent dimensions, materials, values, relationships, design choices, result points, or engineering assumptions. Do not infer typical antenna properties that are not stated or visibly supported. Do not select or construct the final solver architecture. Do not emit CST commands, solver commands, simulation instructions, optimisation steps, or construction plans.
 
-When information is absent, ambiguous, uncertain, or illegible, represent that honestly using the fields provided by the schema."""
+When information is ambiguous, uncertain, or illegible, represent that honestly using the fields provided by the schema.
+
+Before returning the JSON, verify all of the following:
+
+- every referenced evidence ID exists in evidence_catalog
+- every emitted factual record is directly supported by its referenced evidence
+- no evidence ID is referenced merely because it belongs to the same design
+- no engineering collection contains paper organisation, unrelated work, or administrative declarations
+- interval representations contain two explicit source-reported endpoints
+- every architecture_page_refs value corresponds to an input page
+"""
 
 
 class PageImageMetadata(StrictModel):

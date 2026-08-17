@@ -136,18 +136,17 @@ def test_full_document_request_is_ordered_strict_and_traceable(
         == 1
     )
     prompt_text = content[0]["text"]
-    representation_guidance = """Choose the representation that matches the source evidence.
-
-* Use scalar for one explicitly reported value.
-* Use interval only for two explicitly reported endpoints.
-* Use point_collection, sampled_series, matrix, or angular_pattern only for source-supported numeric data.
-* Use spatial_map for spatially distributed quantities.
-* Use image_only when visual evidence exists but trustworthy numeric samples cannot be preserved.
-* Use qualitative for source-supported non-numeric findings.
-* Use unavailable only when an identified result cannot be represented because its value is not reported, illegible, or ambiguous.
-* Record entirely absent information in missing_information.
-* Never invent, derive, estimate, or digitise values."""
-    assert representation_guidance in prompt_text
+    for prompt_invariant in (
+        "Do not extract paper-organisation statements",
+        "Leave a collection empty when the paper contains no information",
+        "Do not catalogue source items that are not referenced",
+        "Never use one evidence record as generic support",
+        "For a design record, include only evidence that directly supports",
+        "A reported width or span without explicit endpoints is a scalar",
+        "Use interval only when the source explicitly reports both lower and upper endpoints",
+        "every referenced evidence ID exists in evidence_catalog",
+    ):
+        assert prompt_invariant in prompt_text
 
     manifest_before = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
     assert manifest_before.document_id in prompt_text

@@ -33,6 +33,40 @@ def test_source_value_schema_requires_explicit_legibility() -> None:
     assert "default" not in properties["legibility"]
 
 
+def test_extraction_collection_schema_descriptions_reinforce_semantics() -> None:
+    schema = json.loads(render_json_schema(PaperExtraction))
+    properties = schema["properties"]
+    expected_fragments = {
+        "evidence_catalog": "directly support emitted records",
+        "designs": "related work",
+        "material_observations": "actually used",
+        "parameter_observations": "paper organisation",
+        "geometry_observations": "paper organisation",
+        "feed_port_excitation_observations": "feeding arrangements",
+        "setups": "cited related work",
+        "results": "performance values or qualitative findings",
+        "derivations": "alone is not a derivation",
+        "conflicts": "conflict-of-interest declarations",
+        "missing_information": "genuinely absent",
+        "architecture_page_refs": "globally one-based input page numbers",
+    }
+
+    for field_name, expected_fragment in expected_fragments.items():
+        description = properties[field_name]["description"]
+        assert expected_fragment.lower() in description.lower()
+
+
+def test_design_evidence_schema_description_limits_its_scope() -> None:
+    schema = json.loads(render_json_schema(PaperExtraction))
+    description = schema["$defs"]["DesignRecord"]["properties"]["evidence_ids"][
+        "description"
+    ]
+
+    assert "declared in the top-level evidence_catalog" in description
+    assert "identity, name, role, or description" in description
+    assert "not the complete set of evidence" in description
+
+
 def test_generated_schemas_match_checked_in_files(tmp_path: Path) -> None:
     generated = generate_json_schemas(tmp_path)
 

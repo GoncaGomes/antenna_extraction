@@ -11,10 +11,11 @@ def build_openai_compatible_client(
     timeout_seconds: int,
 ) -> OpenAI:
     return OpenAI(
-        base_url=base_url,
-        api_key=api_key,
-        timeout=timeout_seconds,
-    )
+    base_url=base_url,
+    api_key=api_key,
+    timeout=timeout_seconds,
+    max_retries=0,
+)
 
 
 def build_model_client(

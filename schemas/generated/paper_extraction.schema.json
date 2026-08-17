@@ -300,6 +300,7 @@
           "type": "string"
         },
         "evidence_ids": {
+          "description": "IDs declared in the top-level evidence_catalog that directly support this design's identity, name, role, or description. This is not the complete set of evidence associated with the design.",
           "items": {
             "minLength": 1,
             "type": "string"
@@ -1913,6 +1914,7 @@
   "additionalProperties": false,
   "properties": {
     "architecture_page_refs": {
+      "description": "Globally one-based input page numbers containing evidence relevant to later antenna-architecture reconstruction.",
       "items": {
         "type": "integer"
       },
@@ -1920,6 +1922,7 @@
       "type": "array"
     },
     "conflicts": {
+      "description": "Incompatible scientific values, claims, design descriptions, or findings; exclude conflict-of-interest declarations.",
       "items": {
         "$ref": "#/$defs/ConflictRecord"
       },
@@ -1927,6 +1930,7 @@
       "type": "array"
     },
     "derivations": {
+      "description": "Source-reported equations, formulas, or calculation procedures; a reported value or dimension alone is not a derivation.",
       "items": {
         "$ref": "#/$defs/ReportedDerivation"
       },
@@ -1934,6 +1938,7 @@
       "type": "array"
     },
     "designs": {
+      "description": "Distinct antenna designs studied by this paper, excluding designs mentioned only as related work.",
       "items": {
         "$ref": "#/$defs/DesignRecord"
       },
@@ -1944,6 +1949,7 @@
       "$ref": "#/$defs/DocumentReference"
     },
     "evidence_catalog": {
+      "description": "Minimal catalog of distinct source items that directly support emitted records; exclude unreferenced source material.",
       "items": {
         "$ref": "#/$defs/EvidenceRecord"
       },
@@ -1951,6 +1957,7 @@
       "type": "array"
     },
     "feed_port_excitation_observations": {
+      "description": "Reported feeds, feeding arrangements, ports, excitation methods, and impedances for extracted designs.",
       "items": {
         "$ref": "#/$defs/FeedPortExcitationObservation"
       },
@@ -1958,6 +1965,7 @@
       "type": "array"
     },
     "geometry_observations": {
+      "description": "Physical geometry, topology, dimensions, placement, and structural relationships; exclude descriptions of paper organisation.",
       "items": {
         "$ref": "#/$defs/GeometryObservation"
       },
@@ -1965,6 +1973,7 @@
       "type": "array"
     },
     "material_observations": {
+      "description": "Materials and material properties actually used in reported designs, fabrication, simulation, or measurement.",
       "items": {
         "$ref": "#/$defs/MaterialObservation"
       },
@@ -1972,6 +1981,7 @@
       "type": "array"
     },
     "missing_information": {
+      "description": "Technically relevant information that is genuinely absent, unavailable, or required to interpret an emitted record; exclude reported conclusions and positive findings.",
       "items": {
         "$ref": "#/$defs/MissingInformationRecord"
       },
@@ -1987,6 +1997,7 @@
       "type": "array"
     },
     "parameter_observations": {
+      "description": "Specific antenna, simulation, or measurement parameters; exclude paper organisation, general prose, and literature-review statements.",
       "items": {
         "$ref": "#/$defs/ParameterObservation"
       },
@@ -1994,6 +2005,7 @@
       "type": "array"
     },
     "results": {
+      "description": "Source-supported antenna performance values or qualitative findings with their reported origin.",
       "items": {
         "$ref": "#/$defs/ResultRecord"
       },
@@ -2011,6 +2023,7 @@
       "type": "string"
     },
     "setups": {
+      "description": "Simulation, measurement, or analytical configurations used by this paper; exclude configurations belonging only to cited related work.",
       "items": {
         "discriminator": {
           "mapping": {

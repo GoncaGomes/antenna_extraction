@@ -300,6 +300,7 @@
           "type": "string"
         },
         "evidence_ids": {
+          "description": "IDs declared in the top-level evidence_catalog that directly support this design's identity, name, role, or description. This is not the complete set of evidence associated with the design.",
           "items": {
             "minLength": 1,
             "type": "string"

@@ -99,7 +99,14 @@ class DesignRecord(ContractModel):
     description: NonEmptyString | None = None
     parent_design_id: Identifier | None = None
     predecessor_design_id: Identifier | None = None
-    evidence_ids: list[Identifier] = Field(default_factory=list)
+    evidence_ids: list[Identifier] = Field(
+        default_factory=list,
+        description=(
+            "IDs declared in the top-level evidence_catalog that directly support "
+            "this design's identity, name, role, or description. This is not the "
+            "complete set of evidence associated with the design."
+        ),
+    )
 
 
 class ReportedCondition(ContractModel):
