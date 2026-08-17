@@ -4,6 +4,11 @@ import argparse
 from pathlib import Path
 from typing import Sequence
 
+from antenna_ingest.extraction.full_document import (
+    EXTRACTION_VALIDATION_PATH,
+    PAPER_EXTRACTION_PATH,
+    extract_paper_from_run,
+)
 from antenna_ingest.models.doctor import run_endpoint_doctor
 from antenna_ingest.orchestration.runs import create_run
 from antenna_ingest.rendering import (
@@ -29,6 +34,21 @@ def build_parser() -> argparse.ArgumentParser:
     render_pages.add_argument("run_dir", type=Path)
     render_pages.add_argument("--dpi", type=int, default=170)
     render_pages.add_argument("--force", action="store_true")
+
+    extract_paper = subparsers.add_parser("extract-paper")
+    extract_paper.add_argument("run_dir", type=Path)
+    thinking = extract_paper.add_mutually_exclusive_group(required=True)
+    thinking.add_argument(
+        "--thinking",
+        dest="enable_thinking",
+        action="store_true",
+    )
+    thinking.add_argument(
+        "--no-thinking",
+        dest="enable_thinking",
+        action="store_false",
+    )
+    extract_paper.add_argument("--force", action="store_true")
 
     doctor = subparsers.add_parser("doctor")
     doctor.add_argument(
@@ -64,6 +84,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Rendered pages: {report.page_count}")
         print(f"Pages directory: {args.run_dir / PAGES_DIR}")
         print(f"Report: {args.run_dir / PAGE_RENDER_REPORT_PATH}")
+        return 0
+
+    if args.command == "extract-paper":
+        extract_paper_from_run(
+            run_dir=args.run_dir,
+            enable_thinking=args.enable_thinking,
+            force=args.force,
+        )
+        print(f"Extraction: {args.run_dir / PAPER_EXTRACTION_PATH}")
+        print(f"Validation: {args.run_dir / EXTRACTION_VALIDATION_PATH}")
         return 0
 
     if args.command == "doctor":

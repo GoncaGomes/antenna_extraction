@@ -5,14 +5,14 @@ PDF papers and is being rebuilt around a small, sequential, VLM-first pipeline.
 
 ## Current implementation status
 
-The current branch contains the cleaned minimal foundation plus strict Pydantic
-contracts and generated JSON Schemas for `paper_extraction`, `antenna_results`,
-and the solver-neutral `antenna_architecture` block representation.
+The current branch contains the cleaned minimal foundation, strict Pydantic
+contracts and generated JSON Schemas, the evidence-grounded v2 acceptance
+suite, and the direct full-document NuExtract3 extraction command.
 
 The legacy Markdown, evidence parsing, retrieval, candidate extraction, and
-canonicalization paths have been removed. No extraction model call, results
-publisher, architecture-author call, global output-integrity layer, or
-end-to-end runner is implemented yet.
+canonicalization paths have been removed. The results publisher,
+architecture-author call, global output-integrity layer, and end-to-end runner
+are not implemented yet.
 
 ## Planned NewPipeline
 
@@ -44,12 +44,21 @@ does not require a model call.
 The initial normal path has no RAG, retrieval, parallelism, fallback model,
 automatic retry, repair call, or agent tool loop.
 
-## Implementation status and next step
+## Full-document extraction
 
-The Commit 3 extraction/results contracts and Commit 4 architecture contract
-are implemented. Their Pydantic models and generated JSON Schemas are the
-executable contract source of truth. The next planned work is Commit 5, which
-defines the evidence-grounded v2 acceptance suite without adding model calls.
+After creating a run and rendering all pages, explicitly choose one thinking
+mode for the single full-paper extraction call:
+
+```powershell
+uv run antenna-ingest extract-paper runs/<run_id> --thinking
+uv run antenna-ingest extract-paper runs/<run_id> --no-thinking
+```
+
+Use `--force` only to replace a previous extraction attempt. The command sends
+every rendered page once in source order, persists request metadata and the raw
+response, validates the result against the `PaperExtraction` contract, and
+writes the extraction and validation reports. It does not retry, batch pages,
+publish final results, or generate architecture.
 
 See [the implementation plan](docs/implementation_plan.md) for the planned
 contracts, commit boundaries, acceptance gates, and deferred work.
