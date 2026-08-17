@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from antenna_ingest.contracts.common import IntervalRepresentation
 from antenna_ingest.contracts.antenna_results import AntennaResults
 
 
@@ -15,7 +16,6 @@ FIXTURE_PATH = (
     / "contracts"
     / "minimal_antenna_results.json"
 )
-
 
 def _source_value(value: str, unit: str | None = None) -> dict:
     return {
@@ -377,3 +377,45 @@ def test_missing_and_illegible_results_remain_explicit(
 
     assert validated.results[0].representation.value.value is None
     assert validated.results[0].extraction_completeness == state
+
+def test_interval_requires_two_available_endpoints() -> None:
+    with pytest.raises(ValidationError):
+        IntervalRepresentation.model_validate(
+            {
+                "kind": "interval",
+                "lower": {
+                    "value": None,
+                    "unit": "MHz",
+                    "qualifier": None,
+                    "legibility": "missing",
+                },
+                "upper": {
+                    "value": None,
+                    "unit": "MHz",
+                    "qualifier": None,
+                    "legibility": "missing",
+                },
+            }
+        )
+
+def test_interval_accepts_two_explicit_endpoints() -> None:
+    interval = IntervalRepresentation.model_validate(
+        {
+            "kind": "interval",
+            "lower": {
+                "value": "2.40",
+                "unit": "GHz",
+                "qualifier": None,
+                "legibility": "clear",
+            },
+            "upper": {
+                "value": "2.50",
+                "unit": "GHz",
+                "qualifier": None,
+                "legibility": "clear",
+            },
+        }
+    )
+
+    assert interval.lower.value == "2.40"
+    assert interval.upper.value == "2.50"

@@ -710,8 +710,61 @@
       "title": "ImageOnlyGraphRepresentation",
       "type": "object"
     },
+    "IntervalEndpointValue": {
+      "additionalProperties": false,
+      "properties": {
+        "legibility": {
+          "description": "Endpoint legibility. An interval endpoint must be clear or uncertain.",
+          "enum": [
+            "clear",
+            "uncertain"
+          ],
+          "title": "Legibility",
+          "type": "string"
+        },
+        "qualifier": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Qualifier"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "value": {
+          "description": "Exact non-null endpoint lexeme explicitly reported by the source.",
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "legibility"
+      ],
+      "title": "IntervalEndpointValue",
+      "type": "object"
+    },
     "IntervalRepresentation": {
       "additionalProperties": false,
+      "description": "A source-reported range with two explicit endpoints.",
       "properties": {
         "kind": {
           "const": "interval",
@@ -719,10 +772,12 @@
           "type": "string"
         },
         "lower": {
-          "$ref": "#/$defs/SourceValue"
+          "$ref": "#/$defs/IntervalEndpointValue",
+          "description": "Exact lower endpoint explicitly reported by the source. Do not derive it from a center value and range width."
         },
         "upper": {
-          "$ref": "#/$defs/SourceValue"
+          "$ref": "#/$defs/IntervalEndpointValue",
+          "description": "Exact upper endpoint explicitly reported by the source. Do not derive it from a center value and range width."
         }
       },
       "required": [
@@ -1342,6 +1397,7 @@
     },
     "ScalarRepresentation": {
       "additionalProperties": false,
+      "description": "A single source-reported quantity.",
       "properties": {
         "kind": {
           "const": "scalar",
@@ -1349,7 +1405,8 @@
           "type": "string"
         },
         "value": {
-          "$ref": "#/$defs/SourceValue"
+          "$ref": "#/$defs/SourceValue",
+          "description": "One exact source-reported value. This includes a magnitude, width, or span reported without explicit range endpoints."
         }
       },
       "required": [
@@ -1485,7 +1542,7 @@
       "additionalProperties": false,
       "properties": {
         "legibility": {
-          "default": "clear",
+          "description": "Explicit source-value legibility. Use clear or uncertain with a non-null value. Use missing or illegible with a null value.",
           "enum": [
             "clear",
             "uncertain",
@@ -1531,11 +1588,13 @@
               "type": "null"
             }
           ],
+          "description": "Exact value lexeme preserved from the source. It must be non-null when legibility is clear or uncertain, and null only when legibility is missing or illegible.",
           "title": "Value"
         }
       },
       "required": [
-        "value"
+        "value",
+        "legibility"
       ],
       "title": "SourceValue",
       "type": "object"

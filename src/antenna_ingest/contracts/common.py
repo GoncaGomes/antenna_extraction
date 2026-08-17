@@ -42,10 +42,22 @@ EvidenceSourceKind = Literal[
 
 
 class SourceValue(ContractModel):
-    value: NonEmptyString | None
+    value: NonEmptyString | None = Field(
+        description=(
+            "Exact value lexeme preserved from the source. "
+            "It must be non-null when legibility is clear or uncertain, "
+            "and null only when legibility is missing or illegible."
+        )
+    )
     unit: NonEmptyString | None = None
     qualifier: NonEmptyString | None = None
-    legibility: LegibilityState = "clear"
+    legibility: LegibilityState = Field(
+        description=(
+            "Explicit source-value legibility. "
+            "Use clear or uncertain with a non-null value. "
+            "Use missing or illegible with a null value."
+        )
+    )
 
     @model_validator(mode="after")
     def validate_value_and_legibility(self) -> SourceValue:
@@ -191,14 +203,44 @@ class AngularPoint(ContractModel):
 
 
 class ScalarRepresentation(ContractModel):
-    kind: Literal["scalar"]
-    value: SourceValue
+    """A single source-reported quantity."""
 
+    kind: Literal["scalar"]
+    value: SourceValue = Field(
+        description=(
+            "One exact source-reported value. This includes a magnitude, "
+            "width, or span reported without explicit range endpoints."
+        )
+    )
+
+class IntervalEndpointValue(SourceValue):
+    value: NonEmptyString = Field(
+        description=(
+            "Exact non-null endpoint lexeme explicitly reported by the source."
+        )
+    )
+    legibility: Literal["clear", "uncertain"] = Field(
+        description=(
+            "Endpoint legibility. An interval endpoint must be clear or uncertain."
+        )
+    )
 
 class IntervalRepresentation(ContractModel):
+    """A source-reported range with two explicit endpoints."""
+
     kind: Literal["interval"]
-    lower: SourceValue
-    upper: SourceValue
+    lower: IntervalEndpointValue = Field(
+        description=(
+            "Exact lower endpoint explicitly reported by the source. "
+            "Do not derive it from a center value and range width."
+        )
+    )
+    upper: IntervalEndpointValue = Field(
+        description=(
+            "Exact upper endpoint explicitly reported by the source. "
+            "Do not derive it from a center value and range width."
+        )
+    )
 
 
 class PointCollectionRepresentation(ContractModel):

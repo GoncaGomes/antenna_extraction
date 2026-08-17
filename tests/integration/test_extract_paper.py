@@ -129,6 +129,26 @@ def test_full_document_request_is_ordered_strict_and_traceable(
         if item["type"] == "text"
     ) == 1
     prompt_text = content[0]["text"]
+    assert (
+    "Choose the representation from the form of the source evidence, "
+    "not from the metric name alone."
+    in prompt_text)
+    assert (
+        "Use scalar when the source reports one value, including the magnitude, "
+        "width, or span of a range without its endpoints."
+        in prompt_text
+    )
+    assert (
+        "Use interval only when the source explicitly reports both a lower endpoint and an upper endpoint."
+        in prompt_text
+    )
+    assert (
+        "Do not derive interval endpoints from a reported center value "
+        "and range width."
+        in prompt_text
+    )
+    assert "Always provide legibility explicitly for every SourceValue." in prompt_text
+    
     manifest_before = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
     assert manifest_before.document_id in prompt_text
     assert manifest_before.input_sha256 in prompt_text

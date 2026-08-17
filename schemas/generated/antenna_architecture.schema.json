@@ -2366,7 +2366,7 @@
       "additionalProperties": false,
       "properties": {
         "legibility": {
-          "default": "clear",
+          "description": "Explicit source-value legibility. Use clear or uncertain with a non-null value. Use missing or illegible with a null value.",
           "enum": [
             "clear",
             "uncertain",
@@ -2412,11 +2412,13 @@
               "type": "null"
             }
           ],
+          "description": "Exact value lexeme preserved from the source. It must be non-null when legibility is clear or uncertain, and null only when legibility is missing or illegible.",
           "title": "Value"
         }
       },
       "required": [
-        "value"
+        "value",
+        "legibility"
       ],
       "title": "SourceValue",
       "type": "object"

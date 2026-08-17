@@ -17,7 +17,16 @@ def test_schema_rendering_is_deterministic() -> None:
     for model in (PaperExtraction, AntennaResults, AntennaArchitecture):
         assert render_json_schema(model) == render_json_schema(model)
 
+def test_source_value_schema_requires_explicit_legibility() -> None:
+    schema = json.loads(render_json_schema(PaperExtraction))
+    source_value_schema = schema["$defs"]["SourceValue"]
 
+    assert set(source_value_schema["required"]) == {
+        "value",
+        "legibility",
+    }
+    assert "default" not in source_value_schema["properties"]["legibility"]
+    
 def test_generated_schemas_match_checked_in_files(tmp_path: Path) -> None:
     generated = generate_json_schemas(tmp_path)
 
@@ -234,3 +243,17 @@ def test_architecture_schema_excludes_deferred_and_family_specific_contracts() -
         "endpoint",
     ):
         assert forbidden not in serialized
+
+def test_interval_endpoint_schema_requires_available_values() -> None:
+    schema = json.loads(render_json_schema(PaperExtraction))
+    endpoint = schema["$defs"]["IntervalEndpointValue"]
+
+    assert endpoint["properties"]["value"]["type"] == "string"
+    assert set(endpoint["properties"]["legibility"]["enum"]) == {
+        "clear",
+        "uncertain",
+    }
+    assert set(endpoint["required"]) >= {
+        "value",
+        "legibility",
+    }

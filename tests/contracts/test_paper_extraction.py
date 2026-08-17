@@ -75,6 +75,12 @@ def test_missing_and_illegible_values_are_explicit() -> None:
         SourceValue(value="", unit="dB", legibility="clear")
     with pytest.raises(ValidationError):
         SourceValue(value=None, unit="dB", legibility="clear")
+    with pytest.raises(ValidationError) as exc_info:
+        SourceValue(value="2.45", unit="GHz")
+
+    error = exc_info.value.errors()[0]
+    assert error["loc"] == ("legibility",)
+    assert error["type"] == "missing"
 
 
 def test_contracts_reject_unknown_fields_and_type_coercion(
