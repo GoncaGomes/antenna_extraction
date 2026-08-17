@@ -119,6 +119,8 @@ class NuExtractRequestMetadata(StrictModel):
 class ExtractionValidationReport(StrictModel):
     status: Literal["valid"] = "valid"
     validated_at: datetime
+    document_context_source: Literal["manifest"] = "manifest"
+    filled_document_fields: list[Literal["source_filename", "sha256"]]
     document_id: str
     source_filename: str
     input_sha256: str
@@ -254,6 +256,10 @@ def extract_paper_from_run(
         substage = "response_parsing"
         response_data = json.loads(raw_response)
         substage = "schema_and_reference_validation"
+        filled_document_fields = _fill_missing_document_context(
+            response_data,
+            manifest,
+        )
         extraction = PaperExtraction.model_validate(response_data)
         _validate_extraction_context(extraction, manifest, render_report)
 
@@ -265,6 +271,7 @@ def extract_paper_from_run(
         extraction_checksum = sha256_file(run_dir / PAPER_EXTRACTION_PATH)
         validation_report = ExtractionValidationReport(
             validated_at=datetime.now(timezone.utc),
+            filled_document_fields=filled_document_fields,
             document_id=manifest.document_id,
             source_filename=Path(manifest.input_file).name,
             input_sha256=manifest.input_sha256,
@@ -446,6 +453,26 @@ def _validate_extraction_context(
             "extraction contradicts manifest or render report: "
             + ", ".join(mismatches)
         )
+
+
+def _fill_missing_document_context(
+    response_data: object,
+    manifest: RunManifest,
+) -> list[Literal["source_filename", "sha256"]]:
+    if not isinstance(response_data, dict):
+        raise ValueError("NuExtract3 response must be a JSON object")
+    document = response_data.get("document")
+    if not isinstance(document, dict):
+        raise ValueError("NuExtract3 response document must be a JSON object")
+
+    filled_fields: list[Literal["source_filename", "sha256"]] = []
+    if document.get("source_filename") is None:
+        document["source_filename"] = Path(manifest.input_file).name
+        filled_fields.append("source_filename")
+    if document.get("sha256") is None:
+        document["sha256"] = manifest.input_sha256
+        filled_fields.append("sha256")
+    return filled_fields
 
 
 def _refuse_existing_outputs(

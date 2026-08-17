@@ -262,6 +262,46 @@ def test_document_identity_contradiction_is_rejected_after_raw_persistence(
     assert manifest.phases["paper_extraction"].status == "failed"
 
 
+def test_missing_optional_document_context_is_filled_from_manifest(
+    tmp_path: Path,
+) -> None:
+    run_dir = _rendered_run(tmp_path)
+    response_data = _valid_extraction(run_dir)
+    response_data["document"]["source_filename"] = None
+    response_data["document"]["sha256"] = None
+    raw_response = json.dumps(response_data)
+    client = FakeClient([raw_response])
+
+    extraction = extract_paper_from_run(
+        run_dir,
+        enable_thinking=False,
+        settings=_settings(),
+        client=client,
+    )
+
+    manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
+    persisted_extraction = read_json(run_dir / PAPER_EXTRACTION_PATH)
+    persisted_raw = json.loads(
+        (run_dir / RAW_RESPONSE_PATH).read_text(encoding="utf-8")
+    )
+    validation_report = read_json(run_dir / EXTRACTION_VALIDATION_PATH)
+
+    assert len(client.completions.calls) == 1
+    assert extraction.document.source_filename == Path(manifest.input_file).name
+    assert extraction.document.sha256 == manifest.input_sha256
+    assert persisted_extraction["document"]["source_filename"] == Path(
+        manifest.input_file
+    ).name
+    assert persisted_extraction["document"]["sha256"] == manifest.input_sha256
+    assert persisted_raw["document"]["source_filename"] is None
+    assert persisted_raw["document"]["sha256"] is None
+    assert validation_report["document_context_source"] == "manifest"
+    assert validation_report["filled_document_fields"] == [
+        "source_filename",
+        "sha256",
+    ]
+
+
 def test_extraction_requires_completed_page_rendering_without_model_call(
     tmp_path: Path,
 ) -> None:
