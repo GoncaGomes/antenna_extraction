@@ -73,39 +73,17 @@ Extract the paper exhaustively and preserve its scientific meaning:
 - record conflicts, uncertainty, illegible information, and missing information explicitly
 - include the pages containing evidence required for later architecture reconstruction in architecture_page_refs
 
-Choose each result representation according to the source evidence:
+Choose the representation that matches the source evidence.
 
-- Use "scalar" only when the paper explicitly reports one scalar value whose exact source lexeme can be preserved.
-- Never use a scalar representation with value null as a placeholder for a non-scalar result.
-- Use "interval" only for an explicitly reported lower and upper bound.
-- Use "sampled_series" only when trustworthy numeric curve points can be preserved without estimating or digitising them.
-- Use "angular_pattern" only when trustworthy angular numeric points are explicitly reported or clearly legible.
-- Use "image_only" for plots, including radiation patterns, when the curves are visible but trustworthy numeric samples cannot be extracted.
-- Use "field_map" for current-density, surface-current, electric-field, magnetic-field, or similar spatial maps. Use image-only field-map content when the map is visible but cannot be represented as trustworthy numeric samples.
-- Use "qualitative" for reported comparisons, tendencies, behaviours, or conclusions that have no suitable numeric representation.
-- A SourceValue with legibility "clear" or "uncertain" must contain a non-null value string.
-- Use a null SourceValue only when its legibility is "missing" or "illegible", and make the parent result legibility and extraction_completeness match that state.
-- Do not mark a visible graph or field map as missing merely because it cannot be converted into trustworthy numeric samples.
-- Do not invent, estimate, or digitise values to avoid using image-only or qualitative representations.
-
-Source-value rules:
-
-- Always provide legibility explicitly for every SourceValue.
-- Use clear or uncertain only when value contains an exact non-null source lexeme.
-- Use missing or illegible only when value is null.
-- If an optional field is not reported at all, prefer null for that optional field instead of constructing an empty SourceValue.
-- Do not create scalar or interval placeholders merely to attach evidence.
-
-Result-representation rules:
-
-- Choose the representation from the form of the source evidence, not from the metric name alone.
-- Use scalar when the source reports one value, including the magnitude, width, or span of a range without its endpoints.
-- Use interval only when the source explicitly reports both a lower endpoint and an upper endpoint.
-- Both interval endpoints must preserve non-null source values.
-- Do not derive interval endpoints from a reported center value and range width.
-- When the source separately reports a center value and a range width, preserve them as separate scalar results when both are relevant.
-- Use qualitative when the source reports only a non-numeric conclusion.
-- Use image_only when a graph is available but its numerical values cannot be read reliably.
+* Use scalar for one explicitly reported value.
+* Use interval only for two explicitly reported endpoints.
+* Use point_collection, sampled_series, matrix, or angular_pattern only for source-supported numeric data.
+* Use spatial_map for spatially distributed quantities.
+* Use image_only when visual evidence exists but trustworthy numeric samples cannot be preserved.
+* Use qualitative for source-supported non-numeric findings.
+* Use unavailable only when an identified result cannot be represented because its value is not reported, illegible, or ambiguous.
+* Record entirely absent information in missing_information.
+* Never invent, derive, estimate, or digitise values.
 
 Do not invent dimensions, materials, values, relationships, design choices, result points, or engineering assumptions. Do not infer typical antenna properties that are not stated or visibly supported. Do not select or construct the final solver architecture. Do not emit CST commands, solver commands, simulation instructions, optimisation steps, or construction plans.
 
@@ -447,9 +425,7 @@ def _build_multimodal_content(
 ) -> list[dict[str, Any]]:
     content: list[dict[str, Any]] = [{"type": "text", "text": effective_prompt}]
     for page in pages:
-        content.append(
-            {"type": "text", "text": f"PDF_INPUT_PAGE={page.page_number}"}
-        )
+        content.append({"type": "text", "text": f"PDF_INPUT_PAGE={page.page_number}"})
         content.append(
             {
                 "type": "image_url",
@@ -484,8 +460,7 @@ def _validate_extraction_context(
         mismatches.append("ordered pages")
     if mismatches:
         raise ValueError(
-            "extraction contradicts manifest or render report: "
-            + ", ".join(mismatches)
+            "extraction contradicts manifest or render report: " + ", ".join(mismatches)
         )
 
 
@@ -529,14 +504,18 @@ def _clear_extraction_outputs(run_dir: Path, manifest: RunManifest) -> None:
         (run_dir / relative_path).unlink(missing_ok=True)
     artifact_names = set(EXTRACTION_ARTIFACT_PATHS)
     manifest.artifacts = [
-        artifact for artifact in manifest.artifacts if artifact.name not in artifact_names
+        artifact
+        for artifact in manifest.artifacts
+        if artifact.name not in artifact_names
     ]
 
 
 def _replace_extraction_artifacts(manifest: RunManifest, run_dir: Path) -> None:
     artifact_names = set(EXTRACTION_ARTIFACT_PATHS)
     manifest.artifacts = [
-        artifact for artifact in manifest.artifacts if artifact.name not in artifact_names
+        artifact
+        for artifact in manifest.artifacts
+        if artifact.name not in artifact_names
     ]
     for name, relative_path in EXTRACTION_ARTIFACT_PATHS.items():
         path = run_dir / relative_path

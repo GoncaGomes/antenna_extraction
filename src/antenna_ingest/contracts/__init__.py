@@ -12,6 +12,8 @@ from antenna_ingest.contracts.common import (
     SampledSeriesRepresentation,
     SimulationSetup,
     SourceValue,
+    SpatialMapRepresentation,
+    UnavailableRepresentation,
 )
 from antenna_ingest.contracts.paper_extraction import PaperExtraction
 
@@ -30,4 +32,6 @@ __all__ = [
     "SampledSeriesRepresentation",
     "SimulationSetup",
     "SourceValue",
+    "SpatialMapRepresentation",
+    "UnavailableRepresentation",
 ]

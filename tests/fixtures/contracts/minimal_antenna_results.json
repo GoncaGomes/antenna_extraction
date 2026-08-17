@@ -68,9 +68,7 @@
         "value": {"value": "47.98", "unit": "ohm", "qualifier": null, "legibility": "clear"}
       },
       "evidence_ids": ["ev_simulated"],
-      "legibility": "clear",
-      "uncertainty_note": null,
-      "extraction_completeness": "complete"
+      "uncertainty_note": null
     },
     {
       "result_id": "result_measured",
@@ -92,9 +90,7 @@
         ]
       },
       "evidence_ids": ["ev_measured"],
-      "legibility": "uncertain",
-      "uncertainty_note": "Only the explicitly annotated point is numeric.",
-      "extraction_completeness": "partial_numeric"
+      "uncertainty_note": "Only the explicitly annotated point is numeric."
     }
   ],
   "evidence_catalog": [

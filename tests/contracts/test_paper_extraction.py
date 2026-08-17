@@ -42,20 +42,14 @@ def test_synthetic_paper_extraction_validates_and_preserves_source_lexemes(
     assert series.points[0].x.value == "2.450"
     assert series.points[0].y.qualifier == "<"
     assert series.points[0].y.value == "-10"
-    assert extraction.feed_port_excitation_observations[
-        0
-    ].reported_impedance.unit == "Ω"
+    assert extraction.feed_port_excitation_observations[0].reported_impedance is None
 
     dumped = extraction.model_dump(mode="json")
     assert dumped["results"][0]["representation"]["value"]["value"] == "47.98"
-    assert dumped["results"][1]["representation"]["points"][0]["x"][
-        "value"
-    ] == "2.450"
+    assert dumped["results"][1]["representation"]["points"][0]["x"]["value"] == "2.450"
 
 
-def test_missing_and_illegible_values_are_explicit() -> None:
-    missing = SourceValue(value=None, unit="Ω", legibility="missing")
-    illegible = SourceValue(value=None, unit=None, legibility="illegible")
+def test_source_values_require_available_non_empty_lexemes() -> None:
     approximate = SourceValue(
         value="50",
         unit="Ω",
@@ -63,8 +57,6 @@ def test_missing_and_illegible_values_are_explicit() -> None:
         legibility="clear",
     )
 
-    assert missing.value is None
-    assert illegible.value is None
     assert approximate.model_dump(mode="json") == {
         "value": "50",
         "unit": "Ω",
@@ -75,12 +67,24 @@ def test_missing_and_illegible_values_are_explicit() -> None:
         SourceValue(value="", unit="dB", legibility="clear")
     with pytest.raises(ValidationError):
         SourceValue(value=None, unit="dB", legibility="clear")
+    with pytest.raises(ValidationError):
+        SourceValue(value="2.45", unit="GHz", legibility="missing")
+    with pytest.raises(ValidationError):
+        SourceValue(value="2.45", unit="GHz", legibility="illegible")
     with pytest.raises(ValidationError) as exc_info:
         SourceValue(value="2.45", unit="GHz")
 
     error = exc_info.value.errors()[0]
     assert error["loc"] == ("legibility",)
     assert error["type"] == "missing"
+
+
+def test_source_value_legibility_accepts_only_clear_or_uncertain() -> None:
+    clear = SourceValue(value="2.45", legibility="clear")
+    uncertain = SourceValue(value="2.45", legibility="uncertain")
+
+    assert clear.legibility == "clear"
+    assert uncertain.legibility == "uncertain"
 
 
 def test_contracts_reject_unknown_fields_and_type_coercion(
@@ -102,9 +106,7 @@ def test_contracts_reject_unknown_fields_and_type_coercion(
         PaperExtraction.model_validate(coerced)
 
     numeric_source_value = deepcopy(paper_extraction_data)
-    numeric_source_value["results"][0]["representation"]["value"][
-        "value"
-    ] = 47.98
+    numeric_source_value["results"][0]["representation"]["value"]["value"] = 47.98
     with pytest.raises(ValidationError):
         PaperExtraction.model_validate(numeric_source_value)
 
@@ -126,11 +128,14 @@ def test_geometry_observation_is_source_oriented_not_constructive() -> None:
         "uncertainty_note",
         "source_feature_label",
     }
-    assert not {
-        "blocks",
-        "placement",
-        "faces",
-        "boolean_operations",
-        "solver_commands",
-        "expression",
-    } & field_names
+    assert (
+        not {
+            "blocks",
+            "placement",
+            "faces",
+            "boolean_operations",
+            "solver_commands",
+            "expression",
+        }
+        & field_names
+    )

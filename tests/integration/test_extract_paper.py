@@ -37,7 +37,9 @@ FIXTURE_PATH = (
 
 
 class FakeCompletions:
-    def __init__(self, responses: list[str] | None = None, error: Exception | None = None):
+    def __init__(
+        self, responses: list[str] | None = None, error: Exception | None = None
+    ):
         self.responses = list(responses or [])
         self.error = error
         self.calls: list[dict] = []
@@ -67,7 +69,9 @@ class FakeCompletions:
 
 
 class FakeClient:
-    def __init__(self, responses: list[str] | None = None, error: Exception | None = None):
+    def __init__(
+        self, responses: list[str] | None = None, error: Exception | None = None
+    ):
         self.completions = FakeCompletions(responses, error)
         self.chat = SimpleNamespace(completions=self.completions)
 
@@ -123,40 +127,34 @@ def test_full_document_request_is_ordered_strict_and_traceable(
         "text",
         "image_url",
     ]
-    assert sum(
-        EXTRACTION_PROMPT in item.get("text", "")
-        for item in content
-        if item["type"] == "text"
-    ) == 1
+    assert (
+        sum(
+            EXTRACTION_PROMPT in item.get("text", "")
+            for item in content
+            if item["type"] == "text"
+        )
+        == 1
+    )
     prompt_text = content[0]["text"]
-    assert (
-    "Choose the representation from the form of the source evidence, "
-    "not from the metric name alone."
-    in prompt_text)
-    assert (
-        "Use scalar when the source reports one value, including the magnitude, "
-        "width, or span of a range without its endpoints."
-        in prompt_text
-    )
-    assert (
-        "Use interval only when the source explicitly reports both a lower endpoint and an upper endpoint."
-        in prompt_text
-    )
-    assert (
-        "Do not derive interval endpoints from a reported center value "
-        "and range width."
-        in prompt_text
-    )
-    assert "Always provide legibility explicitly for every SourceValue." in prompt_text
-    
+    representation_guidance = """Choose the representation that matches the source evidence.
+
+* Use scalar for one explicitly reported value.
+* Use interval only for two explicitly reported endpoints.
+* Use point_collection, sampled_series, matrix, or angular_pattern only for source-supported numeric data.
+* Use spatial_map for spatially distributed quantities.
+* Use image_only when visual evidence exists but trustworthy numeric samples cannot be preserved.
+* Use qualitative for source-supported non-numeric findings.
+* Use unavailable only when an identified result cannot be represented because its value is not reported, illegible, or ambiguous.
+* Record entirely absent information in missing_information.
+* Never invent, derive, estimate, or digitise values."""
+    assert representation_guidance in prompt_text
+
     manifest_before = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
     assert manifest_before.document_id in prompt_text
     assert manifest_before.input_sha256 in prompt_text
     assert Path(manifest_before.input_file).name in prompt_text
     image_urls = [
-        item["image_url"]["url"]
-        for item in content
-        if item["type"] == "image_url"
+        item["image_url"]["url"] for item in content if item["type"] == "image_url"
     ]
     assert len(image_urls) == 2
     assert len(set(image_urls)) == 2
@@ -171,18 +169,20 @@ def test_full_document_request_is_ordered_strict_and_traceable(
     assert all(len(page["sha256"]) == 64 for page in metadata["pages"])
     assert len(metadata["prompt_hash"]) == 64
     assert len(metadata["schema_hash"]) == 64
-    assert metadata["prompt_hash"] == hashlib.sha256(
-        prompt_text.encode("utf-8")
-    ).hexdigest()
+    assert (
+        metadata["prompt_hash"]
+        == hashlib.sha256(prompt_text.encode("utf-8")).hexdigest()
+    )
     rendered_schema = json.dumps(
         PaperExtraction.model_json_schema(mode="validation"),
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
     )
-    assert metadata["schema_hash"] == hashlib.sha256(
-        rendered_schema.encode("utf-8")
-    ).hexdigest()
+    assert (
+        metadata["schema_hash"]
+        == hashlib.sha256(rendered_schema.encode("utf-8")).hexdigest()
+    )
     assert metadata["request_started_at"]
     assert metadata["request_completed_at"]
     assert metadata["response_id"] == "response-1"
@@ -309,9 +309,10 @@ def test_missing_optional_document_context_is_filled_from_manifest(
     assert len(client.completions.calls) == 1
     assert extraction.document.source_filename == Path(manifest.input_file).name
     assert extraction.document.sha256 == manifest.input_sha256
-    assert persisted_extraction["document"]["source_filename"] == Path(
-        manifest.input_file
-    ).name
+    assert (
+        persisted_extraction["document"]["source_filename"]
+        == Path(manifest.input_file).name
+    )
     assert persisted_extraction["document"]["sha256"] == manifest.input_sha256
     assert persisted_raw["document"]["source_filename"] is None
     assert persisted_raw["document"]["sha256"] is None
@@ -343,9 +344,7 @@ def test_extraction_requires_completed_page_rendering_without_model_call(
             client=client,
         )
 
-    manifest = RunManifest.model_validate(
-        read_json(context.run_dir / "manifest.json")
-    )
+    manifest = RunManifest.model_validate(read_json(context.run_dir / "manifest.json"))
     assert len(client.completions.calls) == 0
     assert manifest.phases["paper_extraction"].status == "pending"
 
@@ -366,7 +365,7 @@ def test_request_failure_is_redacted_and_never_retried(tmp_path: Path) -> None:
     assert (run_dir / REQUEST_METADATA_PATH).is_file()
     assert not (run_dir / RAW_RESPONSE_PATH).exists()
     failure, manifest = _failure_and_manifest(run_dir)
-    persisted_failure = (run_dir / manifest.phases["paper_extraction"].failure_reference)
+    persisted_failure = run_dir / manifest.phases["paper_extraction"].failure_reference
     assert "request-secret" not in persisted_failure.read_text(encoding="utf-8")
     assert "[redacted]" in failure["message"]
     assert manifest.phases["paper_extraction"].status == "failed"

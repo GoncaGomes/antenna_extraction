@@ -2366,12 +2366,10 @@
       "additionalProperties": false,
       "properties": {
         "legibility": {
-          "description": "Explicit source-value legibility. Use clear or uncertain with a non-null value. Use missing or illegible with a null value.",
+          "description": "Explicit legibility of the preserved source value.",
           "enum": [
             "clear",
-            "uncertain",
-            "illegible",
-            "missing"
+            "uncertain"
           ],
           "title": "Legibility",
           "type": "string"
@@ -2403,17 +2401,10 @@
           "title": "Unit"
         },
         "value": {
-          "anyOf": [
-            {
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Exact value lexeme preserved from the source. It must be non-null when legibility is clear or uncertain, and null only when legibility is missing or illegible.",
-          "title": "Value"
+          "description": "Exact non-empty value lexeme preserved from the source.",
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
         }
       },
       "required": [

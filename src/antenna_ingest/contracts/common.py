@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
 from datetime import datetime
 from typing import Annotated, Literal
 
@@ -23,13 +22,7 @@ NonEmptyString = Annotated[
 Identifier = NonEmptyString
 
 LegibilityState = Literal["clear", "uncertain", "illegible", "missing"]
-ResultOrigin = Literal["simulated", "measured", "analytical"]
-ExtractionCompleteness = Literal[
-    "complete",
-    "partial_numeric",
-    "illegible",
-    "missing",
-]
+ResultOrigin = Literal["simulated", "measured", "analytical", "unspecified"]
 EvidenceSourceKind = Literal[
     "text",
     "caption",
@@ -42,34 +35,14 @@ EvidenceSourceKind = Literal[
 
 
 class SourceValue(ContractModel):
-    value: NonEmptyString | None = Field(
-        description=(
-            "Exact value lexeme preserved from the source. "
-            "It must be non-null when legibility is clear or uncertain, "
-            "and null only when legibility is missing or illegible."
-        )
+    value: NonEmptyString = Field(
+        description="Exact non-empty value lexeme preserved from the source."
     )
     unit: NonEmptyString | None = None
     qualifier: NonEmptyString | None = None
-    legibility: LegibilityState = Field(
-        description=(
-            "Explicit source-value legibility. "
-            "Use clear or uncertain with a non-null value. "
-            "Use missing or illegible with a null value."
-        )
+    legibility: Literal["clear", "uncertain"] = Field(
+        description="Explicit legibility of the preserved source value."
     )
-
-    @model_validator(mode="after")
-    def validate_value_and_legibility(self) -> SourceValue:
-        if self.value is None and self.legibility in {"clear", "uncertain"}:
-            raise ValueError(
-                "a clear or uncertain source value must preserve its lexeme"
-            )
-        if self.value is not None and self.legibility in {"missing", "illegible"}:
-            raise ValueError(
-                "a missing or illegible source value cannot contain a value lexeme"
-            )
-        return self
 
 
 class DocumentReference(ContractModel):
@@ -213,29 +186,18 @@ class ScalarRepresentation(ContractModel):
         )
     )
 
-class IntervalEndpointValue(SourceValue):
-    value: NonEmptyString = Field(
-        description=(
-            "Exact non-null endpoint lexeme explicitly reported by the source."
-        )
-    )
-    legibility: Literal["clear", "uncertain"] = Field(
-        description=(
-            "Endpoint legibility. An interval endpoint must be clear or uncertain."
-        )
-    )
 
 class IntervalRepresentation(ContractModel):
     """A source-reported range with two explicit endpoints."""
 
     kind: Literal["interval"]
-    lower: IntervalEndpointValue = Field(
+    lower: SourceValue = Field(
         description=(
             "Exact lower endpoint explicitly reported by the source. "
             "Do not derive it from a center value and range width."
         )
     )
-    upper: IntervalEndpointValue = Field(
+    upper: SourceValue = Field(
         description=(
             "Exact upper endpoint explicitly reported by the source. "
             "Do not derive it from a center value and range width."
@@ -285,13 +247,13 @@ class AngularPatternRepresentation(ContractModel):
     points: list[AngularPoint] = Field(min_length=1)
 
 
-class SampledFieldMapContent(ContractModel):
+class SampledSpatialMapContent(ContractModel):
     kind: Literal["sampled"]
     coordinate_description: NonEmptyString
     samples: list[ReportedPoint] = Field(min_length=1)
 
 
-class ImageOnlyFieldMapContent(ContractModel):
+class ImageOnlySpatialMapContent(ContractModel):
     kind: Literal["image_only"]
     map_type_or_component: NonEmptyString | None = None
     plane_or_cut: NonEmptyString | None = None
@@ -300,17 +262,16 @@ class ImageOnlyFieldMapContent(ContractModel):
     evidence_ids: list[Identifier] = Field(min_length=1)
 
 
-FieldMapContent = Annotated[
-    SampledFieldMapContent | ImageOnlyFieldMapContent,
+SpatialMapContent = Annotated[
+    SampledSpatialMapContent | ImageOnlySpatialMapContent,
     Field(discriminator="kind"),
 ]
 
 
-class FieldMapRepresentation(ContractModel):
-    kind: Literal["field_map"]
-    field_or_current: Literal["field", "current"]
+class SpatialMapRepresentation(ContractModel):
+    kind: Literal["spatial_map"]
     quantity: NonEmptyString
-    content: FieldMapContent
+    content: SpatialMapContent
 
 
 class ImageOnlyGraphRepresentation(ContractModel):
@@ -326,6 +287,12 @@ class QualitativeRepresentation(ContractModel):
     observation: NonEmptyString
 
 
+class UnavailableRepresentation(ContractModel):
+    kind: Literal["unavailable"]
+    reason: Literal["not_reported", "illegible", "ambiguous"]
+    description: NonEmptyString
+
+
 ResultRepresentation = Annotated[
     ScalarRepresentation
     | IntervalRepresentation
@@ -333,9 +300,10 @@ ResultRepresentation = Annotated[
     | SampledSeriesRepresentation
     | MatrixRepresentation
     | AngularPatternRepresentation
-    | FieldMapRepresentation
+    | SpatialMapRepresentation
     | ImageOnlyGraphRepresentation
-    | QualitativeRepresentation,
+    | QualitativeRepresentation
+    | UnavailableRepresentation,
     Field(discriminator="kind"),
 ]
 
@@ -349,62 +317,7 @@ class ResultRecord(ContractModel):
     conditions: list[ReportedCondition] = Field(default_factory=list)
     representation: ResultRepresentation
     evidence_ids: list[Identifier] = Field(min_length=1)
-    legibility: LegibilityState = "clear"
     uncertainty_note: NonEmptyString | None = None
-    extraction_completeness: ExtractionCompleteness = "complete"
-
-    @model_validator(mode="after")
-    def validate_representation_completeness(self) -> ResultRecord:
-        kind = self.representation.kind
-        if self.extraction_completeness == "partial_numeric" and kind not in {
-            "sampled_series",
-            "angular_pattern",
-        }:
-            raise ValueError(
-                "partial_numeric is supported only for sampled series and angular patterns"
-            )
-        if self.extraction_completeness in {"missing", "illegible"}:
-            if self.legibility != self.extraction_completeness:
-                raise ValueError(
-                    "missing and illegible results require the matching legibility state"
-                )
-        if self.legibility in {"missing", "illegible"}:
-            if self.extraction_completeness != self.legibility:
-                raise ValueError(
-                    "missing and illegible legibility requires matching completeness"
-                )
-
-        source_values = list(_iter_source_values(self.representation))
-        unavailable_states = {"missing", "illegible"}
-        if self.extraction_completeness in {"complete", "partial_numeric"}:
-            if any(value.legibility in unavailable_states for value in source_values):
-                raise ValueError(
-                    "complete and partial_numeric results cannot contain missing "
-                    "or illegible source values"
-                )
-        if self.extraction_completeness in {"missing", "illegible"}:
-            expected_state = self.extraction_completeness
-            if not source_values or any(
-                value.legibility != expected_state for value in source_values
-            ):
-                raise ValueError(
-                    f"a {expected_state} result requires every source value to be "
-                    f"{expected_state}"
-                )
-        return self
-
-
-def _iter_source_values(value: object) -> Iterator[SourceValue]:
-    if isinstance(value, SourceValue):
-        yield value
-        return
-    if isinstance(value, ContractModel):
-        for field_name in type(value).model_fields:
-            yield from _iter_source_values(getattr(value, field_name))
-        return
-    if isinstance(value, (list, tuple)):
-        for item in value:
-            yield from _iter_source_values(item)
 
 
 ReferenceKind = Literal[
@@ -532,7 +445,8 @@ def validate_shared_references(
                     f"result {result.result_id!r} references unknown setup "
                     f"{result.setup_id!r}"
                 )
-            if setup.kind != compatible_setup_kind[result.origin]:
+            expected_setup_kind = compatible_setup_kind.get(result.origin)
+            if expected_setup_kind is not None and setup.kind != expected_setup_kind:
                 raise ValueError(
                     f"result origin {result.origin!r} is incompatible with "
                     f"setup kind {setup.kind!r}"
@@ -544,9 +458,9 @@ def validate_shared_references(
                 evidence_ids,
                 "evidence",
             )
-        if isinstance(result.representation, FieldMapRepresentation) and isinstance(
+        if isinstance(result.representation, SpatialMapRepresentation) and isinstance(
             result.representation.content,
-            ImageOnlyFieldMapContent,
+            ImageOnlySpatialMapContent,
         ):
             _ensure_known_ids(
                 result.representation.content.evidence_ids,
@@ -569,9 +483,7 @@ def validate_shared_references(
         for reference in item.related_refs:
             known_ids = reference_index.get(reference.kind, set())
             if reference.id not in known_ids:
-                raise ValueError(
-                    f"unknown {reference.kind} reference {reference.id!r}"
-                )
+                raise ValueError(f"unknown {reference.kind} reference {reference.id!r}")
     return reference_index
 
 

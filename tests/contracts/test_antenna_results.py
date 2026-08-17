@@ -6,8 +6,12 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from antenna_ingest.contracts.common import IntervalRepresentation
 from antenna_ingest.contracts.antenna_results import AntennaResults
+from antenna_ingest.contracts.common import (
+    IntervalRepresentation,
+    ResultRecord,
+    UnavailableRepresentation,
+)
 
 
 FIXTURE_PATH = (
@@ -16,6 +20,7 @@ FIXTURE_PATH = (
     / "contracts"
     / "minimal_antenna_results.json"
 )
+
 
 def _source_value(value: str, unit: str | None = None) -> dict:
     return {
@@ -39,7 +44,6 @@ REPRESENTATIONS = [
     (
         "scalar",
         {"kind": "scalar", "value": _source_value("47.98", "ohm")},
-        "complete",
     ),
     (
         "interval",
@@ -48,7 +52,6 @@ REPRESENTATIONS = [
             "lower": _source_value("2.40", "GHz"),
             "upper": _source_value("2.50", "GHz"),
         },
-        "complete",
     ),
     (
         "point_collection",
@@ -64,7 +67,6 @@ REPRESENTATIONS = [
                 }
             ],
         },
-        "complete",
     ),
     (
         "sampled_series",
@@ -80,7 +82,6 @@ REPRESENTATIONS = [
                 }
             ],
         },
-        "partial_numeric",
     ),
     (
         "matrix",
@@ -90,7 +91,6 @@ REPRESENTATIONS = [
             "row_labels": ["row 1"],
             "column_labels": ["col 1", "col 2"],
         },
-        "complete",
     ),
     (
         "angular_pattern",
@@ -98,7 +98,7 @@ REPRESENTATIONS = [
             "kind": "angular_pattern",
             "angular_coordinate": "theta",
             "angular_unit": "degree",
-            "plane_or_cut": "phi = 0°",
+            "plane_or_cut": "phi = 0 degrees",
             "fixed_angle": _source_value("0", "degree"),
             "component_or_polarization": "co-polar",
             "radial_quantity": "gain",
@@ -109,13 +109,11 @@ REPRESENTATIONS = [
                 }
             ],
         },
-        "partial_numeric",
     ),
     (
-        "field_map",
+        "spatial_map",
         {
-            "kind": "field_map",
-            "field_or_current": "current",
+            "kind": "spatial_map",
             "quantity": "surface current magnitude",
             "content": {
                 "kind": "sampled",
@@ -134,7 +132,6 @@ REPRESENTATIONS = [
                 ],
             },
         },
-        "complete",
     ),
     (
         "image_only",
@@ -148,7 +145,6 @@ REPRESENTATIONS = [
             "annotated_points": [],
             "evidence_ids": ["ev_measured"],
         },
-        "complete",
     ),
     (
         "qualitative",
@@ -156,23 +152,28 @@ REPRESENTATIONS = [
             "kind": "qualitative",
             "observation": "The measured response remains stable.",
         },
-        "complete",
+    ),
+    (
+        "unavailable",
+        {
+            "kind": "unavailable",
+            "reason": "not_reported",
+            "description": "The result is identified but no value is reported.",
+        },
     ),
 ]
 
 
-@pytest.mark.parametrize(("kind", "representation", "completeness"), REPRESENTATIONS)
+@pytest.mark.parametrize(("kind", "representation"), REPRESENTATIONS)
 def test_all_result_representations_validate(
     antenna_results_data,
     kind,
     representation,
-    completeness,
 ) -> None:
     data = deepcopy(antenna_results_data)
     result = data["results"][0]
     result["setup_id"] = None
     result["representation"] = representation
-    result["extraction_completeness"] = completeness
     data["results"] = [result]
     data["conflicts"] = []
 
@@ -201,79 +202,68 @@ def test_simulated_and_measured_results_remain_separate(
     assert results.conflicts == []
 
 
-def test_complete_result_rejects_a_missing_nested_source_value(
+def test_result_record_excludes_removed_status_fields(antenna_results_data) -> None:
+    assert "legibility" not in ResultRecord.model_fields
+    assert "extraction_completeness" not in ResultRecord.model_fields
+    assert "uncertainty_note" in ResultRecord.model_fields
+
+    data = deepcopy(antenna_results_data)
+    data["results"][0]["legibility"] = "clear"
+    data["results"][0]["extraction_completeness"] = "complete"
+
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        AntennaResults.model_validate(data)
+
+
+def test_unspecified_result_origin_is_valid(antenna_results_data) -> None:
+    data = deepcopy(antenna_results_data)
+    data["results"][0]["origin"] = "unspecified"
+
+    validated = AntennaResults.model_validate(data)
+
+    assert validated.results[0].origin == "unspecified"
+
+
+@pytest.mark.parametrize(
+    "quantity",
+    ["SAR", "surface current", "electric field", "gain", "power density"],
+)
+def test_spatial_map_supports_generic_quantities(
     antenna_results_data,
+    quantity,
 ) -> None:
     data = deepcopy(antenna_results_data)
-    result = data["results"][0]
-    result["representation"] = {
-        "kind": "scalar",
-        "value": {
-            "value": None,
-            "unit": "ohm",
-            "qualifier": None,
-            "legibility": "missing",
+    data["results"][0]["representation"] = {
+        "kind": "spatial_map",
+        "quantity": quantity,
+        "content": {
+            "kind": "sampled",
+            "coordinate_description": "reported local coordinates",
+            "samples": [
+                {
+                    "values": [
+                        {"name": "x", "value": _source_value("0", "mm")},
+                        {"name": quantity, "value": _source_value("1.2")},
+                    ],
+                    "label": None,
+                }
+            ],
         },
     }
-    result["extraction_completeness"] = "complete"
 
-    with pytest.raises(ValidationError, match="cannot contain missing or illegible"):
-        AntennaResults.model_validate(data)
+    validated = AntennaResults.model_validate(data)
+    representation = validated.results[0].representation
+
+    assert representation.kind == "spatial_map"
+    assert representation.quantity == quantity
 
 
-def test_missing_result_rejects_a_legible_nested_source_value(
+def test_sampled_spatial_map_without_samples_is_rejected(
     antenna_results_data,
 ) -> None:
     data = deepcopy(antenna_results_data)
-    result = data["results"][0]
-    result["representation"] = {
-        "kind": "scalar",
-        "value": _source_value("47.98", "ohm"),
-    }
-    result["legibility"] = "missing"
-    result["extraction_completeness"] = "missing"
-
-    with pytest.raises(ValidationError, match="every source value to be missing"):
-        AntennaResults.model_validate(data)
-
-
-def test_partial_numeric_result_rejects_a_missing_nested_source_value(
-    antenna_results_data,
-) -> None:
-    data = deepcopy(antenna_results_data)
-    result = data["results"][0]
-    result["setup_id"] = None
-    result["representation"] = {
-        "kind": "sampled_series",
-        "x_axis": {"name": "frequency", "unit": "GHz"},
-        "y_axis": {"name": "S11", "unit": "dB"},
-        "trace_label": "reported trace",
-        "points": [
-            {
-                "x": {
-                    "value": None,
-                    "unit": "GHz",
-                    "qualifier": None,
-                    "legibility": "missing",
-                },
-                "y": _source_value("-10", "dB"),
-            }
-        ],
-    }
-    result["extraction_completeness"] = "partial_numeric"
-
-    with pytest.raises(ValidationError, match="cannot contain missing or illegible"):
-        AntennaResults.model_validate(data)
-
-
-def test_sampled_field_map_without_samples_is_rejected(
-    antenna_results_data,
-) -> None:
-    data = deepcopy(antenna_results_data)
-    result = data["results"][0]
-    result["representation"] = {
-        "kind": "field_map",
-        "field_or_current": "field",
+    data["results"][0]["representation"] = {
+        "kind": "spatial_map",
         "quantity": "electric field magnitude",
         "content": {
             "kind": "sampled",
@@ -286,14 +276,12 @@ def test_sampled_field_map_without_samples_is_rejected(
         AntennaResults.model_validate(data)
 
 
-def test_image_only_field_map_with_known_evidence_is_valid(
+def test_image_only_spatial_map_with_known_evidence_is_valid(
     antenna_results_data,
 ) -> None:
     data = deepcopy(antenna_results_data)
-    result = data["results"][0]
-    result["representation"] = {
-        "kind": "field_map",
-        "field_or_current": "current",
+    data["results"][0]["representation"] = {
+        "kind": "spatial_map",
         "quantity": "surface current magnitude",
         "content": {
             "kind": "image_only",
@@ -308,19 +296,13 @@ def test_image_only_field_map_with_known_evidence_is_valid(
     validated = AntennaResults.model_validate(data)
 
     assert validated.results[0].representation.content.kind == "image_only"
-    assert validated.results[0].representation.content.evidence_ids == [
-        "ev_simulated"
-    ]
+    assert validated.results[0].representation.content.evidence_ids == ["ev_simulated"]
 
 
-def test_image_only_field_map_requires_evidence(
-    antenna_results_data,
-) -> None:
+def test_image_only_spatial_map_requires_evidence(antenna_results_data) -> None:
     data = deepcopy(antenna_results_data)
-    result = data["results"][0]
-    result["representation"] = {
-        "kind": "field_map",
-        "field_or_current": "current",
+    data["results"][0]["representation"] = {
+        "kind": "spatial_map",
         "quantity": "surface current magnitude",
         "content": {
             "kind": "image_only",
@@ -332,14 +314,12 @@ def test_image_only_field_map_requires_evidence(
         AntennaResults.model_validate(data)
 
 
-def test_image_only_field_map_rejects_unknown_evidence(
+def test_image_only_spatial_map_rejects_unknown_evidence(
     antenna_results_data,
 ) -> None:
     data = deepcopy(antenna_results_data)
-    result = data["results"][0]
-    result["representation"] = {
-        "kind": "field_map",
-        "field_or_current": "current",
+    data["results"][0]["representation"] = {
+        "kind": "spatial_map",
         "quantity": "surface current magnitude",
         "content": {
             "kind": "image_only",
@@ -351,34 +331,27 @@ def test_image_only_field_map_rejects_unknown_evidence(
         AntennaResults.model_validate(data)
 
 
-@pytest.mark.parametrize("state", ["missing", "illegible"])
-def test_missing_and_illegible_results_remain_explicit(
-    antenna_results_data,
-    state,
-) -> None:
-    data = deepcopy(antenna_results_data)
-    result = data["results"][0]
-    result["setup_id"] = None
-    result["representation"] = {
-        "kind": "scalar",
-        "value": {
-            "value": None,
-            "unit": "dB",
-            "qualifier": None,
-            "legibility": state,
-        },
-    }
-    result["legibility"] = state
-    result["extraction_completeness"] = state
-    data["results"] = [result]
-    data["conflicts"] = []
+@pytest.mark.parametrize("reason", ["not_reported", "illegible", "ambiguous"])
+def test_unavailable_representation_accepts_approved_reasons(reason) -> None:
+    representation = UnavailableRepresentation(
+        kind="unavailable",
+        reason=reason,
+        description="The identified result cannot be represented.",
+    )
 
-    validated = AntennaResults.model_validate(data)
+    assert representation.reason == reason
 
-    assert validated.results[0].representation.value.value is None
-    assert validated.results[0].extraction_completeness == state
 
-def test_interval_requires_two_available_endpoints() -> None:
+def test_unavailable_representation_requires_a_description() -> None:
+    with pytest.raises(ValidationError):
+        UnavailableRepresentation(
+            kind="unavailable",
+            reason="illegible",
+            description=" ",
+        )
+
+
+def test_interval_requires_two_real_source_value_endpoints() -> None:
     with pytest.raises(ValidationError):
         IntervalRepresentation.model_validate(
             {
@@ -387,33 +360,19 @@ def test_interval_requires_two_available_endpoints() -> None:
                     "value": None,
                     "unit": "MHz",
                     "qualifier": None,
-                    "legibility": "missing",
+                    "legibility": "clear",
                 },
-                "upper": {
-                    "value": None,
-                    "unit": "MHz",
-                    "qualifier": None,
-                    "legibility": "missing",
-                },
+                "upper": _source_value("2.50", "GHz"),
             }
         )
+
 
 def test_interval_accepts_two_explicit_endpoints() -> None:
     interval = IntervalRepresentation.model_validate(
         {
             "kind": "interval",
-            "lower": {
-                "value": "2.40",
-                "unit": "GHz",
-                "qualifier": None,
-                "legibility": "clear",
-            },
-            "upper": {
-                "value": "2.50",
-                "unit": "GHz",
-                "qualifier": None,
-                "legibility": "clear",
-            },
+            "lower": _source_value("2.40", "GHz"),
+            "upper": _source_value("2.50", "GHz"),
         }
     )
 

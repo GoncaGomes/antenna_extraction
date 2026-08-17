@@ -140,9 +140,7 @@ def test_global_frame_is_unique_and_uses_zero_sentinels(
         AntennaArchitecture.model_validate(extra_root)
 
     moved_global = deepcopy(antenna_architecture_data)
-    moved_global["frames"][0]["transform"]["translation"]["x"] = component(
-        "width"
-    )
+    moved_global["frames"][0]["transform"]["translation"]["x"] = component("width")
     with pytest.raises(ValidationError, match="global frame transform"):
         AntennaArchitecture.model_validate(moved_global)
 
@@ -175,9 +173,7 @@ def test_local_frame_tree_and_transform_dimensions_are_validated(
     )
 
     wrong_dimension = deepcopy(valid)
-    wrong_dimension["frames"][1]["transform"]["rotation"]["z"] = component(
-        "offset"
-    )
+    wrong_dimension["frames"][1]["transform"]["rotation"]["z"] = component("offset")
     with pytest.raises(ValidationError, match="requires a angle parameter"):
         AntennaArchitecture.model_validate(wrong_dimension)
 
@@ -282,8 +278,8 @@ def test_block_placement_requires_known_frame_and_correct_dimensions(
         AntennaArchitecture.model_validate(unknown)
 
     wrong_dimension = deepcopy(antenna_architecture_data)
-    wrong_dimension["blocks"][0]["placement"]["transform"]["rotation"]["z"] = (
-        component("width")
+    wrong_dimension["blocks"][0]["placement"]["transform"]["rotation"]["z"] = component(
+        "width"
     )
     with pytest.raises(ValidationError, match="requires a angle parameter"):
         AntennaArchitecture.model_validate(wrong_dimension)
@@ -315,15 +311,13 @@ def test_material_properties_are_typed_and_source_faithful(
     assert claim.value.qualifier == "≈"
 
     unapproved = deepcopy(data)
-    unapproved["materials"][0]["property_claims"][0]["origin"] = (
-        "engineering_inference"
-    )
+    unapproved["materials"][0]["property_claims"][0]["origin"] = "engineering_inference"
     with pytest.raises(ValidationError):
         AntennaArchitecture.model_validate(unapproved)
 
 
 @pytest.mark.parametrize("legibility", ["missing", "illegible"])
-def test_material_property_claim_rejects_unreadable_values(
+def test_material_property_claim_rejects_unavailable_source_values(
     antenna_architecture_data,
     legibility,
 ) -> None:
@@ -344,7 +338,7 @@ def test_material_property_claim_rejects_unreadable_values(
         }
     ]
 
-    with pytest.raises(ValidationError, match="belong in unresolved_items"):
+    with pytest.raises(ValidationError):
         AntennaArchitecture.model_validate(data)
 
 

@@ -632,55 +632,6 @@
       "title": "FeedPortExcitationObservation",
       "type": "object"
     },
-    "FieldMapRepresentation": {
-      "additionalProperties": false,
-      "properties": {
-        "content": {
-          "discriminator": {
-            "mapping": {
-              "image_only": "#/$defs/ImageOnlyFieldMapContent",
-              "sampled": "#/$defs/SampledFieldMapContent"
-            },
-            "propertyName": "kind"
-          },
-          "oneOf": [
-            {
-              "$ref": "#/$defs/SampledFieldMapContent"
-            },
-            {
-              "$ref": "#/$defs/ImageOnlyFieldMapContent"
-            }
-          ],
-          "title": "Content"
-        },
-        "field_or_current": {
-          "enum": [
-            "field",
-            "current"
-          ],
-          "title": "Field Or Current",
-          "type": "string"
-        },
-        "kind": {
-          "const": "field_map",
-          "title": "Kind",
-          "type": "string"
-        },
-        "quantity": {
-          "minLength": 1,
-          "title": "Quantity",
-          "type": "string"
-        }
-      },
-      "required": [
-        "kind",
-        "field_or_current",
-        "quantity",
-        "content"
-      ],
-      "title": "FieldMapRepresentation",
-      "type": "object"
-    },
     "GeometryObservation": {
       "additionalProperties": false,
       "properties": {
@@ -762,7 +713,54 @@
       "title": "GeometryObservation",
       "type": "object"
     },
-    "ImageOnlyFieldMapContent": {
+    "ImageOnlyGraphRepresentation": {
+      "additionalProperties": false,
+      "properties": {
+        "annotated_points": {
+          "items": {
+            "$ref": "#/$defs/ReportedPoint"
+          },
+          "title": "Annotated Points",
+          "type": "array"
+        },
+        "axes": {
+          "items": {
+            "$ref": "#/$defs/AxisDescriptor"
+          },
+          "title": "Axes",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "image_only",
+          "title": "Kind",
+          "type": "string"
+        },
+        "trace_labels": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Trace Labels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "evidence_ids"
+      ],
+      "title": "ImageOnlyGraphRepresentation",
+      "type": "object"
+    },
+    "ImageOnlySpatialMapContent": {
       "additionalProperties": false,
       "properties": {
         "annotated_points": {
@@ -830,106 +828,7 @@
         "kind",
         "evidence_ids"
       ],
-      "title": "ImageOnlyFieldMapContent",
-      "type": "object"
-    },
-    "ImageOnlyGraphRepresentation": {
-      "additionalProperties": false,
-      "properties": {
-        "annotated_points": {
-          "items": {
-            "$ref": "#/$defs/ReportedPoint"
-          },
-          "title": "Annotated Points",
-          "type": "array"
-        },
-        "axes": {
-          "items": {
-            "$ref": "#/$defs/AxisDescriptor"
-          },
-          "title": "Axes",
-          "type": "array"
-        },
-        "evidence_ids": {
-          "items": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "minItems": 1,
-          "title": "Evidence Ids",
-          "type": "array"
-        },
-        "kind": {
-          "const": "image_only",
-          "title": "Kind",
-          "type": "string"
-        },
-        "trace_labels": {
-          "items": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "title": "Trace Labels",
-          "type": "array"
-        }
-      },
-      "required": [
-        "kind",
-        "evidence_ids"
-      ],
-      "title": "ImageOnlyGraphRepresentation",
-      "type": "object"
-    },
-    "IntervalEndpointValue": {
-      "additionalProperties": false,
-      "properties": {
-        "legibility": {
-          "description": "Endpoint legibility. An interval endpoint must be clear or uncertain.",
-          "enum": [
-            "clear",
-            "uncertain"
-          ],
-          "title": "Legibility",
-          "type": "string"
-        },
-        "qualifier": {
-          "anyOf": [
-            {
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Qualifier"
-        },
-        "unit": {
-          "anyOf": [
-            {
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Unit"
-        },
-        "value": {
-          "description": "Exact non-null endpoint lexeme explicitly reported by the source.",
-          "minLength": 1,
-          "title": "Value",
-          "type": "string"
-        }
-      },
-      "required": [
-        "value",
-        "legibility"
-      ],
-      "title": "IntervalEndpointValue",
+      "title": "ImageOnlySpatialMapContent",
       "type": "object"
     },
     "IntervalRepresentation": {
@@ -942,11 +841,11 @@
           "type": "string"
         },
         "lower": {
-          "$ref": "#/$defs/IntervalEndpointValue",
+          "$ref": "#/$defs/SourceValue",
           "description": "Exact lower endpoint explicitly reported by the source. Do not derive it from a center value and range width."
         },
         "upper": {
-          "$ref": "#/$defs/IntervalEndpointValue",
+          "$ref": "#/$defs/SourceValue",
           "description": "Exact upper endpoint explicitly reported by the source. Do not derive it from a center value and range width."
         }
       },
@@ -1561,28 +1460,6 @@
           "title": "Evidence Ids",
           "type": "array"
         },
-        "extraction_completeness": {
-          "default": "complete",
-          "enum": [
-            "complete",
-            "partial_numeric",
-            "illegible",
-            "missing"
-          ],
-          "title": "Extraction Completeness",
-          "type": "string"
-        },
-        "legibility": {
-          "default": "clear",
-          "enum": [
-            "clear",
-            "uncertain",
-            "illegible",
-            "missing"
-          ],
-          "title": "Legibility",
-          "type": "string"
-        },
         "metric": {
           "minLength": 1,
           "title": "Metric",
@@ -1592,7 +1469,8 @@
           "enum": [
             "simulated",
             "measured",
-            "analytical"
+            "analytical",
+            "unspecified"
           ],
           "title": "Origin",
           "type": "string"
@@ -1601,14 +1479,15 @@
           "discriminator": {
             "mapping": {
               "angular_pattern": "#/$defs/AngularPatternRepresentation",
-              "field_map": "#/$defs/FieldMapRepresentation",
               "image_only": "#/$defs/ImageOnlyGraphRepresentation",
               "interval": "#/$defs/IntervalRepresentation",
               "matrix": "#/$defs/MatrixRepresentation",
               "point_collection": "#/$defs/PointCollectionRepresentation",
               "qualitative": "#/$defs/QualitativeRepresentation",
               "sampled_series": "#/$defs/SampledSeriesRepresentation",
-              "scalar": "#/$defs/ScalarRepresentation"
+              "scalar": "#/$defs/ScalarRepresentation",
+              "spatial_map": "#/$defs/SpatialMapRepresentation",
+              "unavailable": "#/$defs/UnavailableRepresentation"
             },
             "propertyName": "kind"
           },
@@ -1632,13 +1511,16 @@
               "$ref": "#/$defs/AngularPatternRepresentation"
             },
             {
-              "$ref": "#/$defs/FieldMapRepresentation"
+              "$ref": "#/$defs/SpatialMapRepresentation"
             },
             {
               "$ref": "#/$defs/ImageOnlyGraphRepresentation"
             },
             {
               "$ref": "#/$defs/QualitativeRepresentation"
+            },
+            {
+              "$ref": "#/$defs/UnavailableRepresentation"
             }
           ],
           "title": "Representation"
@@ -1686,36 +1568,6 @@
       "title": "ResultRecord",
       "type": "object"
     },
-    "SampledFieldMapContent": {
-      "additionalProperties": false,
-      "properties": {
-        "coordinate_description": {
-          "minLength": 1,
-          "title": "Coordinate Description",
-          "type": "string"
-        },
-        "kind": {
-          "const": "sampled",
-          "title": "Kind",
-          "type": "string"
-        },
-        "samples": {
-          "items": {
-            "$ref": "#/$defs/ReportedPoint"
-          },
-          "minItems": 1,
-          "title": "Samples",
-          "type": "array"
-        }
-      },
-      "required": [
-        "kind",
-        "coordinate_description",
-        "samples"
-      ],
-      "title": "SampledFieldMapContent",
-      "type": "object"
-    },
     "SampledSeriesRepresentation": {
       "additionalProperties": false,
       "properties": {
@@ -1759,6 +1611,36 @@
         "points"
       ],
       "title": "SampledSeriesRepresentation",
+      "type": "object"
+    },
+    "SampledSpatialMapContent": {
+      "additionalProperties": false,
+      "properties": {
+        "coordinate_description": {
+          "minLength": 1,
+          "title": "Coordinate Description",
+          "type": "string"
+        },
+        "kind": {
+          "const": "sampled",
+          "title": "Kind",
+          "type": "string"
+        },
+        "samples": {
+          "items": {
+            "$ref": "#/$defs/ReportedPoint"
+          },
+          "minItems": 1,
+          "title": "Samples",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "coordinate_description",
+        "samples"
+      ],
+      "title": "SampledSpatialMapContent",
       "type": "object"
     },
     "ScalarRepresentation": {
@@ -1908,12 +1790,10 @@
       "additionalProperties": false,
       "properties": {
         "legibility": {
-          "description": "Explicit source-value legibility. Use clear or uncertain with a non-null value. Use missing or illegible with a null value.",
+          "description": "Explicit legibility of the preserved source value.",
           "enum": [
             "clear",
-            "uncertain",
-            "illegible",
-            "missing"
+            "uncertain"
           ],
           "title": "Legibility",
           "type": "string"
@@ -1945,17 +1825,10 @@
           "title": "Unit"
         },
         "value": {
-          "anyOf": [
-            {
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Exact value lexeme preserved from the source. It must be non-null when legibility is clear or uncertain, and null only when legibility is missing or illegible.",
-          "title": "Value"
+          "description": "Exact non-empty value lexeme preserved from the source.",
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
         }
       },
       "required": [
@@ -1963,6 +1836,77 @@
         "legibility"
       ],
       "title": "SourceValue",
+      "type": "object"
+    },
+    "SpatialMapRepresentation": {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "discriminator": {
+            "mapping": {
+              "image_only": "#/$defs/ImageOnlySpatialMapContent",
+              "sampled": "#/$defs/SampledSpatialMapContent"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/SampledSpatialMapContent"
+            },
+            {
+              "$ref": "#/$defs/ImageOnlySpatialMapContent"
+            }
+          ],
+          "title": "Content"
+        },
+        "kind": {
+          "const": "spatial_map",
+          "title": "Kind",
+          "type": "string"
+        },
+        "quantity": {
+          "minLength": 1,
+          "title": "Quantity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "quantity",
+        "content"
+      ],
+      "title": "SpatialMapRepresentation",
+      "type": "object"
+    },
+    "UnavailableRepresentation": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "kind": {
+          "const": "unavailable",
+          "title": "Kind",
+          "type": "string"
+        },
+        "reason": {
+          "enum": [
+            "not_reported",
+            "illegible",
+            "ambiguous"
+          ],
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "reason",
+        "description"
+      ],
+      "title": "UnavailableRepresentation",
       "type": "object"
     }
   },
