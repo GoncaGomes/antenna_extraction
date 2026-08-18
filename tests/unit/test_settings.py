@@ -9,6 +9,7 @@ from antenna_ingest.settings import AntennaIngestSettings, ModelRole
 def test_settings_load_role_names_from_environment(monkeypatch) -> None:
     _set_valid_environment(monkeypatch)
     monkeypatch.setenv("DOCUMENT_EXTRACTOR_TIMEOUT_SECONDS", "240")
+    monkeypatch.setenv("DOCUMENT_EXTRACTOR_MAX_OUTPUT_TOKENS", "32000")
     monkeypatch.setenv("ARCHITECTURE_AUTHOR_TIMEOUT_SECONDS", "720")
 
     settings = AntennaIngestSettings(_env_file=None)
@@ -17,8 +18,17 @@ def test_settings_load_role_names_from_environment(monkeypatch) -> None:
     assert settings.model_for_role(ModelRole.DOCUMENT_EXTRACTOR) == "extractor"
     assert settings.model_for_role(ModelRole.ARCHITECTURE_AUTHOR) == "author"
     assert settings.timeout_for_role(ModelRole.DOCUMENT_EXTRACTOR) == 240
+    assert settings.document_extractor_max_output_tokens == 32000
     assert settings.timeout_for_role(ModelRole.ARCHITECTURE_AUTHOR) == 720
     assert settings.skynet_api_key.get_secret_value() == "secret-key"
+
+
+def test_document_extractor_max_output_tokens_defaults_to_24000(monkeypatch) -> None:
+    _set_valid_environment(monkeypatch)
+
+    settings = AntennaIngestSettings(_env_file=None)
+
+    assert settings.document_extractor_max_output_tokens == 24000
 
 
 @pytest.mark.parametrize(
@@ -52,6 +62,18 @@ def test_non_positive_timeouts_fail_validation(
 ) -> None:
     _set_valid_environment(monkeypatch)
     monkeypatch.setenv(environment_name, value)
+
+    with pytest.raises(ValidationError):
+        AntennaIngestSettings(_env_file=None)
+
+
+@pytest.mark.parametrize("value", ["0", "-1"])
+def test_non_positive_document_extractor_max_output_tokens_fail_validation(
+    monkeypatch,
+    value,
+) -> None:
+    _set_valid_environment(monkeypatch)
+    monkeypatch.setenv("DOCUMENT_EXTRACTOR_MAX_OUTPUT_TOKENS", value)
 
     with pytest.raises(ValidationError):
         AntennaIngestSettings(_env_file=None)

@@ -15,6 +15,7 @@ from antenna_ingest.contracts.common import DocumentReference, PageRecord
 from antenna_ingest.contracts.paper_extraction import PaperExtraction
 from antenna_ingest.extraction.nuextract_contract import (
     NuExtractPaperExtraction,
+    build_nuextract_template,
     normalize_nuextract_extraction,
 )
 from antenna_ingest.models.client import build_model_client
@@ -58,75 +59,29 @@ EXTRACTION_ARTIFACT_PATHS = {
     "extraction_validation": EXTRACTION_VALIDATION_PATH,
 }
 
-EXTRACTION_PROMPT = """You are a source-faithful extractor of antenna-engineering scientific papers.
+NUEXTRACT_INSTRUCTIONS = """The inputs are all ordered pages of one antenna-engineering scientific paper. Treat them as one complete document. Each image is preceded by its globally one-based PDF_INPUT_PAGE number.
 
-The ordered page images that follow are all pages of one scientific paper. Treat them as a single complete document, not as independent page-level documents. Each image is preceded by its globally one-based PDF_INPUT_PAGE number.
+Extract only information about antenna designs that this paper proposes, analyses, simulates, fabricates, or measures. Exclude related-work antennas, bibliographic background, general antenna definitions, paper organisation, administrative text, and repeated conclusion summaries.
 
-Return exactly one JSON object matching the supplied NuExtractPaperExtraction JSON Schema. Return no commentary, Markdown, or text outside that object.
+Identify every distinct studied design, intermediate design, variant, final design, fabricated design, and measured prototype. Use parent_design_id or predecessor_design_id only when the referenced design_id exists in the same response.
 
-Extract distinct scientifically relevant information about antenna designs that the paper itself proposes, analyses, simulates, fabricates, or measures.
+Emit each distinct scientific fact exactly once. For observations, choose one best kind: material, parameter, geometry, feed, port, or excitation. Do not repeat one fact under several kinds. Populate only the fields belonging to the selected kind.
 
-Do not extract paper-organisation statements, bibliographic background, conflict-of-interest declarations, or antenna designs mentioned only as related work into the engineering collections.
+Extract explicitly reported setups and results. Preserve simulated, measured, analytical, and unspecified origins separately. Populate only the fields belonging to the selected setup kind and result representation kind.
 
-Identify every distinct antenna design, intermediate design, variant, final design, fabricated design, and measured prototype studied by the paper. Set parent_design_id or predecessor_design_id only when the exact referenced design_id is declared by another record in the same designs array. Otherwise the relationship field must be null.
+Use scalar for one reported value, magnitude, width, or span. Use interval only when the source explicitly reports both endpoints. Use sampled numeric representations only when trustworthy numeric samples are explicitly available. Use image_only when a graph or spatial map is visible but cannot be represented numerically. Use qualitative for non-numeric findings. Use unavailable only for an identified result whose value is not reported, illegible, or ambiguous.
 
-The document object contains only source-derived title and DOI metadata. Use null when either value is not reported.
+Preserve exact source value lexemes, symbols, units, qualifiers, and wording. Never invent, derive, estimate, interpolate, normalize, or digitize values.
 
-Populate each collection only with information matching its scientific meaning:
+Every factual record except missing_information must include only the direct evidence required to support it. Evidence page numbers must match the PDF_INPUT_PAGE labels. A missing_information record may use an empty evidence list when it describes information genuinely absent from the paper.
 
-- observations contains all source-supported engineering observations. Each observation must use exactly one best matching kind: material, parameter, geometry, feed, port, or excitation.
-  - material: a material used by a studied design, fabrication, simulation or measurement, including explicitly reported material properties.
-  - parameter: a named or symbolized engineering, simulation or measurement parameter that is not primarily a material, geometry, feed, port or excitation description.
-  - geometry: physical shape, topology, dimension, placement, layer, slot, cut, connection or structural relationship.
-  - feed: the physical or conceptual feeding arrangement.
-  - port: a reported port definition, type, location or impedance.
-  - excitation: a reported excitation method, mode, polarization or source.
-- setups: explicitly reported simulation, measurement, or analytical configurations used for the extracted designs or results. Do not include configurations belonging only to cited related work.
-- results: source-supported antenna performance values or qualitative findings. Distinguish simulated, measured, analytical, and unspecified origins.
-- derivations: equations, formulas, or calculation procedures explicitly reported by the source. A reported dimension or value alone is not a derivation.
-- conflicts: incompatible scientific values, claims, design descriptions, or reported findings. Do not record conflict-of-interest declarations.
-- missing_information: technically relevant information that is absent, unavailable, or required to interpret an emitted record. Its description must state what is missing. Do not place reported conclusions or positive findings in this collection.
-
-Leave a collection empty when the paper contains no information matching that collection.
-
-Emit each distinct scientific fact exactly once. Choose the single best matching observation kind. Do not repeat the same fact under multiple observation kinds. Do not emit general antenna definitions, explanations of common terminology, paper organisation, related work, or repeated conclusion summaries as engineering observations.
-
-Associate each observation, setup, and result with the correct design whenever that association is explicitly supported. Preserve ambiguity when the paper does not support an unambiguous association.
-
-Every emitted factual record except missing_information must contain its supporting evidence inline.
-
-- Inline evidence is a list of only the source items directly required to support the record.
-- The same source item may support different distinct records, but duplicate scientific records must not be emitted.
-- Do not include evidence merely because it concerns the same antenna.
-- Each inline evidence object must contain the correct page number, source kind, and concise source-faithful excerpt or visual description. Include a source label, bounding region, or legibility note only when available.
-- Do not create evidence objects for individual words, table cells, numeric values, curve samples, or repeated claims from the same source item.
-- Omit any claim that does not have direct source evidence.
-
-Choose the result representation that matches the source evidence.
-
-- Use scalar for one explicitly reported value, magnitude, width, or span. A reported width or span without explicit endpoints is a scalar, not an interval.
-- Use interval only when the source explicitly reports both lower and upper endpoints.
-- Use point_collection, sampled_series, matrix, or angular_pattern only for source-supported numeric data.
-- Use spatial_map for spatially distributed quantities.
-- Use image_only when visual evidence exists but trustworthy numeric samples cannot be preserved.
-- Use qualitative for source-supported non-numeric findings.
-- Use unavailable only when an identified result cannot be represented because its value is not reported, illegible, or ambiguous.
-- Never invent, derive, estimate, interpolate, or digitise values.
-
-Preserve exact source symbols, numeric lexemes, units, qualifiers, and wording. Do not silently normalise or rewrite source values.
-
-Do not invent dimensions, materials, values, relationships, design choices, result points, or engineering assumptions. Do not infer typical antenna properties that are not stated or visibly supported. Do not select or construct the final solver architecture. Do not emit CST commands, solver commands, simulation instructions, optimisation steps, or construction plans.
-
-When information is ambiguous, uncertain, or illegible, represent that honestly using the fields provided by the schema.
-
-Before returning the JSON, verify all of the following:
-
-- every emitted factual record except missing_information contains direct supporting evidence inline
-- no inline evidence is included merely because it concerns the same antenna
-- no engineering collection contains paper organisation, unrelated work, or administrative declarations
-- each distinct scientific fact appears exactly once under the single best observation kind
-- interval representations contain two explicit source-reported endpoints
+Do not create solver commands, CST instructions, optimization steps, construction plans, or unsupported engineering assumptions.
 """
+
+DOCUMENT_CONTEXT_MESSAGE = (
+    "The following images are all pages of one scientific paper in source order. "
+    "Each page is preceded by its globally one-based PDF_INPUT_PAGE label."
+)
 
 
 class PageImageMetadata(StrictModel):
@@ -157,7 +112,9 @@ class NuExtractRequestMetadata(StrictModel):
     page_count: int = Field(ge=1)
     pages: list[PageImageMetadata] = Field(min_length=1)
     prompt_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    template_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     schema_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    max_output_tokens: int = Field(gt=0)
     request_started_at: datetime
     metadata_written_at: datetime
     request_completed_at: datetime | None = None
@@ -234,8 +191,14 @@ def extract_paper_from_run(
     model = settings.model_for_role(ModelRole.DOCUMENT_EXTRACTOR)
     temperature = 0.6 if enable_thinking else 0.2
     schema = NuExtractPaperExtraction.model_json_schema(mode="validation")
-    effective_prompt = EXTRACTION_PROMPT
-    prompt_hash = _sha256_text(effective_prompt)
+    template = build_nuextract_template()
+    template_json = json.dumps(
+        template,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    prompt_hash = _sha256_text(NUEXTRACT_INSTRUCTIONS)
+    template_hash = _sha256_text(template_json)
     schema_hash = _sha256_json(schema)
 
     start_phase(
@@ -262,7 +225,9 @@ def extract_paper_from_run(
         page_count=render_report.page_count,
         pages=page_metadata,
         prompt_hash=prompt_hash,
+        template_hash=template_hash,
         schema_hash=schema_hash,
+        max_output_tokens=settings.document_extractor_max_output_tokens,
         request_started_at=request_started_at,
         metadata_written_at=datetime.now(timezone.utc),
         endpoint=EndpointMetadata(
@@ -276,12 +241,13 @@ def extract_paper_from_run(
             run_dir / REQUEST_METADATA_PATH,
             metadata.model_dump(mode="json"),
         )
-        content = _build_multimodal_content(run_dir, effective_prompt, page_metadata)
+        content = _build_multimodal_content(run_dir, page_metadata)
         substage = "model_request"
         response = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": content}],
             temperature=temperature,
+            max_tokens=settings.document_extractor_max_output_tokens,
             response_format={
                 "type": "json_schema",
                 "json_schema": {
@@ -292,6 +258,8 @@ def extract_paper_from_run(
             },
             extra_body={
                 "chat_template_kwargs": {
+                    "template": template_json,
+                    "instructions": NUEXTRACT_INSTRUCTIONS,
                     "enable_thinking": enable_thinking,
                 }
             },
@@ -480,10 +448,9 @@ def _load_validated_inputs(
 
 def _build_multimodal_content(
     run_dir: Path,
-    effective_prompt: str,
     pages: list[PageImageMetadata],
 ) -> list[dict[str, Any]]:
-    content: list[dict[str, Any]] = [{"type": "text", "text": effective_prompt}]
+    content: list[dict[str, Any]] = [{"type": "text", "text": DOCUMENT_CONTEXT_MESSAGE}]
     for page in pages:
         content.append({"type": "text", "text": f"PDF_INPUT_PAGE={page.page_number}"})
         content.append(

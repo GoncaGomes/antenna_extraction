@@ -23,6 +23,7 @@ class AntennaIngestSettings(BaseSettings):
     document_extractor_model: str
     architecture_author_model: str
     document_extractor_timeout_seconds: int = Field(default=180, gt=0)
+    document_extractor_max_output_tokens: int = Field(default=24000, gt=0)
     architecture_author_timeout_seconds: int = Field(default=600, gt=0)
 
     @field_validator(

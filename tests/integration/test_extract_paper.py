@@ -13,16 +13,21 @@ from pydantic import SecretStr, ValidationError
 
 from antenna_ingest.contracts.paper_extraction import PaperExtraction
 from antenna_ingest.extraction import full_document
+from antenna_ingest.extraction import nuextract_contract
 from antenna_ingest.extraction.full_document import (
-    EXTRACTION_PROMPT,
+    DOCUMENT_CONTEXT_MESSAGE,
     EXTRACTION_REPORT_PATH,
     EXTRACTION_VALIDATION_PATH,
+    NUEXTRACT_INSTRUCTIONS,
     PAPER_EXTRACTION_PATH,
     RAW_RESPONSE_PATH,
     REQUEST_METADATA_PATH,
     extract_paper_from_run,
 )
-from antenna_ingest.extraction.nuextract_contract import NuExtractPaperExtraction
+from antenna_ingest.extraction.nuextract_contract import (
+    NuExtractPaperExtraction,
+    build_nuextract_template,
+)
 from antenna_ingest.orchestration.runs import create_run
 from antenna_ingest.orchestration.schemas import RunManifest
 from antenna_ingest.rendering import render_run_pages
@@ -112,9 +117,16 @@ def test_full_document_request_is_ordered_strict_and_traceable(
     request = client.completions.calls[0]
     expected_temperature = 0.6 if enable_thinking else 0.2
     assert request["temperature"] == expected_temperature
+    assert request["max_tokens"] == 12345
+    template_json = request["extra_body"]["chat_template_kwargs"]["template"]
     assert request["extra_body"] == {
-        "chat_template_kwargs": {"enable_thinking": enable_thinking}
+        "chat_template_kwargs": {
+            "template": template_json,
+            "instructions": NUEXTRACT_INSTRUCTIONS,
+            "enable_thinking": enable_thinking,
+        }
     }
+    assert json.loads(template_json) == build_nuextract_template()
     assert request["response_format"] == {
         "type": "json_schema",
         "json_schema": {
@@ -138,33 +150,13 @@ def test_full_document_request_is_ordered_strict_and_traceable(
         "text",
         "image_url",
     ]
-    assert (
-        sum(
-            EXTRACTION_PROMPT in item.get("text", "")
-            for item in content
-            if item["type"] == "text"
-        )
-        == 1
-    )
     prompt_text = content[0]["text"]
-    for prompt_invariant in (
-        "Do not extract paper-organisation statements",
-        "Leave a collection empty when the paper contains no information",
-        "observations contains all source-supported engineering observations",
-        "Emit each distinct scientific fact exactly once",
-        "Choose the single best matching observation kind",
-        "Inline evidence is a list of only the source items directly required",
-        "The same source item may support different distinct records",
-        "Do not include evidence merely because it concerns the same antenna",
-        "Each inline evidence object must contain the correct page number",
-        "Omit any claim that does not have direct source evidence",
-        "the exact referenced design_id is declared by another record",
-        "A reported width or span without explicit endpoints is a scalar",
-        "Use interval only when the source explicitly reports both lower and upper endpoints",
-    ):
-        assert prompt_invariant in prompt_text
-    assert "evidence_catalog" not in prompt_text
-    assert "evidence_id" not in prompt_text
+    assert prompt_text == DOCUMENT_CONTEXT_MESSAGE
+    assert all(
+        NUEXTRACT_INSTRUCTIONS not in item.get("text", "")
+        for item in content
+        if item["type"] == "text"
+    )
 
     manifest_before = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
     assert manifest_before.document_id not in prompt_text
@@ -186,10 +178,15 @@ def test_full_document_request_is_ordered_strict_and_traceable(
     assert [page["page_number"] for page in metadata["pages"]] == [1, 2]
     assert all(len(page["sha256"]) == 64 for page in metadata["pages"])
     assert len(metadata["prompt_hash"]) == 64
+    assert len(metadata["template_hash"]) == 64
     assert len(metadata["schema_hash"]) == 64
     assert (
         metadata["prompt_hash"]
-        == hashlib.sha256(prompt_text.encode("utf-8")).hexdigest()
+        == hashlib.sha256(NUEXTRACT_INSTRUCTIONS.encode("utf-8")).hexdigest()
+    )
+    assert (
+        metadata["template_hash"]
+        == hashlib.sha256(template_json.encode("utf-8")).hexdigest()
     )
     rendered_schema = json.dumps(
         NuExtractPaperExtraction.model_json_schema(mode="validation"),
@@ -209,9 +206,15 @@ def test_full_document_request_is_ordered_strict_and_traceable(
     assert "url-secret" not in metadata_text
     assert "endpoint-user:endpoint-password" not in metadata_text
     assert metadata["endpoint"]["timeout_seconds"] == 240
+    assert metadata["max_output_tokens"] == 12345
+    assert template_json not in metadata_text
     assert metadata_seen_before_call[0]["request_completed_at"] is None
     assert metadata_seen_before_call[0]["response_id"] is None
     assert metadata_seen_before_call[0]["temperature"] == expected_temperature
+    assert metadata_seen_before_call[0]["max_output_tokens"] == 12345
+    assert metadata_seen_before_call[0]["prompt_hash"] == metadata["prompt_hash"]
+    assert metadata_seen_before_call[0]["template_hash"] == metadata["template_hash"]
+    assert metadata_seen_before_call[0]["schema_hash"] == metadata["schema_hash"]
 
     assert (run_dir / RAW_RESPONSE_PATH).read_text(encoding="utf-8") == raw_response
     assert (run_dir / PAPER_EXTRACTION_PATH).is_file()
@@ -487,6 +490,40 @@ def test_extraction_requires_completed_page_rendering_without_model_call(
     assert manifest.phases["paper_extraction"].status == "pending"
 
 
+def test_dropped_template_branch_fails_before_model_call(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    run_dir = _rendered_run(tmp_path)
+    client = FakeClient(["unused"])
+
+    monkeypatch.setattr(
+        nuextract_contract,
+        "convert_json_schema_to_nuextract_template",
+        lambda schema: (
+            {},
+            [{"path": "$.results", "error": "unsupported branch"}],
+            [],
+        ),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="NuExtract template conversion dropped schema branches",
+    ):
+        extract_paper_from_run(
+            run_dir,
+            enable_thinking=False,
+            settings=_settings(),
+            client=client,
+        )
+
+    manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
+    assert len(client.completions.calls) == 0
+    assert manifest.phases["paper_extraction"].status == "pending"
+    assert not (run_dir / REQUEST_METADATA_PATH).exists()
+
+
 def test_request_failure_is_redacted_and_never_retried(tmp_path: Path) -> None:
     run_dir = _rendered_run(tmp_path)
     client = FakeClient(error=RuntimeError("api_key=request-secret"))
@@ -644,15 +681,93 @@ def _replace_evidence_ids_with_inline_evidence(data: dict) -> dict:
     response["observations"] = observations
 
     for result in response["results"]:
-        representation = result["representation"]
-        if representation["kind"] == "image_only":
-            representation.pop("evidence_ids")
-        if (
-            representation["kind"] == "spatial_map"
-            and representation["content"]["kind"] == "image_only"
-        ):
-            representation["content"].pop("evidence_ids")
+        result["representation"] = _flatten_result_representation(
+            result["representation"]
+        )
     return response
+
+
+def _flatten_result_representation(representation: dict) -> dict:
+    kind = representation["kind"]
+    if kind == "scalar":
+        return {"kind": kind, "scalar_value": representation["value"]}
+    if kind == "interval":
+        return {
+            "kind": kind,
+            "interval_lower": representation["lower"],
+            "interval_upper": representation["upper"],
+        }
+    if kind == "point_collection":
+        return {"kind": kind, "collection_points": representation["points"]}
+    if kind == "sampled_series":
+        return {
+            "kind": kind,
+            "series_x_axis": representation["x_axis"],
+            "series_y_axis": representation["y_axis"],
+            "series_trace_label": representation["trace_label"],
+            "series_points": representation["points"],
+        }
+    if kind == "matrix":
+        return {
+            "kind": kind,
+            "matrix_rows": representation["rows"],
+            "matrix_row_labels": representation["row_labels"],
+            "matrix_column_labels": representation["column_labels"],
+        }
+    if kind == "angular_pattern":
+        return {
+            "kind": kind,
+            "angular_coordinate": representation["angular_coordinate"],
+            "angular_unit": representation["angular_unit"],
+            "angular_plane_or_cut": representation["plane_or_cut"],
+            "angular_fixed_angle": representation["fixed_angle"],
+            "angular_component_or_polarization": representation[
+                "component_or_polarization"
+            ],
+            "angular_radial_quantity": representation["radial_quantity"],
+            "angular_points": representation["points"],
+        }
+    if kind == "spatial_map":
+        return _flatten_spatial_map_representation(representation)
+    if kind == "image_only":
+        return {
+            "kind": kind,
+            "image_axes": representation["axes"],
+            "image_trace_labels": representation["trace_labels"],
+            "image_annotated_points": representation["annotated_points"],
+        }
+    if kind == "qualitative":
+        return {
+            "kind": kind,
+            "qualitative_observation": representation["observation"],
+        }
+    return {
+        "kind": kind,
+        "unavailable_reason": representation["reason"],
+        "unavailable_description": representation["description"],
+    }
+
+
+def _flatten_spatial_map_representation(representation: dict) -> dict:
+    content = representation["content"]
+    flattened = {
+        "kind": "spatial_map",
+        "spatial_quantity": representation["quantity"],
+        "spatial_content_kind": content["kind"],
+    }
+    if content["kind"] == "sampled":
+        flattened.update(
+            spatial_coordinate_description=content["coordinate_description"],
+            spatial_samples=content["samples"],
+        )
+    else:
+        flattened.update(
+            spatial_map_type_or_component=content["map_type_or_component"],
+            spatial_plane_or_cut=content["plane_or_cut"],
+            spatial_legend_or_scale_label=content["legend_or_scale_label"],
+            spatial_annotated_points=content["annotated_points"],
+        )
+    return flattened
 
 
 def _settings() -> AntennaIngestSettings:
@@ -665,6 +780,7 @@ def _settings() -> AntennaIngestSettings:
         document_extractor_model="test-extractor",
         architecture_author_model="test-author",
         document_extractor_timeout_seconds=240,
+        document_extractor_max_output_tokens=12345,
         architecture_author_timeout_seconds=720,
         _env_file=None,
     )
