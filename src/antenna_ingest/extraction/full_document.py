@@ -215,6 +215,7 @@ def extract_paper_from_run(
     settings = settings or load_settings()
     client = client or build_model_client(settings, ModelRole.DOCUMENT_EXTRACTOR)
     model = settings.model_for_role(ModelRole.DOCUMENT_EXTRACTOR)
+    temperature = 0.6 if enable_thinking else 0.2
     schema = NuExtractPaperExtraction.model_json_schema(mode="validation")
     effective_prompt = _build_effective_prompt(manifest, render_report)
     prompt_hash = _sha256_text(effective_prompt)
@@ -240,7 +241,7 @@ def extract_paper_from_run(
     metadata = NuExtractRequestMetadata(
         model=model,
         thinking_enabled=enable_thinking,
-        temperature=0.0,
+        temperature=temperature,
         page_count=render_report.page_count,
         pages=page_metadata,
         prompt_hash=prompt_hash,
@@ -263,7 +264,7 @@ def extract_paper_from_run(
         response = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": content}],
-            temperature=0.0,
+            temperature=temperature,
             response_format={
                 "type": "json_schema",
                 "json_schema": {
@@ -296,6 +297,12 @@ def extract_paper_from_run(
             run_dir / REQUEST_METADATA_PATH,
             metadata.model_dump(mode="json"),
         )
+
+        if finish_reason == "length":
+            substage = "response_truncation"
+            raise RuntimeError(
+                "NuExtract response reached the output-token limit and is incomplete"
+            )
 
         substage = "response_parsing"
         response_data = json.loads(raw_response)

@@ -40,10 +40,14 @@ FIXTURE_PATH = (
 
 class FakeCompletions:
     def __init__(
-        self, responses: list[str] | None = None, error: Exception | None = None
+        self,
+        responses: list[str] | None = None,
+        error: Exception | None = None,
+        finish_reason: str = "stop",
     ):
         self.responses = list(responses or [])
         self.error = error
+        self.finish_reason = finish_reason
         self.calls: list[dict] = []
         self.on_create = None
 
@@ -58,7 +62,7 @@ class FakeCompletions:
             id=f"response-{len(self.calls)}",
             choices=[
                 SimpleNamespace(
-                    finish_reason="stop",
+                    finish_reason=self.finish_reason,
                     message=SimpleNamespace(content=content),
                 )
             ],
@@ -72,9 +76,12 @@ class FakeCompletions:
 
 class FakeClient:
     def __init__(
-        self, responses: list[str] | None = None, error: Exception | None = None
+        self,
+        responses: list[str] | None = None,
+        error: Exception | None = None,
+        finish_reason: str = "stop",
     ):
-        self.completions = FakeCompletions(responses, error)
+        self.completions = FakeCompletions(responses, error, finish_reason)
         self.chat = SimpleNamespace(completions=self.completions)
 
 
@@ -103,6 +110,8 @@ def test_full_document_request_is_ordered_strict_and_traceable(
     assert extraction.document.page_count == 2
     assert len(client.completions.calls) == 1
     request = client.completions.calls[0]
+    expected_temperature = 0.6 if enable_thinking else 0.2
+    assert request["temperature"] == expected_temperature
     assert request["extra_body"] == {
         "chat_template_kwargs": {"enable_thinking": enable_thinking}
     }
@@ -169,6 +178,7 @@ def test_full_document_request_is_ordered_strict_and_traceable(
     metadata_text = metadata_path.read_text(encoding="utf-8")
     assert metadata["model"] == "test-extractor"
     assert metadata["thinking_enabled"] is enable_thinking
+    assert metadata["temperature"] == expected_temperature
     assert metadata["page_count"] == 2
     assert [page["page_number"] for page in metadata["pages"]] == [1, 2]
     assert all(len(page["sha256"]) == 64 for page in metadata["pages"])
@@ -198,6 +208,7 @@ def test_full_document_request_is_ordered_strict_and_traceable(
     assert metadata["endpoint"]["timeout_seconds"] == 240
     assert metadata_seen_before_call[0]["request_completed_at"] is None
     assert metadata_seen_before_call[0]["response_id"] is None
+    assert metadata_seen_before_call[0]["temperature"] == expected_temperature
 
     assert (run_dir / RAW_RESPONSE_PATH).read_text(encoding="utf-8") == raw_response
     assert (run_dir / PAPER_EXTRACTION_PATH).is_file()
@@ -232,6 +243,67 @@ def test_raw_response_survives_malformed_json_and_phase_fails(tmp_path: Path) ->
     assert RAW_RESPONSE_PATH in failure["partial_artifacts"]
     assert manifest.phases["paper_extraction"].status == "failed"
     assert manifest.phases["paper_extraction"].status != "running"
+
+
+def test_truncated_response_fails_before_parsing_and_preserves_diagnostics(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    run_dir = _rendered_run(tmp_path)
+    raw_response = "{truncated response"
+    client = FakeClient([raw_response], finish_reason="length")
+
+    def forbid_json_parsing(*args, **kwargs):
+        raise AssertionError("JSON parsing must not run for a truncated response")
+
+    def forbid_schema_validation(*args, **kwargs):
+        raise AssertionError("schema validation must not run for a truncated response")
+
+    def install_parsing_guards() -> None:
+        monkeypatch.setattr(
+            full_document,
+            "json",
+            SimpleNamespace(loads=forbid_json_parsing),
+        )
+
+    client.completions.on_create = install_parsing_guards
+    monkeypatch.setattr(
+        full_document.NuExtractPaperExtraction,
+        "model_validate",
+        forbid_schema_validation,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="reached the output-token limit and is incomplete",
+    ):
+        extract_paper_from_run(
+            run_dir,
+            enable_thinking=False,
+            settings=_settings(),
+            client=client,
+        )
+
+    assert len(client.completions.calls) == 1
+    assert (run_dir / RAW_RESPONSE_PATH).read_text(encoding="utf-8") == raw_response
+    metadata = read_json(run_dir / REQUEST_METADATA_PATH)
+    assert metadata["request_completed_at"] is not None
+    assert metadata["response_id"] == "response-1"
+    assert metadata["finish_reason"] == "length"
+    assert metadata["usage"] == {
+        "prompt_tokens": 101,
+        "completion_tokens": 202,
+        "total_tokens": 303,
+    }
+
+    failure, manifest = _failure_and_manifest(run_dir)
+    assert failure["substage"] == "response_truncation"
+    assert failure["response_artifact"] == RAW_RESPONSE_PATH
+    assert RAW_RESPONSE_PATH in failure["partial_artifacts"]
+    assert REQUEST_METADATA_PATH in failure["partial_artifacts"]
+    assert "output-token limit" in failure["message"]
+    assert manifest.phases["paper_extraction"].status == "failed"
+    assert not (run_dir / PAPER_EXTRACTION_PATH).exists()
 
 
 @pytest.mark.parametrize(

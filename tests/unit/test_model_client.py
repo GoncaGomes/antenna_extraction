@@ -29,6 +29,7 @@ def test_build_openai_compatible_client_passes_configuration(monkeypatch) -> Non
             "base_url": "https://example.invalid/openai",
             "api_key": "secret",
             "timeout": 45,
+            "max_retries": 0,
         }
     ]
 
