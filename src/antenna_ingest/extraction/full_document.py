@@ -65,11 +65,25 @@ Extract only information about antenna designs that this paper proposes, analyse
 
 Identify every distinct studied design, intermediate design, variant, final design, fabricated design, and measured prototype. Use parent_design_id or predecessor_design_id only when the referenced design_id exists in the same response.
 
-Emit each distinct scientific fact exactly once. For observations, choose one best kind: material, parameter, geometry, feed, port, or excitation. Do not repeat one fact under several kinds. Populate only the fields belonging to the selected kind.
+Emit each distinct scientific fact exactly once. For observations, choose one best kind: material, parameter, geometry, feed, port, or excitation. Do not repeat one fact under several kinds.
 
-Extract explicitly reported setups and results. Preserve simulated, measured, analytical, and unspecified origins separately. Populate only the fields belonging to the selected setup kind and result representation kind.
+Extract explicitly reported setups and results. Preserve simulated, measured, analytical, and unspecified origins separately.
 
-Use scalar for one reported value, magnitude, width, or span. Use interval only when the source explicitly reports both endpoints. Use sampled numeric representations only when trustworthy numeric samples are explicitly available. Use image_only when a graph or spatial map is visible but cannot be represented numerically. Use qualitative for non-numeric findings. Use unavailable only for an identified result whose value is not reported, illegible, or ambiguous.
+The selected kind is authoritative. Fully populate every required field for that kind. Leave fields belonging to other kinds null or empty whenever possible; they are not part of the selected record. Never select scalar unless scalar_value contains an explicitly reported source value.
+
+The representation kind describes the structure of the extractable data, not the physical metric.
+
+Use sampled_angular_pattern only when numeric angular samples can be preserved, including the angular coordinate, radial quantity, and points. A radiation pattern shown only as a figure must use image_only.
+
+Use sampled_spatial_map only when numeric spatial samples and their coordinate description can be preserved.
+
+Use image_spatial_map for a spatially distributed quantity shown visually without trustworthy numeric samples. Provide at least spatial_quantity and direct figure evidence.
+
+Use image_only for other figures or graphs that cannot be represented with trustworthy numeric data.
+
+Never choose a sampled representation only because the metric is named Radiation Pattern, Gain, Current Density, Electric Field, or Magnetic Field.
+
+Use scalar for one reported value, magnitude, width, or span. Use interval only when the source explicitly reports both endpoints. Use sampled numeric representations only when trustworthy numeric samples are explicitly available. Use qualitative for non-numeric findings. Use unavailable only for an identified result whose value is not reported, illegible, or ambiguous.
 
 Preserve exact source value lexemes, symbols, units, qualifiers, and wording. Never invent, derive, estimate, interpolate, normalize, or digitize values.
 

@@ -96,7 +96,18 @@ def test_full_document_request_is_ordered_strict_and_traceable(
     enable_thinking: bool,
 ) -> None:
     run_dir = _rendered_run(tmp_path)
-    raw_response = json.dumps(_valid_extraction(run_dir), ensure_ascii=False)
+    response_data = _valid_extraction(run_dir)
+    response_data["observations"][1]["reported_impedance"] = {
+        "value": "50",
+        "unit": "ohm",
+        "qualifier": None,
+        "legibility": "clear",
+    }
+    response_data["setups"][0]["equipment"] = ["inactive VNA"]
+    response_data["results"][0]["representation"]["image_axes"] = [
+        {"name": "inactive axis", "unit": None}
+    ]
+    raw_response = json.dumps(response_data, ensure_ascii=False)
     client = FakeClient([raw_response])
     metadata_seen_before_call = []
 
@@ -249,6 +260,13 @@ def test_full_document_request_is_ordered_strict_and_traceable(
         {"page_number": 2, "visible_label": None},
     ]
     assert persisted.architecture_page_refs == [1, 2]
+    assert "reported_impedance" not in persisted.parameter_observations[0].model_dump(
+        mode="json"
+    )
+    assert "equipment" not in persisted.setups[0].model_dump(mode="json")
+    assert "image_axes" not in persisted.results[0].representation.model_dump(
+        mode="json"
+    )
     validation_report = read_json(run_dir / EXTRACTION_VALIDATION_PATH)
     assert (
         validation_report["deterministic_context_source"]
@@ -716,7 +734,7 @@ def _flatten_result_representation(representation: dict) -> dict:
         }
     if kind == "angular_pattern":
         return {
-            "kind": kind,
+            "kind": "sampled_angular_pattern",
             "angular_coordinate": representation["angular_coordinate"],
             "angular_unit": representation["angular_unit"],
             "angular_plane_or_cut": representation["plane_or_cut"],
@@ -751,9 +769,12 @@ def _flatten_result_representation(representation: dict) -> dict:
 def _flatten_spatial_map_representation(representation: dict) -> dict:
     content = representation["content"]
     flattened = {
-        "kind": "spatial_map",
+        "kind": (
+            "sampled_spatial_map"
+            if content["kind"] == "sampled"
+            else "image_spatial_map"
+        ),
         "spatial_quantity": representation["quantity"],
-        "spatial_content_kind": content["kind"],
     }
     if content["kind"] == "sampled":
         flattened.update(

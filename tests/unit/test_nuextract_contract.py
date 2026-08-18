@@ -225,9 +225,8 @@ def _model_response() -> dict:
                 "metric": "surface current",
                 "conditions": [],
                 "representation": {
-                    "kind": "spatial_map",
+                    "kind": "image_spatial_map",
                     "spatial_quantity": "surface current",
-                    "spatial_content_kind": "image_only",
                     "spatial_map_type_or_component": "magnitude",
                     "spatial_plane_or_cut": None,
                     "spatial_legend_or_scale_label": None,
@@ -356,7 +355,7 @@ def _representation_cases() -> list[tuple[dict, dict]]:
         ),
         (
             {
-                "kind": "angular_pattern",
+                "kind": "sampled_angular_pattern",
                 "angular_coordinate": "theta",
                 "angular_unit": "degree",
                 "angular_plane_or_cut": "phi=0",
@@ -378,9 +377,8 @@ def _representation_cases() -> list[tuple[dict, dict]]:
         ),
         (
             {
-                "kind": "spatial_map",
+                "kind": "sampled_spatial_map",
                 "spatial_quantity": "SAR",
-                "spatial_content_kind": "sampled",
                 "spatial_coordinate_description": "Cartesian coordinates",
                 "spatial_samples": [_reported_point()],
             },
@@ -396,9 +394,8 @@ def _representation_cases() -> list[tuple[dict, dict]]:
         ),
         (
             {
-                "kind": "spatial_map",
+                "kind": "image_spatial_map",
                 "spatial_quantity": "surface current",
-                "spatial_content_kind": "image_only",
                 "spatial_map_type_or_component": "magnitude",
                 "spatial_plane_or_cut": "antenna surface",
                 "spatial_legend_or_scale_label": "A/m",
@@ -547,13 +544,14 @@ def test_native_template_conversion_is_complete_compact_and_deterministic() -> N
         "point_collection",
         "sampled_series",
         "matrix",
-        "angular_pattern",
-        "spatial_map",
+        "sampled_angular_pattern",
+        "sampled_spatial_map",
+        "image_spatial_map",
         "image_only",
         "qualitative",
         "unavailable",
     ]
-    assert representation["spatial_content_kind"] == ["sampled", "image_only"]
+    assert "spatial_content_kind" not in representation
     assert {"collection_points", "series_points", "angular_points"} <= set(
         representation
     )
@@ -599,17 +597,17 @@ def test_flat_observation_accepts_each_kind(kind: str, active_fields: dict) -> N
     assert observation.kind == kind
 
 
-def test_flat_observation_rejects_populated_inactive_fields() -> None:
-    with pytest.raises(ValidationError, match="inactive fields.*material_name"):
-        NuExtractObservationRecord.model_validate(
-            {
-                "observation_id": "parameter_1",
-                "description": "Parameter observation.",
-                "evidence": [_evidence()],
-                "kind": "parameter",
-                "material_name": "Inactive material",
-            }
-        )
+def test_parameter_observation_ignores_inactive_reported_impedance() -> None:
+    data = _model_response()
+    data["observations"][1]["reported_impedance"] = _source_value("50", "ohm")
+
+    model_extraction = NuExtractPaperExtraction.model_validate(data)
+    normalized = _normalize(data)
+
+    assert model_extraction.observations[1].reported_impedance is not None
+    parameter = normalized.parameter_observations[0].model_dump(mode="json")
+    assert parameter["reported_value"]["value"] == "2.45"
+    assert "reported_impedance" not in parameter
 
 
 @pytest.mark.parametrize(
@@ -643,17 +641,19 @@ def test_flat_setup_accepts_and_normalizes_each_kind(
     assert normalized.setups[0].setup_id == f"setup_{kind}"
 
 
-def test_flat_setup_rejects_populated_inactive_fields() -> None:
-    with pytest.raises(ValidationError, match="inactive fields.*equipment"):
-        NuExtractSetupRecord.model_validate(
-            {
-                "setup_id": "setup_1",
-                "description": "Simulation setup.",
-                "evidence": [_evidence()],
-                "kind": "simulation",
-                "equipment": ["VNA"],
-            }
-        )
+def test_setup_ignores_fields_from_another_kind() -> None:
+    data = _model_response()
+    data["setups"][0]["equipment"] = ["VNA"]
+    data["setups"][0]["method"] = "inactive analytical method"
+
+    model_extraction = NuExtractPaperExtraction.model_validate(data)
+    normalized = _normalize(data)
+
+    assert model_extraction.setups[0].equipment == ["VNA"]
+    setup = normalized.setups[0].model_dump(mode="json")
+    assert setup["kind"] == "simulation"
+    assert "equipment" not in setup
+    assert "method" not in setup
 
 
 @pytest.mark.parametrize(
@@ -665,6 +665,11 @@ def test_flat_setup_rejects_populated_inactive_fields() -> None:
             "interval_lower": _source_value(),
             "interval_upper": None,
         },
+        {
+            "kind": "interval",
+            "interval_lower": None,
+            "interval_upper": _source_value(),
+        },
         {"kind": "point_collection", "collection_points": []},
         {
             "kind": "sampled_series",
@@ -672,17 +677,28 @@ def test_flat_setup_rejects_populated_inactive_fields() -> None:
             "series_y_axis": {"name": "S11"},
             "series_points": [],
         },
+        {
+            "kind": "sampled_series",
+            "series_x_axis": None,
+            "series_y_axis": {"name": "S11"},
+            "series_points": [{"x": _source_value(), "y": _source_value("-10", "dB")}],
+        },
         {"kind": "matrix", "matrix_rows": [[]]},
         {
-            "kind": "angular_pattern",
+            "kind": "sampled_angular_pattern",
             "angular_coordinate": "theta",
             "angular_radial_quantity": "gain",
             "angular_points": [],
         },
         {
-            "kind": "spatial_map",
+            "kind": "sampled_spatial_map",
+            "spatial_quantity": "current",
+            "spatial_coordinate_description": "Cartesian coordinates",
+            "spatial_samples": [],
+        },
+        {
+            "kind": "image_spatial_map",
             "spatial_quantity": None,
-            "spatial_content_kind": "image_only",
         },
         {"kind": "qualitative", "qualitative_observation": None},
         {
@@ -699,30 +715,60 @@ def test_flat_result_representation_enforces_required_fields(
         NuExtractResultRepresentation.model_validate(representation)
 
 
-def test_flat_result_representation_rejects_populated_inactive_fields() -> None:
-    with pytest.raises(
-        ValidationError,
-        match="inactive fields.*qualitative_observation",
-    ):
-        NuExtractResultRepresentation.model_validate(
-            {
-                "kind": "scalar",
-                "scalar_value": _source_value(),
-                "qualitative_observation": "Inactive finding",
-            }
-        )
+@pytest.mark.parametrize(
+    "representation",
+    [
+        {
+            "kind": "scalar",
+            "scalar_value": _source_value(),
+            "image_axes": [{"name": "frequency", "unit": "GHz"}],
+            "image_trace_labels": ["inactive trace"],
+        },
+        {
+            "kind": "sampled_series",
+            "series_x_axis": {"name": "frequency", "unit": "GHz"},
+            "series_y_axis": {"name": "S11", "unit": "dB"},
+            "series_points": [{"x": _source_value(), "y": _source_value("-10", "dB")}],
+            "image_axes": [{"name": "inactive axis"}],
+            "image_trace_labels": ["inactive trace"],
+        },
+    ],
+)
+def test_result_normalization_ignores_inactive_image_fields(
+    representation: dict,
+) -> None:
+    model = NuExtractResultRepresentation.model_validate(representation)
+    result = _normalize_single_representation(representation)
+    normalized = result.representation.model_dump(mode="json")
+
+    assert model.image_axes
+    assert model.image_trace_labels
+    assert "image_axes" not in normalized
+    assert "image_trace_labels" not in normalized
 
 
-def test_flat_spatial_map_rejects_fields_from_inactive_content_kind() -> None:
-    with pytest.raises(ValidationError, match="inactive spatial-map fields"):
-        NuExtractResultRepresentation.model_validate(
-            {
-                "kind": "spatial_map",
-                "spatial_quantity": "current",
-                "spatial_content_kind": "image_only",
-                "spatial_samples": [_reported_point()],
-            }
-        )
+def test_sampled_spatial_map_ignores_image_only_spatial_fields() -> None:
+    representation = {
+        "kind": "sampled_spatial_map",
+        "spatial_quantity": "current",
+        "spatial_coordinate_description": "Cartesian coordinates",
+        "spatial_samples": [_reported_point()],
+        "spatial_map_type_or_component": "inactive magnitude",
+        "spatial_plane_or_cut": "inactive plane",
+        "spatial_legend_or_scale_label": "inactive scale",
+        "spatial_annotated_points": [_reported_point()],
+    }
+
+    model = NuExtractResultRepresentation.model_validate(representation)
+    result = _normalize_single_representation(representation)
+    content = result.representation.content.model_dump(mode="json")
+
+    assert model.spatial_map_type_or_component == "inactive magnitude"
+    assert content["kind"] == "sampled"
+    assert "map_type_or_component" not in content
+    assert "plane_or_cut" not in content
+    assert "legend_or_scale_label" not in content
+    assert "annotated_points" not in content
 
 
 @pytest.mark.parametrize(("flat", "expected"), _representation_cases())

@@ -88,23 +88,6 @@ class NuExtractSetupRecord(ContractModel):
     method: NonEmptyString | None = None
     assumptions: list[NonEmptyString] = Field(default_factory=list)
 
-    @model_validator(mode="after")
-    def validate_active_fields(self) -> NuExtractSetupRecord:
-        _reject_populated_inactive_fields(
-            self,
-            {
-                "simulation": {"software", "solver_or_method", "model", "conditions"},
-                "measurement": {
-                    "equipment",
-                    "calibration",
-                    "fixture",
-                    "environment",
-                },
-                "analytical": {"method", "assumptions"},
-            },
-        )
-        return self
-
 
 class NuExtractObservationRecord(ContractModel):
     observation_id: Identifier
@@ -127,21 +110,6 @@ class NuExtractObservationRecord(ContractModel):
     reported_value: SourceValue | None = None
     source_feature_label: NonEmptyString | None = None
     reported_impedance: SourceValue | None = None
-
-    @model_validator(mode="after")
-    def validate_active_fields(self) -> NuExtractObservationRecord:
-        _reject_populated_inactive_fields(
-            self,
-            {
-                "material": {"material_name", "reported_properties"},
-                "parameter": {"symbol", "reported_value"},
-                "geometry": {"source_feature_label"},
-                "feed": {"reported_impedance"},
-                "port": {"reported_impedance"},
-                "excitation": {"reported_impedance"},
-            },
-        )
-        return self
 
 
 class NuExtractReportedDerivation(ContractModel):
@@ -192,12 +160,14 @@ class NuExtractResultRepresentation(ContractModel):
         "point_collection",
         "sampled_series",
         "matrix",
-        "angular_pattern",
-        "spatial_map",
+        "sampled_angular_pattern",
+        "sampled_spatial_map",
+        "image_spatial_map",
         "image_only",
         "qualitative",
         "unavailable",
     ]
+
     scalar_value: SourceValue | None = None
     interval_lower: SourceValue | None = None
     interval_upper: SourceValue | None = None
@@ -217,7 +187,6 @@ class NuExtractResultRepresentation(ContractModel):
     angular_radial_quantity: NonEmptyString | None = None
     angular_points: list[AngularPoint] = Field(default_factory=list)
     spatial_quantity: NonEmptyString | None = None
-    spatial_content_kind: Literal["sampled", "image_only"] | None = None
     spatial_coordinate_description: NonEmptyString | None = None
     spatial_samples: list[ReportedPoint] = Field(default_factory=list)
     spatial_map_type_or_component: NonEmptyString | None = None
@@ -240,45 +209,6 @@ class NuExtractResultRepresentation(ContractModel):
 
     @model_validator(mode="after")
     def validate_selected_representation(self) -> NuExtractResultRepresentation:
-        active_fields = {
-            "scalar": {"scalar_value"},
-            "interval": {"interval_lower", "interval_upper"},
-            "point_collection": {"collection_points"},
-            "sampled_series": {
-                "series_x_axis",
-                "series_y_axis",
-                "series_trace_label",
-                "series_points",
-            },
-            "matrix": {"matrix_rows", "matrix_row_labels", "matrix_column_labels"},
-            "angular_pattern": {
-                "angular_coordinate",
-                "angular_unit",
-                "angular_plane_or_cut",
-                "angular_fixed_angle",
-                "angular_component_or_polarization",
-                "angular_radial_quantity",
-                "angular_points",
-            },
-            "spatial_map": {
-                "spatial_quantity",
-                "spatial_content_kind",
-                "spatial_coordinate_description",
-                "spatial_samples",
-                "spatial_map_type_or_component",
-                "spatial_plane_or_cut",
-                "spatial_legend_or_scale_label",
-                "spatial_annotated_points",
-            },
-            "image_only": {
-                "image_axes",
-                "image_trace_labels",
-                "image_annotated_points",
-            },
-            "qualitative": {"qualitative_observation"},
-            "unavailable": {"unavailable_reason", "unavailable_description"},
-        }
-        _reject_populated_inactive_fields(self, active_fields)
         self._validate_required_fields()
         return self
 
@@ -293,12 +223,17 @@ class NuExtractResultRepresentation(ContractModel):
                 self.series_points,
             ),
             "matrix": (self.matrix_rows,),
-            "angular_pattern": (
+            "sampled_angular_pattern": (
                 self.angular_coordinate,
                 self.angular_radial_quantity,
                 self.angular_points,
             ),
-            "spatial_map": (self.spatial_quantity, self.spatial_content_kind),
+            "sampled_spatial_map": (
+                self.spatial_quantity,
+                self.spatial_coordinate_description,
+                self.spatial_samples,
+            ),
+            "image_spatial_map": (self.spatial_quantity,),
             "image_only": (),
             "qualitative": (self.qualitative_observation,),
             "unavailable": (
@@ -310,30 +245,6 @@ class NuExtractResultRepresentation(ContractModel):
             raise ValueError(f"required fields are missing for {self.kind!r}")
         if self.kind == "matrix" and any(not row for row in self.matrix_rows):
             raise ValueError("matrix rows must be non-empty")
-        if self.kind == "spatial_map":
-            self._validate_spatial_content()
-
-    def _validate_spatial_content(self) -> None:
-        if self.spatial_content_kind == "sampled":
-            if not _is_populated(
-                self.spatial_coordinate_description
-            ) or not _is_populated(self.spatial_samples):
-                raise ValueError("sampled spatial maps require coordinates and samples")
-            inactive_fields = {
-                "spatial_map_type_or_component",
-                "spatial_plane_or_cut",
-                "spatial_legend_or_scale_label",
-                "spatial_annotated_points",
-            }
-        else:
-            inactive_fields = {"spatial_coordinate_description", "spatial_samples"}
-        populated = sorted(
-            field for field in inactive_fields if _is_populated(getattr(self, field))
-        )
-        if populated:
-            raise ValueError(
-                f"inactive spatial-map fields are populated: {', '.join(populated)}"
-            )
 
 
 class NuExtractResultRecord(ContractModel):
@@ -376,22 +287,6 @@ def build_nuextract_template() -> dict:
 
 def _is_populated(value: object) -> bool:
     return value is not None and value != []
-
-
-def _reject_populated_inactive_fields(
-    record: ContractModel,
-    active_fields_by_kind: dict[str, set[str]],
-) -> None:
-    kind = getattr(record, "kind")
-    all_fields = set().union(*active_fields_by_kind.values())
-    inactive_fields = all_fields - active_fields_by_kind[kind]
-    populated = sorted(
-        field for field in inactive_fields if _is_populated(getattr(record, field))
-    )
-    if populated:
-        raise ValueError(
-            f"inactive fields are populated for {kind!r}: {', '.join(populated)}"
-        )
 
 
 class _EvidenceCatalogBuilder:
@@ -613,9 +508,9 @@ def _normalize_result_representation(
             "row_labels": data["matrix_row_labels"],
             "column_labels": data["matrix_column_labels"],
         }
-    if kind == "angular_pattern":
+    if kind == "sampled_angular_pattern":
         return {
-            "kind": kind,
+            "kind": "angular_pattern",
             "angular_coordinate": data["angular_coordinate"],
             "angular_unit": data["angular_unit"],
             "plane_or_cut": data["angular_plane_or_cut"],
@@ -624,8 +519,29 @@ def _normalize_result_representation(
             "radial_quantity": data["angular_radial_quantity"],
             "points": data["angular_points"],
         }
-    if kind == "spatial_map":
-        return _normalize_spatial_map_representation(data, evidence_ids=evidence_ids)
+    if kind == "sampled_spatial_map":
+        return {
+            "kind": "spatial_map",
+            "quantity": data["spatial_quantity"],
+            "content": {
+                "kind": "sampled",
+                "coordinate_description": data["spatial_coordinate_description"],
+                "samples": data["spatial_samples"],
+            },
+        }
+    if kind == "image_spatial_map":
+        return {
+            "kind": "spatial_map",
+            "quantity": data["spatial_quantity"],
+            "content": {
+                "kind": "image_only",
+                "map_type_or_component": data["spatial_map_type_or_component"],
+                "plane_or_cut": data["spatial_plane_or_cut"],
+                "legend_or_scale_label": data["spatial_legend_or_scale_label"],
+                "annotated_points": data["spatial_annotated_points"],
+                "evidence_ids": list(evidence_ids),
+            },
+        }
     if kind == "image_only":
         return {
             "kind": kind,
@@ -640,32 +556,4 @@ def _normalize_result_representation(
         "kind": kind,
         "reason": data["unavailable_reason"],
         "description": data["unavailable_description"],
-    }
-
-
-def _normalize_spatial_map_representation(
-    data: dict,
-    *,
-    evidence_ids: list[str],
-) -> dict:
-    content_kind = data["spatial_content_kind"]
-    if content_kind == "sampled":
-        content = {
-            "kind": content_kind,
-            "coordinate_description": data["spatial_coordinate_description"],
-            "samples": data["spatial_samples"],
-        }
-    else:
-        content = {
-            "kind": content_kind,
-            "map_type_or_component": data["spatial_map_type_or_component"],
-            "plane_or_cut": data["spatial_plane_or_cut"],
-            "legend_or_scale_label": data["spatial_legend_or_scale_label"],
-            "annotated_points": data["spatial_annotated_points"],
-            "evidence_ids": list(evidence_ids),
-        }
-    return {
-        "kind": "spatial_map",
-        "quantity": data["spatial_quantity"],
-        "content": content,
     }
