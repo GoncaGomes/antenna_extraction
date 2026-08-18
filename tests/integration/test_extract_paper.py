@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -21,6 +22,7 @@ from antenna_ingest.extraction.full_document import (
     REQUEST_METADATA_PATH,
     extract_paper_from_run,
 )
+from antenna_ingest.extraction.nuextract_contract import NuExtractPaperExtraction
 from antenna_ingest.orchestration.runs import create_run
 from antenna_ingest.orchestration.schemas import RunManifest
 from antenna_ingest.rendering import render_run_pages
@@ -107,9 +109,9 @@ def test_full_document_request_is_ordered_strict_and_traceable(
     assert request["response_format"] == {
         "type": "json_schema",
         "json_schema": {
-            "name": "paper_extraction",
+            "name": "nuextract_paper_extraction",
             "strict": True,
-            "schema": PaperExtraction.model_json_schema(mode="validation"),
+            "schema": NuExtractPaperExtraction.model_json_schema(mode="validation"),
         },
     }
 
@@ -139,14 +141,18 @@ def test_full_document_request_is_ordered_strict_and_traceable(
     for prompt_invariant in (
         "Do not extract paper-organisation statements",
         "Leave a collection empty when the paper contains no information",
-        "Do not catalogue source items that are not referenced",
-        "Never use one evidence record as generic support",
-        "For a design record, include only evidence that directly supports",
+        "Every emitted factual record must contain its supporting evidence inline",
+        "The same source item may be repeated inline",
+        "Do not include evidence merely because it concerns the same antenna",
+        "Each inline evidence object must contain the correct page number",
+        "Omit any claim that does not have direct source evidence",
+        "the exact referenced design_id is declared by another record",
         "A reported width or span without explicit endpoints is a scalar",
         "Use interval only when the source explicitly reports both lower and upper endpoints",
-        "every referenced evidence ID exists in evidence_catalog",
     ):
         assert prompt_invariant in prompt_text
+    assert "evidence_catalog" not in prompt_text
+    assert "evidence_id" not in prompt_text
 
     manifest_before = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
     assert manifest_before.document_id in prompt_text
@@ -173,7 +179,7 @@ def test_full_document_request_is_ordered_strict_and_traceable(
         == hashlib.sha256(prompt_text.encode("utf-8")).hexdigest()
     )
     rendered_schema = json.dumps(
-        PaperExtraction.model_json_schema(mode="validation"),
+        NuExtractPaperExtraction.model_json_schema(mode="validation"),
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
@@ -202,6 +208,7 @@ def test_full_document_request_is_ordered_strict_and_traceable(
     assert manifest.phases["paper_extraction"].attempt == 1
     assert manifest.phases["paper_extraction"].prompt_hash == metadata["prompt_hash"]
     assert manifest.phases["paper_extraction"].schema_hash == metadata["schema_hash"]
+    PaperExtraction.model_validate(read_json(run_dir / PAPER_EXTRACTION_PATH))
 
 
 def test_raw_response_survives_malformed_json_and_phase_fails(tmp_path: Path) -> None:
@@ -227,17 +234,24 @@ def test_raw_response_survives_malformed_json_and_phase_fails(tmp_path: Path) ->
     assert manifest.phases["paper_extraction"].status != "running"
 
 
-@pytest.mark.parametrize("failure_kind", ["schema", "cross_reference"])
-def test_schema_and_cross_reference_errors_are_inspectable(
+@pytest.mark.parametrize(
+    ("failure_kind", "expected_substage"),
+    [
+        ("model_schema", "model_response_validation"),
+        ("normalization", "deterministic_normalization"),
+    ],
+)
+def test_model_validation_and_normalization_errors_are_inspectable(
     tmp_path: Path,
     failure_kind: str,
+    expected_substage: str,
 ) -> None:
     run_dir = _rendered_run(tmp_path)
     response_data = _valid_extraction(run_dir)
-    if failure_kind == "schema":
+    if failure_kind == "model_schema":
         response_data["unexpected"] = "forbidden"
     else:
-        response_data["results"][0]["design_id"] = "unknown_design"
+        response_data["designs"][1]["parent_design_id"] = "unknown_design"
     raw_response = json.dumps(response_data)
     client = FakeClient([raw_response])
 
@@ -250,9 +264,9 @@ def test_schema_and_cross_reference_errors_are_inspectable(
         )
 
     failure, manifest = _failure_and_manifest(run_dir)
-    assert failure["substage"] == "schema_and_reference_validation"
+    assert failure["substage"] == expected_substage
     assert failure["response_artifact"] == RAW_RESPONSE_PATH
-    assert (run_dir / RAW_RESPONSE_PATH).is_file()
+    assert (run_dir / RAW_RESPONSE_PATH).read_text(encoding="utf-8") == raw_response
     assert not (run_dir / PAPER_EXTRACTION_PATH).exists()
     assert manifest.phases["paper_extraction"].status == "failed"
 
@@ -275,7 +289,7 @@ def test_document_identity_contradiction_is_rejected_after_raw_persistence(
         )
 
     failure, manifest = _failure_and_manifest(run_dir)
-    assert failure["substage"] == "schema_and_reference_validation"
+    assert failure["substage"] == "final_validation"
     assert failure["response_artifact"] == RAW_RESPONSE_PATH
     assert (run_dir / RAW_RESPONSE_PATH).read_text(encoding="utf-8") == raw_response
     assert manifest.phases["paper_extraction"].status == "failed"
@@ -462,7 +476,54 @@ def _valid_extraction(run_dir: Path) -> dict:
         "doi": None,
         "sha256": manifest.input_sha256,
     }
-    return data
+    return _replace_evidence_ids_with_inline_evidence(data)
+
+
+def _replace_evidence_ids_with_inline_evidence(data: dict) -> dict:
+    response = deepcopy(data)
+    catalog = {
+        item["evidence_id"]: {
+            key: value for key, value in item.items() if key != "evidence_id"
+        }
+        for item in response.pop("evidence_catalog")
+    }
+
+    collections = (
+        "designs",
+        "material_observations",
+        "parameter_observations",
+        "geometry_observations",
+        "feed_port_excitation_observations",
+        "setups",
+        "results",
+        "derivations",
+        "conflicts",
+        "missing_information",
+    )
+    for collection_name in collections:
+        for record in response[collection_name]:
+            record["evidence"] = [
+                deepcopy(catalog[evidence_id])
+                for evidence_id in record.pop("evidence_ids")
+            ]
+
+    for result in response["results"]:
+        representation = result["representation"]
+        if representation["kind"] == "image_only":
+            representation["evidence"] = [
+                deepcopy(catalog[evidence_id])
+                for evidence_id in representation.pop("evidence_ids")
+            ]
+        if (
+            representation["kind"] == "spatial_map"
+            and representation["content"]["kind"] == "image_only"
+        ):
+            content = representation["content"]
+            content["evidence"] = [
+                deepcopy(catalog[evidence_id])
+                for evidence_id in content.pop("evidence_ids")
+            ]
+    return response
 
 
 def _settings() -> AntennaIngestSettings:

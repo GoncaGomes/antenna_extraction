@@ -12,6 +12,10 @@ from typing import Any, Literal
 from pydantic import Field
 
 from antenna_ingest.contracts.paper_extraction import PaperExtraction
+from antenna_ingest.extraction.nuextract_contract import (
+    NuExtractPaperExtraction,
+    normalize_nuextract_extraction,
+)
 from antenna_ingest.models.client import build_model_client
 from antenna_ingest.orchestration.failures import (
     sanitize_failure_message,
@@ -57,13 +61,13 @@ EXTRACTION_PROMPT = """You are a source-faithful extractor of antenna-engineerin
 
 The ordered page images that follow are all pages of one scientific paper. Treat them as a single complete document, not as independent page-level documents. Each image is preceded by its globally one-based PDF_INPUT_PAGE number.
 
-Return exactly one JSON object matching the supplied PaperExtraction JSON Schema. Return no commentary, Markdown, or text outside that object.
+Return exactly one JSON object matching the supplied NuExtractPaperExtraction JSON Schema. Return no commentary, Markdown, or text outside that object.
 
 Extract distinct scientifically relevant information about antenna designs that the paper itself proposes, analyses, simulates, fabricates, or measures.
 
 Do not extract paper-organisation statements, bibliographic background, conflict-of-interest declarations, or antenna designs mentioned only as related work into the engineering collections.
 
-Identify every distinct antenna design, intermediate design, variant, final design, fabricated design, and measured prototype studied by the paper. Preserve parent and predecessor relationships only when explicitly supported by the source.
+Identify every distinct antenna design, intermediate design, variant, final design, fabricated design, and measured prototype studied by the paper. Set parent_design_id or predecessor_design_id only when the exact referenced design_id is declared by another record in the same designs array. Otherwise the relationship field must be null.
 
 Populate each collection only with information matching its scientific meaning:
 
@@ -82,20 +86,14 @@ Leave a collection empty when the paper contains no information matching that co
 
 Associate each observation, setup, and result with the correct design whenever that association is explicitly supported. Preserve ambiguity when the paper does not support an unambiguous association.
 
-Create a minimal but complete evidence catalog containing only source items that directly support records emitted in the extraction.
+Every emitted factual record must contain its supporting evidence inline.
 
-- Create one evidence record for each distinct source passage, figure, caption, table, equation, or graph used to support an emitted record.
-- Do not catalogue source items that are not referenced by an extracted record.
-- Reuse an evidence record when the same source item directly supports multiple records.
-- Never use one evidence record as generic support for claims taken from different passages or pages.
-- Every evidence ID referenced anywhere in the output must exactly match an evidence_id declared in evidence_catalog.
-- Never reference an evidence ID that is absent from evidence_catalog.
-- For a design record, include only evidence that directly supports the design's identity, name, role, or description. Do not include every evidence item associated with that design.
-- Each observation, setup, result, derivation, conflict, or missing-information record must reference only the declared evidence IDs that directly support that record.
-- If a claim cannot be linked to a declared supporting evidence record, omit the claim.
-- Do not create separate evidence records for individual words, table cells, numeric values, curve samples, or repeated claims from the same source item.
-- Keep text excerpts and visual descriptions concise while preserving the information required for scientific verification.
-- Assign identifiers only to records that are actually emitted. Do not enumerate unused identifiers.
+- Inline evidence must directly support the specific record that contains it.
+- The same source item may be repeated inline when it directly supports multiple records.
+- Do not include evidence merely because it concerns the same antenna.
+- Each inline evidence object must contain the correct page number, source kind, and concise source-faithful excerpt or visual description. Include a source label, bounding region, or legibility note only when available.
+- Do not create evidence objects for individual words, table cells, numeric values, curve samples, or repeated claims from the same source item.
+- Omit any claim that does not have direct source evidence.
 
 Choose the result representation that matches the source evidence.
 
@@ -116,9 +114,8 @@ When information is ambiguous, uncertain, or illegible, represent that honestly 
 
 Before returning the JSON, verify all of the following:
 
-- every referenced evidence ID exists in evidence_catalog
-- every emitted factual record is directly supported by its referenced evidence
-- no evidence ID is referenced merely because it belongs to the same design
+- every emitted factual record contains direct supporting evidence inline
+- no inline evidence is included merely because it concerns the same antenna
 - no engineering collection contains paper organisation, unrelated work, or administrative declarations
 - interval representations contain two explicit source-reported endpoints
 - every architecture_page_refs value corresponds to an input page
@@ -218,7 +215,7 @@ def extract_paper_from_run(
     settings = settings or load_settings()
     client = client or build_model_client(settings, ModelRole.DOCUMENT_EXTRACTOR)
     model = settings.model_for_role(ModelRole.DOCUMENT_EXTRACTOR)
-    schema = PaperExtraction.model_json_schema(mode="validation")
+    schema = NuExtractPaperExtraction.model_json_schema(mode="validation")
     effective_prompt = _build_effective_prompt(manifest, render_report)
     prompt_hash = _sha256_text(effective_prompt)
     schema_hash = _sha256_json(schema)
@@ -270,7 +267,7 @@ def extract_paper_from_run(
             response_format={
                 "type": "json_schema",
                 "json_schema": {
-                    "name": "paper_extraction",
+                    "name": "nuextract_paper_extraction",
                     "strict": True,
                     "schema": schema,
                 },
@@ -302,12 +299,15 @@ def extract_paper_from_run(
 
         substage = "response_parsing"
         response_data = json.loads(raw_response)
-        substage = "schema_and_reference_validation"
         filled_document_fields = _fill_missing_document_context(
             response_data,
             manifest,
         )
-        extraction = PaperExtraction.model_validate(response_data)
+        substage = "model_response_validation"
+        model_extraction = NuExtractPaperExtraction.model_validate(response_data)
+        substage = "deterministic_normalization"
+        extraction = normalize_nuextract_extraction(model_extraction)
+        substage = "final_validation"
         _validate_extraction_context(extraction, manifest, render_report)
 
         substage = "artifact_persistence"
