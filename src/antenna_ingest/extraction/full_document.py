@@ -11,6 +11,7 @@ from typing import Any, Literal
 
 from pydantic import Field
 
+from antenna_ingest.contracts.common import DocumentReference, PageRecord
 from antenna_ingest.contracts.paper_extraction import PaperExtraction
 from antenna_ingest.extraction.nuextract_contract import (
     NuExtractPaperExtraction,
@@ -69,27 +70,33 @@ Do not extract paper-organisation statements, bibliographic background, conflict
 
 Identify every distinct antenna design, intermediate design, variant, final design, fabricated design, and measured prototype studied by the paper. Set parent_design_id or predecessor_design_id only when the exact referenced design_id is declared by another record in the same designs array. Otherwise the relationship field must be null.
 
+The document object contains only source-derived title and DOI metadata. Use null when either value is not reported.
+
 Populate each collection only with information matching its scientific meaning:
 
-- material_observations: materials actually used in a reported antenna design, fabrication, simulation, or measurement, including explicitly reported material properties.
-- parameter_observations: specific antenna, simulation, or measurement parameters, including reported symbols, values, units, or parameter descriptions. Do not use this collection for general prose or literature-review statements.
-- geometry_observations: physical geometry, topology, dimensions, placement, layers, shapes, slots, cuts, connections, or structural relationships. Do not include statements describing the organisation or sections of the paper.
-- feed_port_excitation_observations: feeds, feeding arrangements, ports, excitation methods, or reported impedances.
+- observations contains all source-supported engineering observations. Each observation must use exactly one best matching kind: material, parameter, geometry, feed, port, or excitation.
+  - material: a material used by a studied design, fabrication, simulation or measurement, including explicitly reported material properties.
+  - parameter: a named or symbolized engineering, simulation or measurement parameter that is not primarily a material, geometry, feed, port or excitation description.
+  - geometry: physical shape, topology, dimension, placement, layer, slot, cut, connection or structural relationship.
+  - feed: the physical or conceptual feeding arrangement.
+  - port: a reported port definition, type, location or impedance.
+  - excitation: a reported excitation method, mode, polarization or source.
 - setups: explicitly reported simulation, measurement, or analytical configurations used for the extracted designs or results. Do not include configurations belonging only to cited related work.
 - results: source-supported antenna performance values or qualitative findings. Distinguish simulated, measured, analytical, and unspecified origins.
 - derivations: equations, formulas, or calculation procedures explicitly reported by the source. A reported dimension or value alone is not a derivation.
 - conflicts: incompatible scientific values, claims, design descriptions, or reported findings. Do not record conflict-of-interest declarations.
 - missing_information: technically relevant information that is absent, unavailable, or required to interpret an emitted record. Its description must state what is missing. Do not place reported conclusions or positive findings in this collection.
-- architecture_page_refs: globally one-based page numbers containing source evidence relevant to later reconstruction of the antenna architecture.
 
 Leave a collection empty when the paper contains no information matching that collection.
 
+Emit each distinct scientific fact exactly once. Choose the single best matching observation kind. Do not repeat the same fact under multiple observation kinds. Do not emit general antenna definitions, explanations of common terminology, paper organisation, related work, or repeated conclusion summaries as engineering observations.
+
 Associate each observation, setup, and result with the correct design whenever that association is explicitly supported. Preserve ambiguity when the paper does not support an unambiguous association.
 
-Every emitted factual record must contain its supporting evidence inline.
+Every emitted factual record except missing_information must contain its supporting evidence inline.
 
-- Inline evidence must directly support the specific record that contains it.
-- The same source item may be repeated inline when it directly supports multiple records.
+- Inline evidence is a list of only the source items directly required to support the record.
+- The same source item may support different distinct records, but duplicate scientific records must not be emitted.
 - Do not include evidence merely because it concerns the same antenna.
 - Each inline evidence object must contain the correct page number, source kind, and concise source-faithful excerpt or visual description. Include a source label, bounding region, or legibility note only when available.
 - Do not create evidence objects for individual words, table cells, numeric values, curve samples, or repeated claims from the same source item.
@@ -114,11 +121,11 @@ When information is ambiguous, uncertain, or illegible, represent that honestly 
 
 Before returning the JSON, verify all of the following:
 
-- every emitted factual record contains direct supporting evidence inline
+- every emitted factual record except missing_information contains direct supporting evidence inline
 - no inline evidence is included merely because it concerns the same antenna
 - no engineering collection contains paper organisation, unrelated work, or administrative declarations
+- each distinct scientific fact appears exactly once under the single best observation kind
 - interval representations contain two explicit source-reported endpoints
-- every architecture_page_refs value corresponds to an input page
 """
 
 
@@ -163,8 +170,18 @@ class NuExtractRequestMetadata(StrictModel):
 class ExtractionValidationReport(StrictModel):
     status: Literal["valid"] = "valid"
     validated_at: datetime
-    document_context_source: Literal["manifest"] = "manifest"
-    filled_document_fields: list[Literal["source_filename", "sha256"]]
+    deterministic_context_source: Literal["manifest_and_render_report"] = (
+        "manifest_and_render_report"
+    )
+    deterministic_document_fields: list[
+        Literal[
+            "document_id",
+            "page_count",
+            "source_filename",
+            "sha256",
+            "pages",
+        ]
+    ]
     document_id: str
     source_filename: str
     input_sha256: str
@@ -217,7 +234,7 @@ def extract_paper_from_run(
     model = settings.model_for_role(ModelRole.DOCUMENT_EXTRACTOR)
     temperature = 0.6 if enable_thinking else 0.2
     schema = NuExtractPaperExtraction.model_json_schema(mode="validation")
-    effective_prompt = _build_effective_prompt(manifest, render_report)
+    effective_prompt = EXTRACTION_PROMPT
     prompt_hash = _sha256_text(effective_prompt)
     schema_hash = _sha256_json(schema)
 
@@ -306,14 +323,26 @@ def extract_paper_from_run(
 
         substage = "response_parsing"
         response_data = json.loads(raw_response)
-        filled_document_fields = _fill_missing_document_context(
-            response_data,
-            manifest,
-        )
         substage = "model_response_validation"
         model_extraction = NuExtractPaperExtraction.model_validate(response_data)
+        document = DocumentReference(
+            document_id=manifest.document_id,
+            page_count=render_report.page_count,
+            source_filename=Path(manifest.input_file).name,
+            sha256=manifest.input_sha256,
+            title=model_extraction.document.title,
+            doi=model_extraction.document.doi,
+        )
+        pages = [
+            PageRecord(page_number=page.page_number, visible_label=None)
+            for page in render_report.pages
+        ]
         substage = "deterministic_normalization"
-        extraction = normalize_nuextract_extraction(model_extraction)
+        extraction = normalize_nuextract_extraction(
+            model_extraction,
+            document=document,
+            pages=pages,
+        )
         substage = "final_validation"
         _validate_extraction_context(extraction, manifest, render_report)
 
@@ -325,7 +354,13 @@ def extract_paper_from_run(
         extraction_checksum = sha256_file(run_dir / PAPER_EXTRACTION_PATH)
         validation_report = ExtractionValidationReport(
             validated_at=datetime.now(timezone.utc),
-            filled_document_fields=filled_document_fields,
+            deterministic_document_fields=[
+                "document_id",
+                "page_count",
+                "source_filename",
+                "sha256",
+                "pages",
+            ],
             document_id=manifest.document_id,
             source_filename=Path(manifest.input_file).name,
             input_sha256=manifest.input_sha256,
@@ -443,23 +478,6 @@ def _load_validated_inputs(
     return manifest, render_report, page_metadata
 
 
-def _build_effective_prompt(
-    manifest: RunManifest,
-    render_report: PageRenderReport,
-) -> str:
-    document_context = {
-        "document_id": manifest.document_id,
-        "page_count": render_report.page_count,
-        "source_filename": Path(manifest.input_file).name,
-        "sha256": manifest.input_sha256,
-    }
-    return (
-        f"{EXTRACTION_PROMPT}\n\n"
-        "Deterministic document context:\n"
-        f"{json.dumps(document_context, ensure_ascii=False, sort_keys=True)}"
-    )
-
-
 def _build_multimodal_content(
     run_dir: Path,
     effective_prompt: str,
@@ -504,26 +522,6 @@ def _validate_extraction_context(
         raise ValueError(
             "extraction contradicts manifest or render report: " + ", ".join(mismatches)
         )
-
-
-def _fill_missing_document_context(
-    response_data: object,
-    manifest: RunManifest,
-) -> list[Literal["source_filename", "sha256"]]:
-    if not isinstance(response_data, dict):
-        raise ValueError("NuExtract3 response must be a JSON object")
-    document = response_data.get("document")
-    if not isinstance(document, dict):
-        raise ValueError("NuExtract3 response document must be a JSON object")
-
-    filled_fields: list[Literal["source_filename", "sha256"]] = []
-    if document.get("source_filename") is None:
-        document["source_filename"] = Path(manifest.input_file).name
-        filled_fields.append("source_filename")
-    if document.get("sha256") is None:
-        document["sha256"] = manifest.input_sha256
-        filled_fields.append("sha256")
-    return filled_fields
 
 
 def _refuse_existing_outputs(

@@ -150,8 +150,11 @@ def test_full_document_request_is_ordered_strict_and_traceable(
     for prompt_invariant in (
         "Do not extract paper-organisation statements",
         "Leave a collection empty when the paper contains no information",
-        "Every emitted factual record must contain its supporting evidence inline",
-        "The same source item may be repeated inline",
+        "observations contains all source-supported engineering observations",
+        "Emit each distinct scientific fact exactly once",
+        "Choose the single best matching observation kind",
+        "Inline evidence is a list of only the source items directly required",
+        "The same source item may support different distinct records",
         "Do not include evidence merely because it concerns the same antenna",
         "Each inline evidence object must contain the correct page number",
         "Omit any claim that does not have direct source evidence",
@@ -164,9 +167,9 @@ def test_full_document_request_is_ordered_strict_and_traceable(
     assert "evidence_id" not in prompt_text
 
     manifest_before = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
-    assert manifest_before.document_id in prompt_text
-    assert manifest_before.input_sha256 in prompt_text
-    assert Path(manifest_before.input_file).name in prompt_text
+    assert manifest_before.document_id not in prompt_text
+    assert manifest_before.input_sha256 not in prompt_text
+    assert Path(manifest_before.input_file).name not in prompt_text
     image_urls = [
         item["image_url"]["url"] for item in content if item["type"] == "image_url"
     ]
@@ -219,7 +222,42 @@ def test_full_document_request_is_ordered_strict_and_traceable(
     assert manifest.phases["paper_extraction"].attempt == 1
     assert manifest.phases["paper_extraction"].prompt_hash == metadata["prompt_hash"]
     assert manifest.phases["paper_extraction"].schema_hash == metadata["schema_hash"]
-    PaperExtraction.model_validate(read_json(run_dir / PAPER_EXTRACTION_PATH))
+    persisted = PaperExtraction.model_validate(
+        read_json(run_dir / PAPER_EXTRACTION_PATH)
+    )
+    raw_data = json.loads(raw_response)
+    raw_document = raw_data["document"]
+    for deterministic_field in (
+        "schema_name",
+        "schema_version",
+        "pages",
+        "architecture_page_refs",
+    ):
+        assert deterministic_field not in raw_data
+    assert set(raw_document) == {"title", "doi"}
+    assert persisted.document.document_id == manifest.document_id
+    assert persisted.document.page_count == 2
+    assert persisted.document.source_filename == Path(manifest.input_file).name
+    assert persisted.document.sha256 == manifest.input_sha256
+    assert persisted.document.title == raw_document["title"]
+    assert persisted.document.doi == raw_document["doi"]
+    assert [page.model_dump(mode="json") for page in persisted.pages] == [
+        {"page_number": 1, "visible_label": None},
+        {"page_number": 2, "visible_label": None},
+    ]
+    assert persisted.architecture_page_refs == [1, 2]
+    validation_report = read_json(run_dir / EXTRACTION_VALIDATION_PATH)
+    assert (
+        validation_report["deterministic_context_source"]
+        == "manifest_and_render_report"
+    )
+    assert validation_report["deterministic_document_fields"] == [
+        "document_id",
+        "page_count",
+        "source_filename",
+        "sha256",
+        "pages",
+    ]
 
 
 def test_raw_response_survives_malformed_json_and_phase_fails(tmp_path: Path) -> None:
@@ -343,16 +381,25 @@ def test_model_validation_and_normalization_errors_are_inspectable(
     assert manifest.phases["paper_extraction"].status == "failed"
 
 
-def test_document_identity_contradiction_is_rejected_after_raw_persistence(
+def test_final_validation_failure_preserves_raw_response(
     tmp_path: Path,
+    monkeypatch,
 ) -> None:
     run_dir = _rendered_run(tmp_path)
     response_data = _valid_extraction(run_dir)
-    response_data["document"]["document_id"] = "document_wrong"
     raw_response = json.dumps(response_data)
     client = FakeClient([raw_response])
 
-    with pytest.raises(ValueError, match="contradicts manifest"):
+    def fail_final_validation(*args, **kwargs) -> None:
+        raise ValueError("forced final validation failure")
+
+    monkeypatch.setattr(
+        full_document,
+        "_validate_extraction_context",
+        fail_final_validation,
+    )
+
+    with pytest.raises(ValueError, match="forced final validation failure"):
         extract_paper_from_run(
             run_dir,
             enable_thinking=False,
@@ -367,13 +414,11 @@ def test_document_identity_contradiction_is_rejected_after_raw_persistence(
     assert manifest.phases["paper_extraction"].status == "failed"
 
 
-def test_missing_optional_document_context_is_filled_from_manifest(
+def test_document_context_is_constructed_without_mutating_raw_response(
     tmp_path: Path,
 ) -> None:
     run_dir = _rendered_run(tmp_path)
     response_data = _valid_extraction(run_dir)
-    response_data["document"]["source_filename"] = None
-    response_data["document"]["sha256"] = None
     raw_response = json.dumps(response_data)
     client = FakeClient([raw_response])
 
@@ -399,12 +444,20 @@ def test_missing_optional_document_context_is_filled_from_manifest(
         == Path(manifest.input_file).name
     )
     assert persisted_extraction["document"]["sha256"] == manifest.input_sha256
-    assert persisted_raw["document"]["source_filename"] is None
-    assert persisted_raw["document"]["sha256"] is None
-    assert validation_report["document_context_source"] == "manifest"
-    assert validation_report["filled_document_fields"] == [
+    assert persisted_raw["document"] == {
+        "title": "Synthetic antenna paper",
+        "doi": None,
+    }
+    assert (
+        validation_report["deterministic_context_source"]
+        == "manifest_and_render_report"
+    )
+    assert validation_report["deterministic_document_fields"] == [
+        "document_id",
+        "page_count",
         "source_filename",
         "sha256",
+        "pages",
     ]
 
 
@@ -539,20 +592,19 @@ def _rendered_run(tmp_path: Path) -> Path:
 
 def _valid_extraction(run_dir: Path) -> dict:
     data = read_json(FIXTURE_PATH)
-    manifest = RunManifest.model_validate(read_json(run_dir / "manifest.json"))
-    data["document"] = {
-        "document_id": manifest.document_id,
-        "page_count": 2,
-        "source_filename": Path(manifest.input_file).name,
-        "title": "Synthetic antenna paper",
-        "doi": None,
-        "sha256": manifest.input_sha256,
-    }
     return _replace_evidence_ids_with_inline_evidence(data)
 
 
 def _replace_evidence_ids_with_inline_evidence(data: dict) -> dict:
     response = deepcopy(data)
+    response.pop("schema_name")
+    response.pop("schema_version")
+    response.pop("pages")
+    response.pop("architecture_page_refs")
+    response["document"] = {
+        "title": response["document"]["title"],
+        "doi": response["document"]["doi"],
+    }
     catalog = {
         item["evidence_id"]: {
             key: value for key, value in item.items() if key != "evidence_id"
@@ -562,10 +614,6 @@ def _replace_evidence_ids_with_inline_evidence(data: dict) -> dict:
 
     collections = (
         "designs",
-        "material_observations",
-        "parameter_observations",
-        "geometry_observations",
-        "feed_port_excitation_observations",
         "setups",
         "results",
         "derivations",
@@ -579,22 +627,31 @@ def _replace_evidence_ids_with_inline_evidence(data: dict) -> dict:
                 for evidence_id in record.pop("evidence_ids")
             ]
 
+    observations = []
+    for collection_name, kind in (
+        ("material_observations", "material"),
+        ("parameter_observations", "parameter"),
+        ("geometry_observations", "geometry"),
+        ("feed_port_excitation_observations", None),
+    ):
+        for record in response.pop(collection_name):
+            record["evidence"] = [
+                deepcopy(catalog[evidence_id])
+                for evidence_id in record.pop("evidence_ids")
+            ]
+            record["kind"] = record.pop("observation_kind") if kind is None else kind
+            observations.append(record)
+    response["observations"] = observations
+
     for result in response["results"]:
         representation = result["representation"]
         if representation["kind"] == "image_only":
-            representation["evidence"] = [
-                deepcopy(catalog[evidence_id])
-                for evidence_id in representation.pop("evidence_ids")
-            ]
+            representation.pop("evidence_ids")
         if (
             representation["kind"] == "spatial_map"
             and representation["content"]["kind"] == "image_only"
         ):
-            content = representation["content"]
-            content["evidence"] = [
-                deepcopy(catalog[evidence_id])
-                for evidence_id in content.pop("evidence_ids")
-            ]
+            representation["content"].pop("evidence_ids")
     return response
 
 

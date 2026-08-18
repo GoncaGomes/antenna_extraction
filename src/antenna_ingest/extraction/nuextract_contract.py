@@ -43,6 +43,11 @@ class InlineEvidence(ContractModel):
     legibility_note: NonEmptyString | None = None
 
 
+class NuExtractDocumentMetadata(ContractModel):
+    title: NonEmptyString | None = None
+    doi: NonEmptyString | None = None
+
+
 class NuExtractDesignRecord(ContractModel):
     design_id: Identifier
     name: NonEmptyString
@@ -117,22 +122,34 @@ class NuExtractObservationBase(ContractModel):
 
 
 class NuExtractMaterialObservation(NuExtractObservationBase):
+    kind: Literal["material"]
     material_name: NonEmptyString | None = None
     reported_properties: list[ReportedCondition] = Field(default_factory=list)
 
 
 class NuExtractParameterObservation(NuExtractObservationBase):
+    kind: Literal["parameter"]
     symbol: NonEmptyString | None = None
     reported_value: SourceValue | None = None
 
 
 class NuExtractGeometryObservation(NuExtractObservationBase):
+    kind: Literal["geometry"]
     source_feature_label: NonEmptyString | None = None
 
 
 class NuExtractFeedPortExcitationObservation(NuExtractObservationBase):
-    observation_kind: Literal["feed", "port", "excitation"]
+    kind: Literal["feed", "port", "excitation"]
     reported_impedance: SourceValue | None = None
+
+
+NuExtractObservation = Annotated[
+    NuExtractMaterialObservation
+    | NuExtractParameterObservation
+    | NuExtractGeometryObservation
+    | NuExtractFeedPortExcitationObservation,
+    Field(discriminator="kind"),
+]
 
 
 class NuExtractReportedDerivation(ContractModel):
@@ -173,7 +190,7 @@ class NuExtractMissingInformationRecord(ContractModel):
     missing_information_id: Identifier
     description: NonEmptyString
     related_refs: list[NuExtractEntityReference] = Field(default_factory=list)
-    evidence: list[InlineEvidence] = Field(min_length=1)
+    evidence: list[InlineEvidence] = Field(default_factory=list)
 
 
 class NuExtractImageOnlySpatialMapContent(ContractModel):
@@ -182,7 +199,6 @@ class NuExtractImageOnlySpatialMapContent(ContractModel):
     plane_or_cut: NonEmptyString | None = None
     legend_or_scale_label: NonEmptyString | None = None
     annotated_points: list[ReportedPoint] = Field(default_factory=list)
-    evidence: list[InlineEvidence] = Field(min_length=1)
 
 
 NuExtractSpatialMapContent = Annotated[
@@ -202,7 +218,6 @@ class NuExtractImageOnlyGraphRepresentation(ContractModel):
     axes: list[AxisDescriptor] = Field(default_factory=list)
     trace_labels: list[NonEmptyString] = Field(default_factory=list)
     annotated_points: list[ReportedPoint] = Field(default_factory=list)
-    evidence: list[InlineEvidence] = Field(min_length=1)
 
 
 NuExtractResultRepresentation = Annotated[
@@ -233,21 +248,14 @@ class NuExtractResultRecord(ContractModel):
 
 
 class NuExtractPaperExtraction(ContractModel):
-    schema_name: Literal["paper_extraction"]
-    schema_version: Literal["1.0.0"]
-    document: DocumentReference
-    pages: list[PageRecord] = Field(min_length=1)
+    document: NuExtractDocumentMetadata
     designs: list[NuExtractDesignRecord]
-    material_observations: list[NuExtractMaterialObservation]
-    parameter_observations: list[NuExtractParameterObservation]
-    geometry_observations: list[NuExtractGeometryObservation]
-    feed_port_excitation_observations: list[NuExtractFeedPortExcitationObservation]
+    observations: list[NuExtractObservation]
     setups: list[NuExtractSetup]
     results: list[NuExtractResultRecord]
     derivations: list[NuExtractReportedDerivation]
     conflicts: list[NuExtractConflictRecord]
     missing_information: list[NuExtractMissingInformationRecord]
-    architecture_page_refs: list[int]
 
 
 class _EvidenceCatalogBuilder:
@@ -280,14 +288,14 @@ class _EvidenceCatalogBuilder:
 
 def normalize_nuextract_extraction(
     extraction: NuExtractPaperExtraction,
+    *,
+    document: DocumentReference,
+    pages: list[PageRecord],
 ) -> PaperExtraction:
     """Normalize inline evidence in deterministic top-level collection order.
 
-    Evidence is visited through designs, material_observations,
-    parameter_observations, geometry_observations,
-    feed_port_excitation_observations, setups, results, derivations, conflicts,
-    then missing_information. For each result, direct evidence precedes any
-    image-only representation evidence.
+    Evidence is visited through designs, observations, setups, results,
+    derivations, conflicts, then missing_information.
     """
     catalog = _EvidenceCatalogBuilder()
 
@@ -295,22 +303,22 @@ def normalize_nuextract_extraction(
         _record_with_evidence(record, record.evidence, catalog)
         for record in extraction.designs
     ]
-    material_observations = [
-        _record_with_evidence(record, record.evidence, catalog)
-        for record in extraction.material_observations
-    ]
-    parameter_observations = [
-        _record_with_evidence(record, record.evidence, catalog)
-        for record in extraction.parameter_observations
-    ]
-    geometry_observations = [
-        _record_with_evidence(record, record.evidence, catalog)
-        for record in extraction.geometry_observations
-    ]
-    feed_observations = [
-        _record_with_evidence(record, record.evidence, catalog)
-        for record in extraction.feed_port_excitation_observations
-    ]
+    material_observations: list[dict] = []
+    parameter_observations: list[dict] = []
+    geometry_observations: list[dict] = []
+    feed_observations: list[dict] = []
+    for observation in extraction.observations:
+        data = _record_with_evidence(observation, observation.evidence, catalog)
+        kind = data.pop("kind")
+        if isinstance(observation, NuExtractMaterialObservation):
+            material_observations.append(data)
+        elif isinstance(observation, NuExtractParameterObservation):
+            parameter_observations.append(data)
+        elif isinstance(observation, NuExtractGeometryObservation):
+            geometry_observations.append(data)
+        else:
+            data["observation_kind"] = kind
+            feed_observations.append(data)
     setups = [
         _record_with_evidence(record, record.evidence, catalog)
         for record in extraction.setups
@@ -328,13 +336,24 @@ def normalize_nuextract_extraction(
         _record_with_evidence(record, record.evidence, catalog)
         for record in extraction.missing_information
     ]
+    architecture_page_refs = sorted(
+        {
+            evidence.page_number
+            for record in [
+                *extraction.designs,
+                *extraction.observations,
+                *extraction.derivations,
+            ]
+            for evidence in record.evidence
+        }
+    )
 
     return PaperExtraction.model_validate(
         {
-            "schema_name": extraction.schema_name,
-            "schema_version": extraction.schema_version,
-            "document": extraction.document.model_dump(mode="json"),
-            "pages": [page.model_dump(mode="json") for page in extraction.pages],
+            "schema_name": "paper_extraction",
+            "schema_version": "1.0.0",
+            "document": document.model_dump(mode="json"),
+            "pages": [page.model_dump(mode="json") for page in pages],
             "evidence_catalog": [
                 record.model_dump(mode="json") for record in catalog.records
             ],
@@ -348,7 +367,7 @@ def normalize_nuextract_extraction(
             "derivations": derivations,
             "conflicts": conflicts,
             "missing_information": missing_information,
-            "architecture_page_refs": extraction.architecture_page_refs,
+            "architecture_page_refs": architecture_page_refs,
         }
     )
 
@@ -373,15 +392,13 @@ def _normalize_result(
     representation_data = representation.model_dump(mode="json")
 
     if isinstance(representation, NuExtractImageOnlyGraphRepresentation):
-        representation_data.pop("evidence")
-        representation_data["evidence_ids"] = catalog.ids_for(representation.evidence)
+        representation_data["evidence_ids"] = list(data["evidence_ids"])
     elif isinstance(representation, NuExtractSpatialMapRepresentation) and isinstance(
         representation.content,
         NuExtractImageOnlySpatialMapContent,
     ):
         content_data = representation.content.model_dump(mode="json")
-        content_data.pop("evidence")
-        content_data["evidence_ids"] = catalog.ids_for(representation.content.evidence)
+        content_data["evidence_ids"] = list(data["evidence_ids"])
         representation_data["content"] = content_data
 
     data["representation"] = representation_data
